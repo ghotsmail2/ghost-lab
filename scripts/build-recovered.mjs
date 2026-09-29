@@ -148,3 +148,25 @@ const homeAsset = path.join(outputRoot, 'assets', release, 'Home-a48wstN-.js')
 let homeAssetContent = await readFile(homeAsset, 'utf8')
 homeAssetContent = homeAssetContent.replace('let m=u.from("attendance").select("id",{count:"exact",head:!0}).is("clock_out",null);!c&&(n!=null&&n.primary_branch)&&(m=m.eq("branch_id",n.primary_branch)),m.then(({count:y})=>f(y||0))','let m=c?u.from("attendance").select("id",{count:"exact",head:!0}).is("clock_out",null):n?.primary_branch?u.rpc("count_on_shift_staff",{p_branch_id:n.primary_branch}):Promise.resolve({data:0,count:null,error:null});m.then(({count:y,data:P,error:w})=>{w||f(Number(c?y:P)||0)})')
 await writeFile(homeAsset, homeAssetContent)
+// Add a compact on-shift roster to the recovered production Home bundle.
+const onShiftHomeAsset = path.join(outputRoot, 'assets', release, 'Home-a48wstN-.js')
+let onShiftHome = await readFile(onShiftHomeAsset, 'utf8')
+if (!onShiftHome.includes('list_on_shift_staff')) {
+  onShiftHome = onShiftHome.replace(
+    ',[d,S]=i.useState(null),[j,_]=i.useState(!1),[z,W]=i.useState([]),c=G(n)',
+    ',[d,S]=i.useState(null),[j,_]=i.useState(!1),[z,W]=i.useState([]),[onShiftStaff,setOnShiftStaff]=i.useState([]),[showOnShiftStaff,setShowOnShiftStaff]=i.useState(!1),c=G(n)',
+  )
+  onShiftHome = onShiftHome.replace(
+    '},[s,v,c,n==null?void 0:n.primary_branch]),i.useEffect(()=>{n!=null&&n.id&&u.from("attendance")',
+    '},[s,v,c,n==null?void 0:n.primary_branch]),i.useEffect(()=>{u.rpc("list_on_shift_staff",{p_branch_id:c?null:n?.primary_branch||null}).then(({data:t,error:a})=>{a?console.error("[Ghost Lab] Failed to load on-shift staff:",a):setOnShiftStaff(t||[])})},[c,n==null?void 0:n.primary_branch]),i.useEffect(()=>{n!=null&&n.id&&u.from("attendance")',
+  )
+  const tick = String.fromCharCode(96)
+  const oldOnShiftCard = 'e.jsx(p,{label:"พนักงานเข้างาน",value:' + tick + '$' + '{o} คน' + tick + '})'
+  const newOnShiftCard = 'e.jsx("button",{type:"button",onClick:()=>setShowOnShiftStaff(!0),ariaLabel:"ดูรายชื่อพนักงานที่เข้างาน",style:{background:"transparent",border:0,color:"inherit",cursor:"pointer",padding:0,textAlign:"left"},children:e.jsx(p,{label:"พนักงานเข้างาน",value:' + tick + '$' + '{o} คน' + tick + ',meta:"กดดูรายชื่อ"})})'
+  onShiftHome = onShiftHome.replace(oldOnShiftCard, newOnShiftCard)
+  onShiftHome = onShiftHome.replace(
+    '})]})}function p({label:n',
+    '}),showOnShiftStaff&&e.jsx("div",{role:"presentation",onClick:t=>{t.target===t.currentTarget&&setShowOnShiftStaff(!1)},style:{alignItems:"center",background:"rgba(0,0,0,.62)",display:"flex",inset:0,justifyContent:"center",padding:18,position:"fixed",zIndex:30},children:e.jsxs("section",{role:"dialog",className:"panel",style:{maxWidth:430,width:"100%"},children:[e.jsxs("div",{style:{alignItems:"center",display:"flex",justifyContent:"space-between",marginBottom:12},children:[e.jsxs("div",{children:[e.jsx("div",{className:"font-display",style:{fontSize:15,fontWeight:600},children:"พนักงานที่เข้างานอยู่"}),e.jsxs("div",{style:{color:"var(--ghost-gray)",fontSize:11,marginTop:3},children:[onShiftStaff.length," คน"]})]}),e.jsx("button",{type:"button",className:"btn",onClick:()=>setShowOnShiftStaff(!1),style:{fontSize:12},children:"ปิด"})]}),onShiftStaff.length===0?e.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:12,padding:"14px 0",textAlign:"center"},children:"ยังไม่มีพนักงานเข้างาน"}):onShiftStaff.map(t=>e.jsxs("div",{style:{alignItems:"center",borderTop:"1px solid var(--line)",display:"flex",justifyContent:"space-between",padding:"10px 0"},children:[e.jsxs("div",{children:[e.jsx("strong",{style:{fontSize:13},children:t.name_en}),e.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:10,marginTop:3},children:t.branch_name||"ไม่ระบุสาขา"})]}),e.jsx("span",{className:"font-mono",style:{color:"#84d6a8",fontSize:11},children:new Date(t.clock_in).toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"})})]},t.id))]})})]})}function p({label:n',
+  )
+}
+await writeFile(onShiftHomeAsset, onShiftHome)
