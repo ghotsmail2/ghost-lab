@@ -138,3 +138,13 @@ await writeFile(path.join(outputRoot, 'index.html'), index.replaceAll('/assets/'
 await verifyAssetReferences(outputRoot)
 
 console.log(`Built recovered Ghost Lab production UI (${release}) with all referenced assets present.`)
+// Runtime safety follow-up patches for the deployed recovered bundles.
+const authAsset = path.join(outputRoot, 'assets', release, 'index-vaWnYKxf.js')
+let authAssetContent = await readFile(authAsset, 'utf8')
+authAssetContent = authAssetContent.replace('if(v){s(v);','if(v){try{await Ne.rpc("auto_clock_out_current_staff",{p_source:"stale_timeout",p_max_age_hours:16})}catch{}s(v);')
+authAssetContent = authAssetContent.replace('async function u(){await Ne.auth.signOut()}','async function u(){try{await Ne.rpc("auto_clock_out_current_staff",{p_source:"logout",p_max_age_hours:16})}catch{}await Ne.auth.signOut()}')
+await writeFile(authAsset, authAssetContent)
+const homeAsset = path.join(outputRoot, 'assets', release, 'Home-a48wstN-.js')
+let homeAssetContent = await readFile(homeAsset, 'utf8')
+homeAssetContent = homeAssetContent.replace('let m=u.from("attendance").select("id",{count:"exact",head:!0}).is("clock_out",null);!c&&(n!=null&&n.primary_branch)&&(m=m.eq("branch_id",n.primary_branch)),m.then(({count:y})=>f(y||0))','let m=c?u.from("attendance").select("id",{count:"exact",head:!0}).is("clock_out",null):n?.primary_branch?u.rpc("count_on_shift_staff",{p_branch_id:n.primary_branch}):Promise.resolve({data:0,count:null,error:null});m.then(({count:y,data:P,error:w})=>{w||f(Number(c?y:P)||0)})')
+await writeFile(homeAsset, homeAssetContent)
