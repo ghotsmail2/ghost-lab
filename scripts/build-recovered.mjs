@@ -108,6 +108,27 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       'd.from("staff").select("*").eq("active",!0).order("name_en")',
       'd.from("staff").select("*").order("active",{ascending:!1}).order("name_en")',
     )
+
+    // Adapt the recovered Commission page to the immutable recipient snapshot.
+    if (file.endsWith('CommissionPayouts-C8fCkOtW.js')) {
+      const oldCommissionQuery = 'c.from("bills").select("id,bill_number,staff_id,branch_id,commission,created_at,status,staff:staff_id(name_en,phone,avatar_url),branches:branch_id(name,key)").gt("commission",0).neq("status","rejected").order("created_at",{ascending:!1}).limit(500)'
+      const newCommissionQuery = 'c.from("commission_distributions").select("id,bill_id,user_id,amount,created_at,paid_at,reversed_at,commission_mode,recipient:user_id(name_en,phone,avatar_url),bill:bill_id(bill_number,branch_id,commission,created_at,status,branches:branch_id(name,key))").is("paid_at",null).is("reversed_at",null).order("created_at",{ascending:!1}).limit(2000)'
+      content = content.replace(oldCommissionQuery, newCommissionQuery)
+      content = content.replace(
+        'E.error&&r(E.error.message),B(E.data||[]),O((s.data||[]).map(n=>n.bill_id)),b(e.data||[])',
+        'E.error&&r(E.error.message);const n=(E.data||[]).map(o=>({...o,id:o.id,bill_id:o.bill_id,staff_id:o.user_id,branch_id:o.bill?.branch_id,commission:o.amount,staff:o.recipient,branches:o.bill?.branches,bill_number:o.bill?.bill_number,status:o.bill?.status}));B(n),O((s.data||[]).map(o=>o.bill_id)),b(e.data||[])',
+      )
+      content = content.replace('p_bill_ids:l.bills.map(e=>e.id)', 'p_bill_ids:l.bills.map(e=>e.bill_id||e.id)')
+    }
+
+    // In the in-app browser, window.prompt is unsupported and aborts bill cancellation
+    // before the cancel_bill_safely RPC can run. Use a safe default audit reason.
+    if (file.endsWith('POSPage-CxiIf3bD.js')) {
+      content = content.replace(
+        /const o = window\.prompt\([\s\S]*?\);\s*if \(!\(o != null && o\.trim\(\)\)\) return;/,
+        'const o = "ยกเลิกโดยผู้ดูแลระบบ";'
+      )
+    }
   }
   // Vite's dynamic preload map uses assets/foo; relative module imports stay local.
   await writeFile(file, content.replaceAll('assets/', `assets/${release}/`))

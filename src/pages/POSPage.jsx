@@ -256,8 +256,11 @@ function NewBillTab({ branch, title, staff }) {
       subtotal: cartTotal,
       discount_pct: selfService ? 0 : couponFreeRepairApplied ? 100 : memberDiscount.percentage,
       commission: displayCommission,
+      commission_mode: branch.key === 'chill' ? 'ON_WORK_ALL' : 'INDIVIDUAL',
       total: displayTotal,
-      status: 'approved',
+      // A successful checkout is a completed bill. The database trigger
+      // snapshots ON_WORK_ALL recipients at this exact transition.
+      status: 'paid',
     }).select().single()
 
     if (billError) { console.error(billError); showToast('เกิดข้อผิดพลาด: ' + billError.message); setSubmitting(false); return }
@@ -589,6 +592,22 @@ function BillsHistoryTab({ branch, staff, onBillDeleted }) {
             return result
           }, {})
         }
+
+        const { data: distributionRows, error: distributionError } = await supabase
+          .from('commission_distributions')
+          .select('bill_id, user_id, user_name_snapshot, amount, commission_mode, paid_at, reversed_at')
+          .in('bill_id', billIds)
+        if (distributionError) {
+          // Older environments can deploy the UI before the migration; keep
+          // bill history usable while the migration is being applied.
+          console.warn('[Ghost Lab] Commission distributions unavailable:', distributionError.message)
+        } else {
+          const distributionsByBill = (distributionRows || []).reduce((result, item) => {
+            result[item.bill_id] = [...(result[item.bill_id] || []), item]
+            return result
+          }, {})
+          safeBills.forEach(bill => { bill.commission_distributions = distributionsByBill[bill.id] || [] })
+        }
       }
 
       if (!active) return
@@ -621,6 +640,9 @@ function BillHistoryRow({ bill, expanded, onToggle, canDelete, onDelete }) {
     return items
   }, {}))
   const discountAmount = Math.max(0, Number(bill.subtotal || 0) - Number(bill.total || 0))
+  const distributions = (bill.commission_distributions || []).filter(item => !item.reversed_at)
+  const modeLabel = bill.commission_mode === 'ON_WORK_ALL' ? 'ON WORK ALL' : bill.commission_mode === 'NONE' ? 'NONE' : 'INDIVIDUAL'
+  const payoutTotal = distributions.reduce((sum, item) => sum + Number(item.amount || 0), 0)
 
   return <div style={{ borderBottom: '1px solid var(--line)', fontSize: 12 }}>
     <div onClick={onToggle} style={{ alignItems: 'center', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', padding: '11px 0' }}>
@@ -630,7 +652,13 @@ function BillHistoryRow({ bill, expanded, onToggle, canDelete, onDelete }) {
         {canDelete && <button type="button" onClick={event => { event.stopPropagation(); onDelete() }} title="ยกเลิกบิลของฉัน" style={{ background: 'transparent', border: '1px solid rgba(196,30,42,.55)', borderRadius: 5, color: '#f18b92', cursor: 'pointer', fontSize: 11, padding: '4px 7px' }}>ลบบิล</button>}
       </div>
     </div>
-    {expanded && <div style={{ background: 'rgba(255,255,255,.025)', borderTop: '1px solid var(--line)', margin: '0 -8px', padding: '12px 14px' }}><div style={{ color: 'var(--ghost-gray)', fontSize: 10, letterSpacing: .8, marginBottom: 7 }}>รายการที่ทำ</div>{groupedItems.length === 0 ? <div style={{ color: 'var(--ghost-gray)', fontSize: 11 }}>ไม่มีรายละเอียดรายการในบิลนี้</div> : groupedItems.map(item => <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}><span>{item.name} <span style={{ color: 'var(--ghost-gray)' }}>×{item.quantity}</span></span><span className="font-mono">¥{item.total.toLocaleString()}</span></div>)}<div style={{ borderTop: '1px dashed var(--line)', display: 'grid', gap: 4, gridTemplateColumns: '1fr auto', marginTop: 9, paddingTop: 9 }}><span style={{ color: 'var(--ghost-gray)' }}>Subtotal</span><span className="font-mono">¥{Number(bill.subtotal || 0).toLocaleString()}</span>{discountAmount > 0 && <><span style={{ color: '#84d6a8' }}>ส่วนลด {bill.discount_pct ? `(${bill.discount_pct}%)` : ''}</span><span className="font-mono" style={{ color: '#84d6a8' }}>−¥{discountAmount.toLocaleString()}</span></>}<span style={{ color: 'var(--ghost-gray)' }}>Commission</span><span className="font-mono" style={{ color: '#e5c158' }}>¥{Number(bill.commission || 0).toLocaleString()}</span><strong>TOTAL</strong><strong className="font-mono" style={{ color: 'var(--blood)' }}>¥{Number(bill.total || 0).toLocaleString()}</strong></div>{noteSnapshot.note && <div style={{ color: 'var(--ghost-gray)', fontSize: 11, marginTop: 10 }}>หมายเหตุ: {noteSnapshot.note}</div>}</div>}
+    {expanded && <div style={{ background: 'rgba(255,255,255,.025)', borderTop: '1px solid var(--line)', margin: '0 -8px', padding: '12px 14px' }}>
+      <div style={{ color: 'var(--ghost-gray)', fontSize: 10, letterSpacing: .8, marginBottom: 7 }}>รายการที่ทำ</div>
+      {groupedItems.length === 0 ? <div style={{ color: 'var(--ghost-gray)', fontSize: 11 }}>ไม่มีรายละเอียดรายการในบิลนี้</div> : groupedItems.map(item => <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}><span>{item.name} <span style={{ color: 'var(--ghost-gray)' }}>×{item.quantity}</span></span><span className="font-mono">¥{item.total.toLocaleString()}</span></div>)}
+      <div style={{ borderTop: '1px dashed var(--line)', display: 'grid', gap: 4, gridTemplateColumns: '1fr auto', marginTop: 9, paddingTop: 9 }}><span style={{ color: 'var(--ghost-gray)' }}>Subtotal</span><span className="font-mono">¥{Number(bill.subtotal || 0).toLocaleString()}</span>{discountAmount > 0 && <><span style={{ color: '#84d6a8' }}>ส่วนลด {bill.discount_pct ? `(${bill.discount_pct}%)` : ''}</span><span className="font-mono" style={{ color: '#84d6a8' }}>−¥{discountAmount.toLocaleString()}</span></>}<span style={{ color: 'var(--ghost-gray)' }}>Commission / Person</span><span className="font-mono" style={{ color: '#e5c158' }}>¥{Number(bill.commission || 0).toLocaleString()}</span><strong>TOTAL</strong><strong className="font-mono" style={{ color: 'var(--blood)' }}>¥{Number(bill.total || 0).toLocaleString()}</strong></div>
+      {bill.commission_mode && <div style={{ borderTop: '1px dashed var(--line)', marginTop: 10, paddingTop: 9 }}><div style={{ color: '#e5c158', fontSize: 11, fontWeight: 600 }}>Commission Mode: {modeLabel}</div><div style={{ color: 'var(--ghost-gray)', fontSize: 11, marginTop: 4 }}>On Work Recipients: {distributions.length} คน · Total Commission Payout: ¥{payoutTotal.toLocaleString()}</div>{distributions.length > 0 && <div style={{ marginTop: 6 }}>{distributions.map(item => <div key={item.user_id || item.user_name_snapshot} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}><span>{item.user_name_snapshot}</span><span className="font-mono">¥{Number(item.amount || 0).toLocaleString()}</span></div>)}</div>}</div>}
+      {noteSnapshot.note && <div style={{ color: 'var(--ghost-gray)', fontSize: 11, marginTop: 10 }}>หมายเหตุ: {noteSnapshot.note}</div>}
+    </div>}
   </div>
 }
 
