@@ -170,3 +170,24 @@ if (!onShiftHome.includes('list_on_shift_staff')) {
   )
 }
 await writeFile(onShiftHomeAsset, onShiftHome)
+
+// Allow cashiers to enter a manual percentage discount in both branch POS forms.
+const manualDiscountAsset = path.join(outputRoot, 'assets', release, 'POSPage-CxiIf3bD.js')
+let manualDiscountContent = await readFile(manualDiscountAsset, 'utf8')
+if (!manualDiscountContent.includes('manualDiscountPct')) {
+  manualDiscountContent = manualDiscountContent.replace(
+    '    [E, ne] = i.useState(() => Boolean(initialDraft == null ? void 0 : initialDraft.memberEnabled)),\n    [q, se]',
+    '    [E, ne] = i.useState(() => Boolean(initialDraft == null ? void 0 : initialDraft.memberEnabled)),\n    [manualDiscountPct, setManualDiscountPct] = i.useState(() => Number(initialDraft == null ? void 0 : initialDraft.manualDiscountPct) || 0),\n    [q, se]',
+  )
+  manualDiscountContent = manualDiscountContent.replace('paymentMethod: $, amountReceived: I }));', 'paymentMethod: $, amountReceived: I, manualDiscountPct }));')
+  manualDiscountContent = manualDiscountContent.replace('}, [cartSelection, l, s, c, M, E, q, H, $, I, draftStorageKey]);', '}, [cartSelection, l, s, c, M, E, manualDiscountPct, q, H, $, I, draftStorageKey]);')
+  manualDiscountContent = manualDiscountContent.replace(
+    '    Z = Y || de,\n    O = M || de ? 0 : N.total,\n    pe = M ? 0 : n.commission_flat;',
+    '    Z = Y || de,\n    safeManualDiscountPct = Math.min(100, Math.max(0, Number(manualDiscountPct) || 0)),\n    manualDiscountAmount = Math.min(N.total, Math.round(N.total * safeManualDiscountPct / 100)),\n    O = M || de ? 0 : Math.max(0, N.total - manualDiscountAmount),\n    discountPctForBill = M ? 0 : de ? 100 : W > 0 ? Number((100 - O / W * 100).toFixed(2)) : 0,\n    pe = M ? 0 : n.commission_flat;',
+  )
+  manualDiscountContent = manualDiscountContent.replace('discount_pct: M ? 0 : de ? 100 : N.percentage,', 'discount_pct: discountPctForBill,')
+  const commissionMarker = '        }), e.jsxs("div", {\n          className: "font-mono",\n          style: {\n            display: "flex",\n            justifyContent: "space-between",\n            fontSize: 13,\n            color: "var(--ghost-gray)",\n            marginBottom: 6\n          },\n          children: [e.jsx("span", {\n            children: "COMMISSION (FLAT)"'
+  const manualDiscountField = '        }), !M && e.jsxs("label", {style: {display: "grid", gap: 6, marginBottom: 12}, children: [e.jsx("span", {style: {color: "var(--ghost-gray)", fontSize: 10, letterSpacing: .8}, children: "ส่วนลด (%)"}), e.jsx("input", {className: "input", type: "number", min: 0, max: 100, step: "0.01", inputMode: "decimal", placeholder: "เช่น 10", value: safeManualDiscountPct || "", onChange: t => setManualDiscountPct(Math.min(100, Math.max(0, Number(t.target.value) || 0)))}), manualDiscountAmount > 0 && e.jsxs("span", {className: "font-mono", style: {color: "#84d6a8", fontSize: 11}, children: ["−¥", manualDiscountAmount.toLocaleString(), " จากยอดหลังส่วนลดสมาชิก"]})]}), e.jsxs("div", {\n          className: "font-mono",\n          style: {\n            display: "flex",\n            justifyContent: "space-between",\n            fontSize: 13,\n            color: "var(--ghost-gray)",\n            marginBottom: 6\n          },\n          children: [e.jsx("span", {\n            children: "COMMISSION (FLAT)"'
+  manualDiscountContent = manualDiscountContent.replace(commissionMarker, manualDiscountField)
+}
+await writeFile(manualDiscountAsset, manualDiscountContent)
