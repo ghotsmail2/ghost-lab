@@ -87,7 +87,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
     // the same retry/cache behavior to the deployed bundle so transient RLS or
     // network failures cannot make a valid staff account look deleted.
     const oldStaffLoader = 'async function a(f){const{data:v,error:y}=await Ne.from("staff").select("*, branches:primary_branch(*)").eq("auth_user_id",f).single();y&&console.error("[Ghost Lab] Failed to load staff row:",y),s(v||null),o(!1)}'
-    const newStaffLoader = 'async function a(f){let v=null,y=null;for(let g=0;g<3;g++){({data:v,error:y}=await Ne.from("staff").select("*, branches:primary_branch(*)").eq("auth_user_id",f).maybeSingle());if(!y)break;await new Promise(q=>setTimeout(q,250*(g+1)))}if(v){s(v);try{sessionStorage.setItem("ghostlab-staff-session",JSON.stringify(v))}catch{}}else if(y){console.error("[Ghost Lab] Failed to load staff row:",y);try{const g=JSON.parse(sessionStorage.getItem("ghostlab-staff-session")||"null");g?.auth_user_id===f&&s(g)}catch{}}else s(null);o(!1)}'
+    const newStaffLoader = 'async function a(f){let v=null,y=null;for(let g=0;g<3;g++){({data:v,error:y}=await Ne.from("staff").select("*, branches:primary_branch(*)").eq("auth_user_id",f).maybeSingle());if(!y)break;await new Promise(q=>setTimeout(q,250*(g+1)))}if(v){try{await Ne.rpc("auto_clock_out_current_staff",{p_source:"stale_timeout",p_max_age_hours:16})}catch{}s(v);try{sessionStorage.setItem("ghostlab-staff-session",JSON.stringify(v))}catch{}}else if(y){console.error("[Ghost Lab] Failed to load staff row:",y);try{const g=JSON.parse(sessionStorage.getItem("ghostlab-staff-session")||"null");g?.auth_user_id===f&&s(g)}catch{}}else s(null);o(!1)}'
     if (file.endsWith('index-vaWnYKxf.js') && !content.includes(oldStaffLoader)) {
       throw new Error('Recovered auth loader changed unexpectedly; refusing to build without account-stability patch.')
     }
@@ -100,6 +100,47 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
     const newAuthState = 'const[e,r]=k.useState(null),[n,s]=k.useState(null),[i,o]=k.useState(!0),sessionRef=k.useRef(null);k.useEffect(()=>{Ne.auth.getSession().then(({data:v})=>{sessionRef.current=v.session,r(v.session),v.session?a(v.session.user.id):o(!1)});const{data:f}=Ne.auth.onAuthStateChange((v,y)=>{if((v==="TOKEN_REFRESHED"||v==="INITIAL_SESSION")&&y&&sessionRef.current?.user?.id===y.user.id){sessionRef.current=y,r(y);return}o(!0),sessionRef.current=y,r(y),y?a(y.user.id):(s(null),o(!1))});return()=>f.subscription.unsubscribe()},[])'
     if (file.endsWith('index-vaWnYKxf.js') && content.includes(oldAuthState)) {
       content = content.replace(oldAuthState, newAuthState)
+    }
+
+    // Close open attendance on explicit logout. A browser close cannot
+    // reliably await a network request, so stale sessions are also handled by
+    // the login-time cleanup in the staff loader above.
+    const oldLogout = 'async function u(){await Ne.auth.signOut()}'
+    const newLogout = 'async function u(){try{await Ne.rpc("auto_clock_out_current_staff",{p_source:"logout",p_max_age_hours:16})}catch{}await Ne.auth.signOut()}'
+    if (file.endsWith('index-vaWnYKxf.js')) {
+      content = content.replace(oldLogout, newLogout)
+    }
+
+    // Ordinary staff may see the number of people currently working in their
+    // own branch through a security-definer aggregate, without gaining access
+    // to other employees' attendance rows.
+    if (file.endsWith('Home-a48wstN-.js')) {
+      const oldAttendanceCount = 'let m=u.from("attendance").select("id",{count:"exact",head:!0}).is("clock_out",null);!c&&(n!=null&&n.primary_branch)&&(m=m.eq("branch_id",n.primary_branch)),m.then(({count:y})=>f(y||0))'
+      const newAttendanceCount = 'let m=c?u.from("attendance").select("id",{count:"exact",head:!0}).is("clock_out",null):n?.primary_branch?u.rpc("count_on_shift_staff",{p_branch_id:n.primary_branch}):Promise.resolve({data:0,count:null,error:null});m.then(({count:y,data:P,error:w})=>{w||f(Number(c?y:P)||0)})'
+      content = content.replace(oldAttendanceCount, newAttendanceCount)
+
+      // Show a compact, branch-safe list of the people currently on shift.
+      const oldHomeState = ',[d,S]=i.useState(null),[j,_]=i.useState(!1),[z,W]=i.useState([]),c=G(n)'
+      const newHomeState = ',[d,S]=i.useState(null),[j,_]=i.useState(!1),[z,W]=i.useState([]),[onShiftStaff,setOnShiftStaff]=i.useState([]),[showOnShiftStaff,setShowOnShiftStaff]=i.useState(!1),[personalCommission,setPersonalCommission]=i.useState(0),[personalCommissionBills,setPersonalCommissionBills]=i.useState(0),c=G(n)'
+      content = content.replace(oldHomeState, newHomeState)
+
+      const oldHomeEffectBoundary = '},[s,v,c,n==null?void 0:n.primary_branch]),i.useEffect(()=>{n!=null&&n.id&&u.from("attendance")'
+      const newHomeEffectBoundary = '},[s,v,c,n==null?void 0:n.primary_branch]),i.useEffect(()=>{if(c||!n?.id){setPersonalCommission(0),setPersonalCommissionBills(0);return}const t=new Date;let a=null;if(s==="today"&&t.setHours(0,0,0,0),s==="week"&&(t.setDate(t.getDate()-6),t.setHours(0,0,0,0)),s==="month"&&(t.setDate(1),t.setHours(0,0,0,0)),s==="date"){const[y,w,P]=v.split("-").map(Number);t.setFullYear(y,w-1,P),t.setHours(0,0,0,0),a=new Date(t),a.setDate(a.getDate()+1)}let l=u.from("commission_distributions").select("amount,created_at").eq("user_id",n.id).is("reversed_at",null);s!=="all"&&(l=l.gte("created_at",t.toISOString())),a&&(l=l.lt("created_at",a.toISOString())),l.then(({data:y,error:w})=>{w?console.error("[Ghost Lab] Failed to load personal commission:",w):(setPersonalCommission((y||[]).reduce((t,a)=>t+Number(a.amount||0),0)),setPersonalCommissionBills((y||[]).length))})},[c,n==null?void 0:n.id,s,v]),i.useEffect(()=>{u.rpc("list_on_shift_staff",{p_branch_id:c?null:n?.primary_branch||null}).then(({data:t,error:a})=>{a?console.error("[Ghost Lab] Failed to load on-shift staff:",a):setOnShiftStaff(t||[])})},[c,n==null?void 0:n.primary_branch]),i.useEffect(()=>{n!=null&&n.id&&u.from("attendance")'
+      content = content.replace(oldHomeEffectBoundary, newHomeEffectBoundary)
+
+      const oldOnShiftCard = 'e.jsx(p,{label:"พนักงานเข้างาน",value:`${o} คน`})'
+      const newOnShiftCard = 'e.jsx("button",{type:"button",onClick:()=>setShowOnShiftStaff(!0),ariaLabel:"ดูรายชื่อพนักงานที่เข้างาน",style:{background:"transparent",border:0,color:"inherit",cursor:"pointer",padding:0,textAlign:"left"},children:e.jsx(p,{label:"พนักงานเข้างาน",value:`${o} คน`,meta:"กดดูรายชื่อ"})})'
+      content = content.replace(oldOnShiftCard, newOnShiftCard)
+
+      // Ordinary staff should see their own earned commission on Home. Owner/GOD
+      // keeps the existing team-wide aggregate card.
+      const oldCommissionCard = 'e.jsx(p,{label:`COMMISSION ${h}`,value:`¥${M.toLocaleString()}`,accent:!0})'
+      const newCommissionCard = 'e.jsx(p,{label:c?`COMMISSION ${h}`:`ค่าคอมของฉัน ${h}`,value:`¥${(c?M:personalCommission).toLocaleString()}`,meta:c?void 0:`${personalCommissionBills} บิล`,accent:!0})'
+      content = content.replace(oldCommissionCard, newCommissionCard)
+
+      const oldHomeRootClose = '})]})}function p({label:n'
+      const onShiftModal = '}),showOnShiftStaff&&e.jsx("div",{role:"presentation",onClick:t=>{t.target===t.currentTarget&&setShowOnShiftStaff(!1)},style:{alignItems:"center",background:"rgba(0,0,0,.62)",display:"flex",inset:0,justifyContent:"center",padding:18,position:"fixed",zIndex:30},children:e.jsxs("section",{role:"dialog",className:"panel",style:{maxWidth:430,width:"100%"},children:[e.jsxs("div",{style:{alignItems:"center",display:"flex",justifyContent:"space-between",marginBottom:12},children:[e.jsxs("div",{children:[e.jsx("div",{className:"font-display",style:{fontSize:15,fontWeight:600},children:"พนักงานที่เข้างานอยู่"}),e.jsxs("div",{style:{color:"var(--ghost-gray)",fontSize:11,marginTop:3},children:[onShiftStaff.length," คน"]})]}),e.jsx("button",{type:"button",className:"btn",onClick:()=>setShowOnShiftStaff(!1),style:{fontSize:12},children:"ปิด"})]}),onShiftStaff.length===0?e.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:12,padding:"14px 0",textAlign:"center"},children:"ยังไม่มีพนักงานเข้างาน"}):onShiftStaff.map(t=>e.jsxs("div",{style:{alignItems:"center",borderTop:"1px solid var(--line)",display:"flex",justifyContent:"space-between",padding:"10px 0"},children:[e.jsxs("div",{children:[e.jsx("strong",{style:{fontSize:13},children:t.name_en}),e.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:10,marginTop:3},children:t.branch_name||"ไม่ระบุสาขา"})]}),e.jsx("span",{className:"font-mono",style:{color:"#84d6a8",fontSize:11},children:new Date(t.clock_in).toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"})})]},`${t.branch_id}-${t.id}`))]})})]})}function p({label:n'
+      content = content.replace(oldHomeRootClose, onShiftModal)
     }
 
     // Keep inactive staff visible in Owner's admin list so deactivation is
@@ -128,6 +169,59 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
         /const o = window\.prompt\([\s\S]*?\);\s*if \(!\(o != null && o\.trim\(\)\)\) return;/,
         'const o = "ยกเลิกโดยผู้ดูแลระบบ";'
       )
+
+      // Allow a cashier to enter an explicit percentage discount for either
+      // branch. It is applied after member/free-repair discounts and capped
+      // at the remaining bill total so totals can never become negative.
+      content = content.replace(
+        '    [E, ne] = i.useState(() => Boolean(initialDraft == null ? void 0 : initialDraft.memberEnabled)),\n    [q, se]',
+        '    [E, ne] = i.useState(() => Boolean(initialDraft == null ? void 0 : initialDraft.memberEnabled)),\n    [manualDiscountPct, setManualDiscountPct] = i.useState(() => Number(initialDraft == null ? void 0 : initialDraft.manualDiscountPct) || 0),\n    [q, se]',
+      )
+      content = content.replace(
+        'paymentMethod: $, amountReceived: I }));',
+        'paymentMethod: $, amountReceived: I, manualDiscountPct }));',
+      )
+      content = content.replace(
+        '}, [cartSelection, l, s, c, M, E, q, H, $, I, draftStorageKey]);',
+        '}, [cartSelection, l, s, c, M, E, manualDiscountPct, q, H, $, I, draftStorageKey]);',
+      )
+      content = content.replace(
+        '    Z = Y || de,\n    O = M || de ? 0 : N.total,\n    pe = M ? 0 : n.commission_flat;',
+        '    Z = Y || de,\n    safeManualDiscountPct = Math.min(100, Math.max(0, Number(manualDiscountPct) || 0)),\n    manualDiscountAmount = Math.min(N.total, Math.round(N.total * safeManualDiscountPct / 100)),\n    O = M || de ? 0 : Math.max(0, N.total - manualDiscountAmount),\n    discountPctForBill = M ? 0 : de ? 100 : W > 0 ? Number((100 - O / W * 100).toFixed(2)) : 0,\n    pe = M ? 0 : n.commission_flat;',
+      )
+      content = content.replace(
+        'discount_pct: M ? 0 : de ? 100 : N.percentage,',
+        'discount_pct: discountPctForBill,',
+      )
+      const discountMarker = `        }), e.jsxs("div", {\n          className: "font-mono",\n          style: {\n            display: "flex",\n            justifyContent: "space-between",\n            fontSize: 13,\n            color: "var(--ghost-gray)",\n            marginBottom: 6\n          },\n          children: [e.jsx("span", {\n            children: "COMMISSION (FLAT)"`
+      const discountField = `        }), !M && e.jsxs("label", {style: {display: "grid", gap: 6, marginBottom: 12}, children: [e.jsx("span", {style: {color: "var(--ghost-gray)", fontSize: 10, letterSpacing: .8}, children: "ส่วนลด (%)"}), e.jsx("input", {className: "input", type: "number", min: 0, max: 100, step: "0.01", inputMode: "decimal", placeholder: "เช่น 10", value: safeManualDiscountPct || "", onChange: t => setManualDiscountPct(Math.min(100, Math.max(0, Number(t.target.value) || 0)))}), manualDiscountAmount > 0 && e.jsxs("span", {className: "font-mono", style: {color: "#84d6a8", fontSize: 11}, children: ["−¥", manualDiscountAmount.toLocaleString(), " จากยอดหลังส่วนลดสมาชิก"]})]}), e.jsxs("div", {\n          className: "font-mono",\n          style: {\n            display: "flex",\n            justifyContent: "space-between",\n            fontSize: 13,\n            color: "var(--ghost-gray)",\n            marginBottom: 6\n          },\n          children: [e.jsx("span", {\n            children: "COMMISSION (FLAT)"`
+      content = content.replace(discountMarker, discountField)
+    }
+
+    // Membership is data-driven in the collaboration system. Keep the
+    // recovered production bundle compatible with old member rows while
+    // presenting the new fixed 3/5/7% tiers and cashback benefits.
+    if (file.endsWith('membership-BI3ZslQk.js')) {
+      const membershipModule = `const i={garage:{regular:{key:"regular",label:"Chill",monthlyFee:0,discounts:{0:3},discountPercent:3,cashbackPercent:0,benefit:"3% OFF · Member Event · Reward พื้นฐาน"},silver:{key:"silver",label:"Silver",monthlyFee:25000,discounts:{0:5},discountPercent:5,cashbackPercent:0,benefit:"5% OFF · Engine Repair Kit x1 · Priority Queue"},gold:{key:"gold",label:"Gold",monthlyFee:50000,discounts:{0:7},discountPercent:7,cashbackPercent:3,benefit:"7% OFF · Repair Kits x3 · Cashback 3% · VIP"}},chill:null};i.chill=i.garage;const h=i.garage,p=Object.keys(h);function d(e,t="garage"){const n=i[t]||i.garage;return n[e]||n.regular}function y(e){return[{minimum:0,percentage:Math.min(7,Number(e.discountPercent||0))}]}function M(e,t=new Date){if(!(e!=null&&e.membership_expires_at))return!1;const n=t instanceof Date?t.getTime():Date.now();return new Date(e.membership_expires_at).getTime()>=n}function D(e,t,n=(g=>(g=e==null?void 0:e.branches)==null?void 0:g.key)()||"garage",a=new Date){const o=Number(t||0),r=d(e==null?void 0:e.tier,n),l=M(e,a),c=l?y(r)[0].percentage:0,u=Math.round(o*c/100);return{active:l,plan:r,percentage:c,amount:u,total:o-u}}function w(e){return e?new Intl.DateTimeFormat("th-TH",{day:"numeric",month:"short",year:"numeric"}).format(new Date(e)):"ยังไม่เปิดใช้"}function S(e){const n=new Date,a=new Date(n);return a.setMonth(a.getMonth()+1),a.toISOString()}function b(e,t){const n=new Date(e),a=new Date(n);return a.setMonth(a.getMonth()+Math.max(1,Number(t)||1)),a.toISOString()}function m(e=new Date){const t=new Date(e),n=t.getTimezoneOffset()*6e4;return new Date(t.getTime()-n).toISOString().slice(0,10)}export{p as M,y as a,b,D as c,w as f,d as g,M as i,S as n,m as t};`;
+      content = membershipModule
+    }
+
+    // Add a compact Collaboration control surface to the existing Members
+    // screen. Owners can create/disable promotions without a code deploy;
+    // everyone can see the active campaign and its eligible benefits.
+    if (file.endsWith('Members-Gwy05wzy.js')) {
+      const oldPlans = 'e.jsx(ne,{branchKey:w,onAdd:s=>_({tier:s})})'
+      const newPlans = 'e.jsxs(e.Fragment,{children:[e.jsx(ne,{branchKey:w,onAdd:s=>_({tier:s})}),e.jsx(ce,{staff:a})]})'
+      content = content.replace(oldPlans, newPlans)
+      const oldMemberName = 'e.jsx("strong",{children:s.name}),e.jsxs("small",{children:[s.phone||"ไม่ระบุเบอร์",s.plate_or_note&&` · ${s.plate_or_note}`]})'
+      const newMemberName = 'e.jsx("strong",{children:s.name}),e.jsxs("small",{children:[s.phone||"ไม่ระบุเบอร์",s.plate_or_note&&` · ${s.plate_or_note}`,s.brand_source&&e.jsxs("span",{style:{color:"#d8b24c",marginLeft:6},children:["· ",s.brand_source]})]})'
+      content = content.replace(oldMemberName, newMemberName)
+      content = content.replace('[p,P]=l.useState("all"),[j,I]', '[p,P]=l.useState("all"),[brandFilter,setBrandFilter]=l.useState("all"),[j,I]')
+      content = content.replace('return n&&x})},[i,p,j])', 'return n&&x&&(brandFilter==="all"||r.brand_source===brandFilter)})},[i,p,j,brandFilter])')
+      content = content.replace('}),k&&e.jsxs("div",{className:"members-error"', '}),e.jsxs("div",{className:"member-filters",style:{marginTop:8},children:[e.jsx("span",{style:{color:"var(--ghost-gray)",fontSize:11,marginRight:8},children:"Brand Source"}),["all","GHOSTLAB","SABINAGISA","COLLAB"].map(t=>e.jsx("button",{type:"button",className:brandFilter===t?"is-active":"",onClick:()=>setBrandFilter(t),children:t==="all"?"ทั้งหมด":t},t))]}),k&&e.jsxs("div",{className:"members-error"')
+      const insertBefore = 'export{de as default};'
+      const adminPanel = "function ce({staff:a}){const[p,setP]=l.useState([]),[show,setShow]=l.useState(!1),[name,setName]=l.useState(\"\"),[disc,setDisc]=l.useState(0),[err,setErr]=l.useState(\"\");l.useEffect(()=>{f.from(\"promotions\").select(\"*\").in(\"status\",[\"ACTIVE\",\"DRAFT\"]).order(\"priority\",{ascending:!1}).then(({data:t})=>setP(t||[]))},[show]);const owner=a&&(a.role===\"owner\"||a.role===\"god\");async function save(t){t.preventDefault();const{error:n}=await f.from(\"promotions\").insert({promotion_name:name,description:\"\",discount_percent:Math.min(7,Math.max(0,Number(disc)||0)),cashback_percent:0,eligible_tier:[\"chill\",\"silver\",\"gold\"],status:\"ACTIVE\",badge:\"COLLAB\"});if(n){setErr(n.message);return}setName(\"\"),setDisc(0),setShow(!1)}async function toggle(t){await f.from(\"promotions\").update({status:t.status===\"ACTIVE\"?\"INACTIVE\":\"ACTIVE\"}).eq(\"id\",t.id);setShow(!show)}return e.jsxs(\"section\",{className:\"membership-plans\",style:{marginTop:18},children:[e.jsx(\"img\",{src:\"assets/collaboration-banner.png\",alt:\"TWO SOULS, ONE GARAGE\",style:{borderRadius:12,display:\"block\",height:\"auto\",marginBottom:14,maxHeight:260,objectFit:\"cover\",width:\"100%\"}}),e.jsxs(\"div\",{style:{display:\"flex\",justifyContent:\"space-between\",alignItems:\"center\"},children:[e.jsxs(\"div\",{children:[e.jsx(\"span\",{style:{color:\"#c51f2f\",fontSize:11,letterSpacing:2},children:\"TWO SOULS, ONE GARAGE\"}),e.jsx(\"h2\",{className:\"font-display\",children:\"GHOSTLAB × SABINAGISA\"})]}),owner&&e.jsx(\"button\",{type:\"button\",className:\"membership-plan__add\",onClick:()=>setShow(!show),children:\"+ Promotion\"})]}),e.jsx(\"p\",{style:{color:\"var(--ghost-gray)\",fontSize:12},children:\"Membership เดียวกัน · แบรนด์ต้นทาง GHOSTLAB / SABINAGISA / COLLAB\"}),e.jsx(\"div\",{style:{display:\"grid\",gap:8},children:p.map(t=>e.jsxs(\"div\",{style:{display:\"flex\",justifyContent:\"space-between\",borderTop:\"1px solid var(--line)\",padding:\"8px 0\"},children:[e.jsxs(\"span\",{children:[t.promotion_name,\" \",t.badge&&e.jsx(\"em\",{children:t.badge})]}),owner&&e.jsx(\"button\",{type:\"button\",onClick:()=>toggle(t),children:t.status===\"ACTIVE\"?\"ปิด\":\"เปิด\"})]},t.id))}),owner&&show&&e.jsxs(\"form\",{onSubmit:save,style:{display:\"grid\",gap:8,marginTop:10},children:[e.jsx(\"input\",{className:\"input\",placeholder:\"ชื่อ Promotion\",value:name,onChange:t=>setName(t.target.value),required:!0}),e.jsx(\"input\",{className:\"input\",type:\"number\",min:0,max:7,step:\"0.01\",placeholder:\"ส่วนลด % สูงสุด 7\",value:disc,onChange:t=>setDisc(t.target.value)}),e.jsxs(\"div\",{style:{display:\"flex\",gap:8},children:[e.jsx(\"button\",{type:\"submit\",className:\"btn btn-primary\",children:\"บันทึก\"}),err&&e.jsx(\"small\",{children:err})]})]})]})}"
+      if (content.includes(insertBefore)) content = content.replace(insertBefore, adminPanel + insertBefore)
     }
   }
   // Vite's dynamic preload map uses assets/foo; relative module imports stay local.
@@ -234,6 +328,32 @@ if (!stockDraftContent.includes('ghostlab-stock-add:')) {
   stockDraftContent = stockDraftContent.replace('onClick:d,className:"btn btn-secondary",children:"ยกเลิก"', 'onClick:()=>{clearDraft(),d()},className:"btn btn-secondary",children:"ยกเลิก"')
 }
 await writeFile(stockDraftAsset, stockDraftContent)
+{
+
+// Persist stock-page inputs while staff navigate between routes. Drafts are
+// scoped to the signed-in staff member and are cleared only after a successful
+// save or an explicit cancel.
+const stockAsset = path.join(outputRoot, 'assets', release, 'Stock-CpMhahKC.js')
+let stockContent = await readFile(stockAsset, 'utf8')
+const oldStockAdjustState = ',[v,z]=i.useState(0),[l,x]=i.useState({}),[y,b]=i.useState(!1),[a,B]=i.useState("")'
+const newStockAdjustState = ',[v,z]=i.useState(0),[l,x]=i.useState(()=>{try{return JSON.parse(localStorage.getItem(`ghostlab-stock-adjust:${n?.id||"guest"}`)||"{}")||{}}catch{return{}}}),[y,b]=i.useState(!1),[a,B]=i.useState("")'
+stockContent = stockContent.replace(oldStockAdjustState, newStockAdjustState)
+stockContent = stockContent.replace(
+  '},[m,n==null?void 0:n.primary_branch]),i.useEffect(()=>{k(!0);',
+  '},[m,n==null?void 0:n.primary_branch]),i.useEffect(()=>{try{const t=`ghostlab-stock-adjust:${n?.id||"guest"}`;Object.keys(l).length?localStorage.setItem(t,JSON.stringify(l)):localStorage.removeItem(t)}catch{}},[l,n==null?void 0:n.id]),i.useEffect(()=>{k(!0);',
+)
+stockContent = stockContent.replace(
+  'e.jsx(A,{branches:o,onClose:()=>p(!1),onSaved:()=>{p(!1),z(t=>t+1)}})',
+  'e.jsx(A,{branches:o,staff:n,onClose:()=>p(!1),onSaved:()=>{p(!1),z(t=>t+1)}})',
+)
+const oldAddModalStart = 'function A({branches:n,onClose:d,onSaved:u}){var b;const[o,c]=i.useState(""),[g,S]=i.useState("วัตถุดิบ"),[C,k]=i.useState("ชิ้น"),[N,p]=i.useState("0"),[v,z]=i.useState(((b=n[0])==null?void 0:b.id)||""),[l,x]=i.useState(!1);async function y(){'
+const newAddModalStart = 'function A({branches:n,onClose:d,onSaved:u,staff:staff}){var b;const draftKey=`ghostlab-stock-add:${staff?.id||"guest"}`,readDraft=()=>{try{return JSON.parse(localStorage.getItem(draftKey)||"{}")}catch{return{}}},draft=readDraft(),[o,c]=i.useState(draft.name||""),[g,S]=i.useState(draft.category||"วัตถุดิบ"),[C,k]=i.useState(draft.unit||"ชิ้น"),[N,p]=i.useState(draft.quantity??"0"),[v,z]=i.useState(draft.branchId||((b=n[0])==null?void 0:b.id)||""),[l,x]=i.useState(!1);i.useEffect(()=>{try{localStorage.setItem(draftKey,JSON.stringify({name:o,category:g,unit:C,quantity:N,branchId:v}))}catch{}},[o,g,C,N,v]);function clearDraft(){try{localStorage.removeItem(draftKey)}catch{}}async function y(){'
+stockContent = stockContent.replace(oldAddModalStart, newAddModalStart)
+stockContent = stockContent.replace('if(x(!1),a){console.error(a);return}u()', 'if(x(!1),a){console.error(a);return}clearDraft(),u()')
+stockContent = stockContent.replace('onClick:d,style:{cursor:"pointer",color:"var(--ghost-gray)",fontSize:18},children:"✕"', 'onClick:()=>{clearDraft(),d()},style:{cursor:"pointer",color:"var(--ghost-gray)",fontSize:18},children:"✕"')
+stockContent = stockContent.replace('onClick:d,className:"btn btn-secondary",children:"ยกเลิก"', 'onClick:()=>{clearDraft(),d()},className:"btn btn-secondary",children:"ยกเลิก"')
+await writeFile(stockAsset, stockContent)
+}
 
 // Keep expense material suggestions scoped to the branch selected in the
 // expense form. The recovered bundle used a shared garage-only list, which
@@ -263,7 +383,6 @@ if (!expenseContent.includes('stockItems')) {
   }
 }
 await writeFile(expenseAsset, expenseContent)
-
 // Keep unfinished member and expense forms when a background tab or route is
 // recreated. Drafts are browser-local and are cleared on save or cancel.
 const memberDraftAsset = path.join(outputRoot, 'assets', release, 'Members-Gwy05wzy.js')
