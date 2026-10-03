@@ -231,6 +231,6 @@ if (!stockDraftContent.includes('ghostlab-stock-add:')) {
   stockDraftContent = stockDraftContent.replace(oldAddModalStart, newAddModalStart)
   stockDraftContent = stockDraftContent.replace('if(x(!1),a){console.error(a);return}u()', 'if(x(!1),a){console.error(a);return}clearDraft(),u()')
   stockDraftContent = stockDraftContent.replace('onClick:d,style:{cursor:"pointer",color:"var(--ghost-gray)",fontSize:18},children:"✕"', 'onClick:clearDraft,style:{cursor:"pointer",color:"var(--ghost-gray)",fontSize:18},children:"✕"')
-  stockDraftContent = stockDraftContent.replace('onClick:d,className:"btn btn-secondary",children:"ยกเลิก"', 'onClick:clearDraft,className:"btn btn-secondary",children:"ยกเลิก"')
+  stockDraftContent = stockDraftContent.replace('onClick:d,className:"btn btn-secondary",children:"ยกเลิก"', 'onClick:()=>{clearDraft(),d()},className:"btn btn-secondary",children:"ยกเลิก"')
 }
 await writeFile(stockDraftAsset, stockDraftContent)
