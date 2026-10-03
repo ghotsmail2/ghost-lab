@@ -10,9 +10,21 @@ export default function Stock() {
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [changes, setChanges] = useState({})
+  const stockChangeKey = `ghostlab-stock-adjust:${staff?.id || 'guest'}`
+  const [changes, setChanges] = useState(() => readStockChanges())
   const [savingChanges, setSavingChanges] = useState(false)
   const [saveError, setSaveError] = useState('')
+
+  function readStockChanges() {
+    try { return JSON.parse(localStorage.getItem(stockChangeKey) || 'null') || {} } catch { return {} }
+  }
+
+  useEffect(() => {
+    try {
+      if (Object.keys(changes).length) localStorage.setItem(stockChangeKey, JSON.stringify(changes))
+      else localStorage.removeItem(stockChangeKey)
+    } catch {}
+  }, [changes, stockChangeKey])
 
   useEffect(() => {
     supabase.from('branches').select('*').then(({ data }) => setBranches(data || []))
@@ -127,6 +139,7 @@ export default function Stock() {
       {showAdd && (
         <AddStockModal
           branches={branches}
+          staff={staff}
           onClose={() => setShowAdd(false)}
           onSaved={() => { setShowAdd(false); setRefreshKey(k => k + 1) }}
         />
@@ -194,13 +207,29 @@ function AdjustModal({ item, staff, onClose, onSaved }) {
   )
 }
 
-function AddStockModal({ branches, onClose, onSaved }) {
-  const [name, setName] = useState('')
-  const [category, setCategory] = useState('วัตถุดิบ')
-  const [unit, setUnit] = useState('ชิ้น')
-  const [quantity, setQuantity] = useState('0')
-  const [branchId, setBranchId] = useState(branches[0]?.id || '')
+function AddStockModal({ branches, staff, onClose, onSaved }) {
+  const draftKey = `ghostlab-stock-add:${staff?.id || 'guest'}`
+  const readDraft = () => { try { return JSON.parse(localStorage.getItem(draftKey) || 'null') || {} } catch { return {} } }
+  const draft = readDraft()
+  const [name, setName] = useState(draft.name || '')
+  const [category, setCategory] = useState(draft.category || 'วัตถุดิบ')
+  const [unit, setUnit] = useState(draft.unit || 'ชิ้น')
+  const [quantity, setQuantity] = useState(draft.quantity ?? '0')
+  const [branchId, setBranchId] = useState(draft.branchId || branches[0]?.id || '')
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    try { localStorage.setItem(draftKey, JSON.stringify({ name, category, unit, quantity, branchId })) } catch {}
+  }, [draftKey, name, category, unit, quantity, branchId])
+
+  function clearDraft() {
+    try { localStorage.removeItem(draftKey) } catch {}
+  }
+
+  function closeAndClearDraft() {
+    clearDraft()
+    onClose()
+  }
 
   async function save() {
     if (!name.trim() || !branchId) return
@@ -210,15 +239,16 @@ function AddStockModal({ branches, onClose, onSaved }) {
     })
     setSaving(false)
     if (error) { console.error(error); return }
+    clearDraft()
     onSaved()
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+    <div onMouseDown={event => event.target === event.currentTarget && closeAndClearDraft()} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div className="panel" style={{ width: '100%', maxWidth: 420, background: 'var(--static)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div className="font-display" style={{ fontSize: 16, fontWeight: 600 }}>เพิ่มวัตถุดิบ</div>
-          <div onClick={onClose} style={{ cursor: 'pointer', color: 'var(--ghost-gray)', fontSize: 18 }}>✕</div>
+          <div onClick={closeAndClearDraft} style={{ cursor: 'pointer', color: 'var(--ghost-gray)', fontSize: 18 }}>✕</div>
         </div>
         <div style={{ marginBottom: 10 }}>
           <label style={{ fontSize: 11, color: 'var(--ghost-gray)', display: 'block', marginBottom: 6 }}>ชื่อ</label>
@@ -247,7 +277,7 @@ function AddStockModal({ branches, onClose, onSaved }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <div onClick={onClose} className="btn btn-secondary">ยกเลิก</div>
+          <div onClick={closeAndClearDraft} className="btn btn-secondary">ยกเลิก</div>
           <div onClick={save} className="btn btn-primary" style={{ opacity: saving ? 0.6 : 1 }}>{saving ? 'กำลังเพิ่ม...' : 'เพิ่ม'}</div>
         </div>
       </div>

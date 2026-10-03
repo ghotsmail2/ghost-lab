@@ -218,15 +218,31 @@ function FilterBtn({ active, onClick, children }) {
 }
 
 function AddExpenseModal({ branches, staff, onClose, onSaved }) {
-  const [category, setCategory] = useState('วัตถุดิบ')
-  const [description, setDescription] = useState('')
-  const [amount, setAmount] = useState('')
+  const draftKey = `ghostlab-expense-add-draft:${staff?.id || 'guest'}`
+  const readDraft = () => { try { return JSON.parse(localStorage.getItem(draftKey) || 'null') || {} } catch { return {} } }
+  const draft = readDraft()
+  const [category, setCategory] = useState(draft.category || 'วัตถุดิบ')
+  const [description, setDescription] = useState(draft.description || '')
+  const [amount, setAmount] = useState(draft.amount ?? '')
   const availableBranches = staff?.role === 'owner' || staff?.role === 'god'
     ? branches
     : branches.filter(branch => branch.id === staff?.primary_branch)
-  const [branchId, setBranchId] = useState(staff?.primary_branch || branches[0]?.id || '')
+  const [branchId, setBranchId] = useState(draft.branchId || staff?.primary_branch || branches[0]?.id || '')
   const [stockItems, setStockItems] = useState([])
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    try { localStorage.setItem(draftKey, JSON.stringify({ category, description, amount, branchId })) } catch {}
+  }, [draftKey, category, description, amount, branchId])
+
+  function clearDraft() {
+    try { localStorage.removeItem(draftKey) } catch {}
+  }
+
+  function closeAndClearDraft() {
+    clearDraft()
+    onClose()
+  }
 
   useEffect(() => {
     if (!branchId) {
@@ -251,15 +267,16 @@ function AddExpenseModal({ branches, staff, onClose, onSaved }) {
     })
     setSaving(false)
     if (error) { console.error(error); return }
+    clearDraft()
     onSaved()
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+    <div onMouseDown={event => event.target === event.currentTarget && closeAndClearDraft()} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div className="panel" style={{ width: 'calc(100% - 28px)', maxWidth: 560, maxHeight: 'calc(100vh - 32px)', overflowY: 'auto', background: 'var(--static)', padding: '20px 22px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div className="font-display" style={{ fontSize: 16, fontWeight: 600 }}>เพิ่มค่าใช้จ่าย</div>
-          <div onClick={onClose} style={{ cursor: 'pointer', color: 'var(--ghost-gray)', fontSize: 18 }}>✕</div>
+          <div onClick={closeAndClearDraft} style={{ cursor: 'pointer', color: 'var(--ghost-gray)', fontSize: 18 }}>✕</div>
         </div>
         <div style={{ marginBottom: 10 }}>
           <label style={{ fontSize: 11, color: 'var(--ghost-gray)', display: 'block', marginBottom: 6 }}>รายละเอียด</label>
@@ -288,7 +305,7 @@ function AddExpenseModal({ branches, staff, onClose, onSaved }) {
           </select>
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <div onClick={onClose} className="btn btn-secondary">ยกเลิก</div>
+          <div onClick={closeAndClearDraft} className="btn btn-secondary">ยกเลิก</div>
           <div onClick={save} className="btn btn-primary" style={{ opacity: saving ? 0.6 : 1 }}>{saving ? 'กำลังบันทึก...' : 'บันทึกเป็นค้างชำระ'}</div>
         </div>
       </div>

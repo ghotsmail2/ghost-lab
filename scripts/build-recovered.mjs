@@ -263,3 +263,40 @@ if (!expenseContent.includes('stockItems')) {
   }
 }
 await writeFile(expenseAsset, expenseContent)
+
+// Keep unfinished member and expense forms when a background tab or route is
+// recreated. Drafts are browser-local and are cleared on save or cancel.
+const memberDraftAsset = path.join(outputRoot, 'assets', release, 'Members-Gwy05wzy.js')
+let memberDraftContent = await readFile(memberDraftAsset, 'utf8')
+if (!memberDraftContent.includes('ghostlab-member-new-draft')) {
+  const oldMemberState = 'function ie({member:a,branches:m,onClose:o,onSaved:i}){var d,v,B;const c=!a.id,[N,q]=l.useState(a.name||""),[p,P]=l.useState(a.phone||""),[j,I]=l.useState(a.plate_or_note||""),[y,T]=l.useState(a.branch_id||((d=m[0])==null?void 0:d.id)||""),[g,_]=l.useState(Q.includes(a.tier)?a.tier:"regular"),[h,O]=l.useState(c),[k,F]=l.useState(!1),[w,L]=l.useState(se(c?new Date:b(a)?a.membership_expires_at:new Date)),[u,E]=l.useState(1)'
+  const newMemberState = 'function ie({member:a,branches:m,onClose:o,onSaved:i}){var d,v,B;const c=!a.id,draftKey="ghostlab-member-new-draft",readDraft=()=>{if(!c)return{};try{return JSON.parse(localStorage.getItem(draftKey)||"null")||{}}catch{return{}}},draft=readDraft(),[N,q]=l.useState(a.name||draft.name||""),[p,P]=l.useState(a.phone||draft.phone||""),[j,I]=l.useState(a.plate_or_note||draft.plate||""),[y,T]=l.useState(a.branch_id||draft.branchId||((d=m[0])==null?void 0:d.id)||""),[g,_]=l.useState(Q.includes(a.tier)?a.tier:draft.tier||"regular"),[h,O]=l.useState(c?draft.renew!==!1:!1),[k,F]=l.useState(!1),[w,L]=l.useState(c?draft.startDate||se(new Date):se(b(a)?a.membership_expires_at:new Date)),[u,E]=l.useState(c?Number(draft.months)||1:1)'
+  memberDraftContent = memberDraftContent.replace(oldMemberState, newMemberState)
+  memberDraftContent = memberDraftContent.replace(
+    ',n=D(g,r);async function x(t){',
+    ',n=D(g,r);l.useEffect(()=>{if(!c)return;try{localStorage.setItem(draftKey,JSON.stringify({name:N,phone:p,plate:j,branchId:y,tier:g,renew:h,startDate:w,months:u}))}catch{}},[c,N,p,j,y,g,h,w,u]);function clearDraft(){if(!c)return;try{localStorage.removeItem(draftKey)}catch{}}function closeAndClear(){clearDraft(),o()};async function x(t){',
+  )
+  memberDraftContent = memberDraftContent.replace('S(!1),i()}return e.jsx("div",{className:"member-modal"', 'S(!1),clearDraft(),i()}return e.jsx("div",{className:"member-modal"')
+  memberDraftContent = memberDraftContent.replace('onMouseDown:t=>t.target===t.currentTarget&&o()', 'onMouseDown:t=>t.target===t.currentTarget&&closeAndClear()')
+  memberDraftContent = memberDraftContent.replace('onClick:o,"aria-label":"ปิด"', 'onClick:closeAndClear,"aria-label":"ปิด"')
+  memberDraftContent = memberDraftContent.replace('onClick:o,children:"ยกเลิก"', 'onClick:closeAndClear,children:"ยกเลิก"')
+}
+await writeFile(memberDraftAsset, memberDraftContent)
+
+const expenseDraftAsset = path.join(outputRoot, 'assets', release, 'Expenses-6l8wjlXM.js')
+let expenseDraftContent = await readFile(expenseDraftAsset, 'utf8')
+if (!expenseDraftContent.includes('ghostlab-expense-add-draft')) {
+  expenseDraftContent = expenseDraftContent.replace(
+    'function V({branches:r,staff:s,onClose:m,onSaved:c}){var i;const[h,p]=l.useState("วัตถุดิบ"),[d,u]=l.useState(""),[x,C]=l.useState("")',
+    'function V({branches:r,staff:s,onClose:m,onSaved:c}){var i;const draftKey=`ghostlab-expense-add:${s?.id||"guest"}`,readDraft=()=>{try{return JSON.parse(localStorage.getItem(draftKey)||"null")||{}}catch{return{}}},draft=readDraft(),[h,p]=l.useState(draft.category||"วัตถุดิบ"),[d,u]=l.useState(draft.description||""),[x,C]=l.useState(draft.amount??"")',
+  )
+  expenseDraftContent = expenseDraftContent.replace(
+    ';async function k(){',
+    ';l.useEffect(()=>{try{localStorage.setItem(draftKey,JSON.stringify({category:h,description:d,amount:x,branchId:y}))}catch{}},[draftKey,h,d,x,y]);function clearDraft(){try{localStorage.removeItem(draftKey)}catch{}}function closeAndClear(){clearDraft(),m()};async function k(){',
+  )
+  expenseDraftContent = expenseDraftContent.replace('if(b(!1),a){console.error(a);return}c()', 'if(b(!1),a){console.error(a);return}clearDraft(),c()')
+  expenseDraftContent = expenseDraftContent.replace('return e.jsx("div",{style:{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)"', 'return e.jsx("div",{onMouseDown:t=>t.target===t.currentTarget&&closeAndClear,style:{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)"')
+  expenseDraftContent = expenseDraftContent.replace('onClick:m,style:{cursor:"pointer",color:"var(--ghost-gray)",fontSize:18}', 'onClick:closeAndClear,style:{cursor:"pointer",color:"var(--ghost-gray)",fontSize:18}')
+  expenseDraftContent = expenseDraftContent.replace('onClick:m,className:"btn btn-secondary"', 'onClick:closeAndClear,className:"btn btn-secondary"')
+}
+await writeFile(expenseDraftAsset, expenseDraftContent)
