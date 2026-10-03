@@ -208,3 +208,29 @@ if (!personalCommissionHome.includes('personalCommission')) {
   personalCommissionHome = personalCommissionHome.replace(oldPersonalCommissionCard, newPersonalCommissionCard)
 }
 await writeFile(personalCommissionAsset, personalCommissionHome)
+
+
+// Persist stock adjustment inputs and the Add Stock modal while navigating.
+const stockDraftAsset = path.join(outputRoot, 'assets', release, 'Stock-CpMhahKC.js')
+let stockDraftContent = await readFile(stockDraftAsset, 'utf8')
+if (!stockDraftContent.includes('ghostlab-stock-add:')) {
+  const stockTick = String.fromCharCode(96)
+  const oldStockAdjustState = ',[v,z]=i.useState(0),[l,x]=i.useState({}),[y,b]=i.useState(!1),[a,B]=i.useState("")'
+  const newStockAdjustState = ',[v,z]=i.useState(0),[l,x]=i.useState(()=>{try{return JSON.parse(localStorage.getItem(' + stockTick + 'ghostlab-stock-adjust:${n?.id||"guest"}' + stockTick + ')||"{}")||{}}catch{return{}}}),[y,b]=i.useState(!1),[a,B]=i.useState("")'
+  stockDraftContent = stockDraftContent.replace(oldStockAdjustState, newStockAdjustState)
+  stockDraftContent = stockDraftContent.replace(
+    '},[m,n==null?void 0:n.primary_branch]),i.useEffect(()=>{k(!0);',
+    '},[m,n==null?void 0:n.primary_branch]),i.useEffect(()=>{try{const t=' + stockTick + 'ghostlab-stock-adjust:${n?.id||"guest"}' + stockTick + ';Object.keys(l).length?localStorage.setItem(t,JSON.stringify(l)):localStorage.removeItem(t)}catch{}},[l,n==null?void 0:n.id]),i.useEffect(()=>{k(!0);',
+  )
+  stockDraftContent = stockDraftContent.replace(
+    'e.jsx(A,{branches:o,onClose:()=>p(!1),onSaved:()=>{p(!1),z(t=>t+1)}})',
+    'e.jsx(A,{branches:o,staff:n,onClose:()=>p(!1),onSaved:()=>{p(!1),z(t=>t+1)}})',
+  )
+  const oldAddModalStart = 'function A({branches:n,onClose:d,onSaved:u}){var b;const[o,c]=i.useState(""),[g,S]=i.useState("วัตถุดิบ"),[C,k]=i.useState("ชิ้น"),[N,p]=i.useState("0"),[v,z]=i.useState(((b=n[0])==null?void 0:b.id)||""),[l,x]=i.useState(!1);async function y(){'
+  const newAddModalStart = 'function A({branches:n,onClose:d,onSaved:u,staff:staff}){var b;const draftKey=' + stockTick + 'ghostlab-stock-add:${staff?.id||"guest"}' + stockTick + ',readDraft=()=>{try{return JSON.parse(localStorage.getItem(draftKey)||"{}")}catch{return{}}},draft=readDraft(),[o,c]=i.useState(draft.name||""),[g,S]=i.useState(draft.category||"วัตถุดิบ"),[C,k]=i.useState(draft.unit||"ชิ้น"),[N,p]=i.useState(draft.quantity??"0"),[v,z]=i.useState(draft.branchId||((b=n[0])==null?void 0:b.id)||""),[l,x]=i.useState(!1);i.useEffect(()=>{try{localStorage.setItem(draftKey,JSON.stringify({name:o,category:g,unit:C,quantity:N,branchId:v}))}catch{}},[o,g,C,N,v]);function clearDraft(){try{localStorage.removeItem(draftKey)}catch{}}async function y(){'
+  stockDraftContent = stockDraftContent.replace(oldAddModalStart, newAddModalStart)
+  stockDraftContent = stockDraftContent.replace('if(x(!1),a){console.error(a);return}u()', 'if(x(!1),a){console.error(a);return}clearDraft(),u()')
+  stockDraftContent = stockDraftContent.replace('onClick:d,style:{cursor:"pointer",color:"var(--ghost-gray)",fontSize:18},children:"✕"', 'onClick:clearDraft,style:{cursor:"pointer",color:"var(--ghost-gray)",fontSize:18},children:"✕"')
+  stockDraftContent = stockDraftContent.replace('onClick:d,className:"btn btn-secondary",children:"ยกเลิก"', 'onClick:clearDraft,className:"btn btn-secondary",children:"ยกเลิก"')
+}
+await writeFile(stockDraftAsset, stockDraftContent)
