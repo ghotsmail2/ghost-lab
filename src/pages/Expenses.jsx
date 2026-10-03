@@ -256,7 +256,7 @@ function AddExpenseModal({ branches, staff, onClose, onSaved }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-      <div className="panel" style={{ width: '100%', maxWidth: 420, background: 'var(--static)' }}>
+      <div className="panel" style={{ width: 'calc(100% - 28px)', maxWidth: 560, maxHeight: 'calc(100vh - 32px)', overflowY: 'auto', background: 'var(--static)', padding: '20px 22px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div className="font-display" style={{ fontSize: 16, fontWeight: 600 }}>เพิ่มค่าใช้จ่าย</div>
           <div onClick={onClose} style={{ cursor: 'pointer', color: 'var(--ghost-gray)', fontSize: 18 }}>✕</div>
@@ -264,11 +264,11 @@ function AddExpenseModal({ branches, staff, onClose, onSaved }) {
         <div style={{ marginBottom: 10 }}>
           <label style={{ fontSize: 11, color: 'var(--ghost-gray)', display: 'block', marginBottom: 6 }}>รายละเอียด</label>
           <input className="input" value={description} onChange={e => setDescription(e.target.value)} placeholder="เลือกวัสดุด้านล่าง หรือพิมพ์รายการเอง" />
-          <div style={{ color: 'var(--ghost-gray)', fontSize: 10, letterSpacing: .7, margin: '12px 0 7px', textTransform: 'uppercase' }}>วัสดุที่ใช้บ่อย</div>
+          <div style={{ color: 'var(--ghost-gray)', fontSize: 10, letterSpacing: .7, margin: '14px 0 8px', textTransform: 'uppercase' }}>วัสดุในสต็อกสาขานี้ <span style={{ color: 'var(--dim)' }}>({stockItems.length})</span></div>
           {stockItems.length === 0
-            ? <div style={{ color: 'var(--ghost-gray)', fontSize: 10, padding: '6px 0' }}>ยังไม่มีวัตถุดิบในสาขานี้</div>
-            : <div style={{ display: 'grid', gap: 6, gridTemplateColumns: 'repeat(2, 1fr)' }}>
-              {stockItems.map(item => <button type="button" key={item.id} onClick={() => setDescription(item.name)} style={{ background: description === item.name ? 'rgba(196,30,42,.18)' : 'rgba(255,255,255,.035)', border: `1px solid ${description === item.name ? 'var(--blood)' : 'var(--line)'}`, borderRadius: 6, color: description === item.name ? 'var(--bone)' : 'var(--ghost-gray)', cursor: 'pointer', font: '12px inherit', padding: '8px 10px', textAlign: 'left', transition: 'all .15s' }}>⌁ {item.name} · {item.quantity ?? 0}{item.unit ? ` ${item.unit}` : ''}</button>)}
+            ? <div style={{ color: 'var(--ghost-gray)', fontSize: 11, padding: '10px 12px', border: '1px dashed var(--line)', borderRadius: 8 }}>ยังไม่มีวัตถุดิบในสาขานี้ — พิมพ์รายการเองได้</div>
+            : <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}>
+              {stockItems.map(item => <button type="button" key={item.id} onClick={() => setDescription(item.name)} style={{ alignItems: 'center', background: description === item.name ? 'rgba(196,30,42,.18)' : 'rgba(255,255,255,.035)', border: `1px solid ${description === item.name ? 'var(--blood)' : 'var(--line)'}`, borderRadius: 8, color: description === item.name ? 'var(--bone)' : 'var(--ghost-gray)', cursor: 'pointer', display: 'flex', font: 'inherit', gap: 10, justifyContent: 'space-between', minHeight: 46, padding: '9px 11px', textAlign: 'left', transition: 'all .15s' }}><span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>⌁ {item.name}</span><span className="font-mono" style={{ color: description === item.name ? 'var(--bone)' : 'var(--ghost-gray)', flexShrink: 0, fontSize: 10 }}>{item.quantity ?? 0}{item.unit ? ` ${item.unit}` : ''}</span></button>)}
             </div>}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>

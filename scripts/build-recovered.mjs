@@ -243,6 +243,11 @@ const expenseAsset = path.join(outputRoot, 'assets', release, 'Expenses-6l8wjlXM
 let expenseContent = await readFile(expenseAsset, 'utf8')
 if (!expenseContent.includes('stockItems')) {
   expenseContent = expenseContent.replace(
+    'style:{width:"100%",maxWidth:420,background:"var(--static)"}',
+    'style:{width:"calc(100% - 28px)",maxWidth:560,maxHeight:"calc(100vh - 32px)",overflowY:"auto",background:"var(--static)",padding:"20px 22px"}',
+  )
+  expenseContent = expenseContent.replace('children:"วัสดุที่ใช้บ่อย"', 'children:"วัสดุในสต็อกสาขานี้"')
+  expenseContent = expenseContent.replace(
     ',[j,b]=l.useState(!1);async function k(){',
     ',[j,b]=l.useState(!1),[stockItems,setStockItems]=l.useState([]);l.useEffect(()=>{if(!y){setStockItems([]);return}f.from("stock_items").select("id,name,quantity,unit,category").eq("branch_id",y).order("name").then(({data:t,error:n})=>{n?console.error("[Ghost Lab] Failed to load branch stock:",n):setStockItems(t||[])})},[y]);async function k(){',
   )
@@ -251,7 +256,7 @@ if (!expenseContent.includes('stockItems')) {
   const start = expenseContent.indexOf(suggestionStart)
   const end = expenseContent.indexOf(suggestionEnd, start)
   if (start >= 0 && end > start) {
-    const branchSuggestions = 'children:stockItems.length===0?e.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:10,padding:"6px 0"},children:"ยังไม่มีวัตถุดิบในสาขานี้"}):e.jsxs("div",{style:{display:"grid",gap:6,gridTemplateColumns:"repeat(2, 1fr)"},children:stockItems.map(a=>e.jsxs("button",{type:"button",onClick:()=>u(a.name),style:{background:d===a.name?"rgba(196,30,42,.18)":"rgba(255,255,255,.035)",border:"1px solid "+(d===a.name?"var(--blood)":"var(--line)"),borderRadius:6,color:d===a.name?"var(--bone)":"var(--ghost-gray)",cursor:"pointer",font:"12px inherit",padding:"8px 10px",textAlign:"left",transition:"all .15s"},children:["⌁ ",a.name," · ",a.quantity??0,a.unit?" "+a.unit:""]},a.id))})'
+    const branchSuggestions = 'children:stockItems.length===0?e.jsx("div",{style:{border:"1px dashed var(--line)",borderRadius:8,color:"var(--ghost-gray)",fontSize:11,padding:"10px 12px"},children:"ยังไม่มีวัตถุดิบในสาขานี้ — พิมพ์รายการเองได้"}):stockItems.map(a=>e.jsxs("button",{type:"button",onClick:()=>u(a.name),style:{alignItems:"center",background:d===a.name?"rgba(196,30,42,.18)":"rgba(255,255,255,.035)",border:"1px solid "+(d===a.name?"var(--blood)":"var(--line)"),borderRadius:8,color:d===a.name?"var(--bone)":"var(--ghost-gray)",cursor:"pointer",display:"flex",font:"inherit",gap:10,justifyContent:"space-between",minHeight:46,padding:"9px 11px",textAlign:"left",transition:"all .15s"},children:[e.jsx("span",{style:{minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:["⌁ ",a.name]}),e.jsx("span",{className:"font-mono",style:{color:d===a.name?"var(--bone)":"var(--ghost-gray)",flexShrink:0,fontSize:10},children:[a.quantity??0,a.unit?" "+a.unit:""]})]},a.id))'
     expenseContent = expenseContent.slice(0, start) + branchSuggestions + expenseContent.slice(end)
   } else {
     console.warn('Recovered Expenses bundle suggestion block changed; branch stock filter was not applied.')
