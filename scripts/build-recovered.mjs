@@ -191,3 +191,20 @@ if (!manualDiscountContent.includes('manualDiscountPct')) {
   manualDiscountContent = manualDiscountContent.replace(commissionMarker, manualDiscountField)
 }
 await writeFile(manualDiscountAsset, manualDiscountContent)
+
+
+// Show each ordinary staff member their own earned commission on Home.
+const personalCommissionAsset = path.join(outputRoot, 'assets', release, 'Home-a48wstN-.js')
+let personalCommissionHome = await readFile(personalCommissionAsset, 'utf8')
+if (!personalCommissionHome.includes('personalCommission')) {
+  const personalTick = String.fromCharCode(96)
+  personalCommissionHome = personalCommissionHome.replace(",[d,S]=i.useState(null),[j,_]=i.useState(!1),[z,W]=i.useState([]),[onShiftStaff,setOnShiftStaff]=i.useState([]),[showOnShiftStaff,setShowOnShiftStaff]=i.useState(!1),c=G(n)", ",[d,S]=i.useState(null),[j,_]=i.useState(!1),[z,W]=i.useState([]),[onShiftStaff,setOnShiftStaff]=i.useState([]),[showOnShiftStaff,setShowOnShiftStaff]=i.useState(!1),[personalCommission,setPersonalCommission]=i.useState(0),[personalCommissionBills,setPersonalCommissionBills]=i.useState(0),c=G(n)")
+  personalCommissionHome = personalCommissionHome.replace(
+    '},[s,v,c,n==null?void 0:n.primary_branch]),i.useEffect(()=>{u.rpc("list_on_shift_staff",{p_branch_id:c?null:n?.primary_branch||null}).then(({data:t,error:a})=>{a?console.error("[Ghost Lab] Failed to load on-shift staff:",a):setOnShiftStaff(t||[])})},[c,n==null?void 0:n.primary_branch]),i.useEffect(()=>{n!=null&&n.id&&u.from("attendance")',
+    '},[s,v,c,n==null?void 0:n.primary_branch]),i.useEffect(()=>{if(c||!n?.id){setPersonalCommission(0),setPersonalCommissionBills(0);return}const t=new Date;let a=null;if(s==="today"&&t.setHours(0,0,0,0),s==="week"&&(t.setDate(t.getDate()-6),t.setHours(0,0,0,0)),s==="month"&&(t.setDate(1),t.setHours(0,0,0,0)),s==="date"){const[y,w,P]=v.split("-").map(Number);t.setFullYear(y,w-1,P),t.setHours(0,0,0,0),a=new Date(t),a.setDate(a.getDate()+1)}let l=u.from("commission_distributions").select("amount,created_at").eq("user_id",n.id).is("reversed_at",null);s!=="all"&&(l=l.gte("created_at",t.toISOString())),a&&(l=l.lt("created_at",a.toISOString())),l.then(({data:y,error:w})=>{w?console.error("[Ghost Lab] Failed to load personal commission:",w):(setPersonalCommission((y||[]).reduce((t,a)=>t+Number(a.amount||0),0)),setPersonalCommissionBills((y||[]).length))})},[c,n==null?void 0:n.id,s,v]),i.useEffect(()=>{u.rpc("list_on_shift_staff",{p_branch_id:c?null:n?.primary_branch||null}).then(({data:t,error:a})=>{a?console.error("[Ghost Lab] Failed to load on-shift staff:",a):setOnShiftStaff(t||[])})},[c,n==null?void 0:n.primary_branch]),i.useEffect(()=>{n!=null&&n.id&&u.from("attendance")'
+  )
+  const oldPersonalCommissionCard = 'e.jsx(p,{label:' + personalTick + 'COMMISSION ${h}' + personalTick + ',value:' + personalTick + '¥${M.toLocaleString()}' + personalTick + ',accent:!0})'
+  const newPersonalCommissionCard = 'e.jsx(p,{label:c?' + personalTick + 'COMMISSION ${h}' + personalTick + ':' + personalTick + 'ค่าคอมของฉัน ${h}' + personalTick + ',value:' + personalTick + '¥${(c?M:personalCommission).toLocaleString()}' + personalTick + ',meta:c?void 0:' + personalTick + '${personalCommissionBills} บิล' + personalTick + ',accent:!0})'
+  personalCommissionHome = personalCommissionHome.replace(oldPersonalCommissionCard, newPersonalCommissionCard)
+}
+await writeFile(personalCommissionAsset, personalCommissionHome)
