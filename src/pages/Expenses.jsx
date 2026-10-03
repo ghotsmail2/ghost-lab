@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
-const MATERIAL_OPTIONS = ['สารเคมี', 'แพงวงจร', 'Steel Alloy', 'สายไฟ', 'Aluminum', 'พลาสติก', 'Iron', 'แผ่นหนัง']
-
 export default function Expenses() {
   const { staff } = useAuth()
   const [expenses, setExpenses] = useState([])
@@ -227,7 +225,20 @@ function AddExpenseModal({ branches, staff, onClose, onSaved }) {
     ? branches
     : branches.filter(branch => branch.id === staff?.primary_branch)
   const [branchId, setBranchId] = useState(staff?.primary_branch || branches[0]?.id || '')
+  const [stockItems, setStockItems] = useState([])
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!branchId) {
+      setStockItems([])
+      return
+    }
+    supabase.from('stock_items').select('id,name,quantity,unit,category').eq('branch_id', branchId).order('name')
+      .then(({ data, error }) => {
+        if (error) console.error(error)
+        setStockItems(data || [])
+      })
+  }, [branchId])
 
   async function save() {
     if (!description.trim() || !amount) return
@@ -254,9 +265,11 @@ function AddExpenseModal({ branches, staff, onClose, onSaved }) {
           <label style={{ fontSize: 11, color: 'var(--ghost-gray)', display: 'block', marginBottom: 6 }}>รายละเอียด</label>
           <input className="input" value={description} onChange={e => setDescription(e.target.value)} placeholder="เลือกวัสดุด้านล่าง หรือพิมพ์รายการเอง" />
           <div style={{ color: 'var(--ghost-gray)', fontSize: 10, letterSpacing: .7, margin: '12px 0 7px', textTransform: 'uppercase' }}>วัสดุที่ใช้บ่อย</div>
-          <div style={{ display: 'grid', gap: 6, gridTemplateColumns: 'repeat(2, 1fr)' }}>
-            {MATERIAL_OPTIONS.map(material => <button type="button" key={material} onClick={() => setDescription(material)} style={{ background: description === material ? 'rgba(196,30,42,.18)' : 'rgba(255,255,255,.035)', border: `1px solid ${description === material ? 'var(--blood)' : 'var(--line)'}`, borderRadius: 6, color: description === material ? 'var(--bone)' : 'var(--ghost-gray)', cursor: 'pointer', font: '12px inherit', padding: '8px 10px', textAlign: 'left', transition: 'all .15s' }}>⌁ {material}</button>)}
-          </div>
+          {stockItems.length === 0
+            ? <div style={{ color: 'var(--ghost-gray)', fontSize: 10, padding: '6px 0' }}>ยังไม่มีวัตถุดิบในสาขานี้</div>
+            : <div style={{ display: 'grid', gap: 6, gridTemplateColumns: 'repeat(2, 1fr)' }}>
+              {stockItems.map(item => <button type="button" key={item.id} onClick={() => setDescription(item.name)} style={{ background: description === item.name ? 'rgba(196,30,42,.18)' : 'rgba(255,255,255,.035)', border: `1px solid ${description === item.name ? 'var(--blood)' : 'var(--line)'}`, borderRadius: 6, color: description === item.name ? 'var(--bone)' : 'var(--ghost-gray)', cursor: 'pointer', font: '12px inherit', padding: '8px 10px', textAlign: 'left', transition: 'all .15s' }}>⌁ {item.name} · {item.quantity ?? 0}{item.unit ? ` ${item.unit}` : ''}</button>)}
+            </div>}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
           <div>
