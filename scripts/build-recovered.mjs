@@ -4,9 +4,11 @@ import './generate-catalog-prices.mjs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
+
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const sourceRoot = path.join(projectRoot, 'recovered-production')
 const outputRoot = path.join(projectRoot, 'dist')
+
 
 async function readSupabaseBrowserConfig() {
   const bundle = await readFile(path.join(sourceRoot, 'assets', 'index-vaWnYKxf.js'), 'utf8')
@@ -15,9 +17,11 @@ async function readSupabaseBrowserConfig() {
     || bundle.match(/sb_publishable_[A-Za-z0-9_-]+/)?.[0]
     || bundle.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/)?.[0]
 
+
   if (!url || !anonKey) throw new Error('Unable to locate the public Supabase browser configuration.')
   return { url, anonKey }
 }
+
 
 async function listFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true })
@@ -28,9 +32,11 @@ async function listFiles(directory) {
   return files.flat()
 }
 
+
 async function verifyAssetReferences(root = sourceRoot) {
   const files = await listFiles(root)
   const missing = new Set()
+
 
   for (const file of files.filter(item => /\.(?:html|js|css)$/.test(item))) {
     const contents = await readFile(file, 'utf8')
@@ -38,6 +44,7 @@ async function verifyAssetReferences(root = sourceRoot) {
       ...contents.matchAll(/["'(]\/?assets\/([^"')?]+)/g),
       ...contents.matchAll(/(?:from\s*|import\(\s*)["']\.\/([^"']+)/g),
     ]
+
 
     for (const match of references) {
       const target = match[0].includes('assets/')
@@ -51,17 +58,21 @@ async function verifyAssetReferences(root = sourceRoot) {
     }
   }
 
+
   if (missing.size) {
     throw new Error(`Recovered production is missing referenced assets:\n${[...missing].sort().join('\n')}`)
   }
 }
 
+
 await verifyAssetReferences()
+
 
 await rm(outputRoot, { recursive: true, force: true })
 await mkdir(outputRoot, { recursive: true })
 await cp(path.join(sourceRoot, 'index.html'), path.join(outputRoot, 'index.html'))
 await cp(path.join(sourceRoot, 'assets'), path.join(outputRoot, 'assets'), { recursive: true })
+
 
 // A versioned asset directory prevents browsers from mixing restored bundles
 // with changed files that still have the original recovered hash filenames.
@@ -83,6 +94,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       .replaceAll('__SUPABASE_URL__', supabaseBrowserConfig.url)
       .replaceAll('__SUPABASE_ANON_KEY__', supabaseBrowserConfig.anonKey)
 
+
     // The recovered bundle predates the source AuthContext hardening. Apply
     // the same retry/cache behavior to the deployed bundle so transient RLS or
     // network failures cannot make a valid staff account look deleted.
@@ -93,6 +105,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
     }
     content = content.replace(oldStaffLoader, newStaffLoader)
 
+
     // The recovered production bundle also needs to ignore Supabase's silent
     // token-refresh event. Otherwise every background-tab return toggles the
     // global loading state and remounts the current route.
@@ -102,12 +115,14 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       content = content.replace(oldAuthState, newAuthState)
     }
 
+
     // Keep inactive staff visible in Owner's admin list so deactivation is
     // reversible and cannot be mistaken for account deletion.
     content = content.replace(
       'd.from("staff").select("*").eq("active",!0).order("name_en")',
       'd.from("staff").select("*").order("active",{ascending:!1}).order("name_en")',
     )
+
 
     // Adapt the recovered Commission page to the immutable recipient snapshot.
     if (file.endsWith('CommissionPayouts-C8fCkOtW.js')) {
@@ -120,6 +135,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       )
       content = content.replace('p_bill_ids:l.bills.map(e=>e.id)', 'p_bill_ids:l.bills.map(e=>e.bill_id||e.id)')
     }
+
 
     // In the in-app browser, window.prompt is unsupported and aborts bill cancellation
     // before the cancel_bill_safely RPC can run. Use a safe default audit reason.
@@ -136,6 +152,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
 const index = await readFile(path.join(outputRoot, 'index.html'), 'utf8')
 await writeFile(path.join(outputRoot, 'index.html'), index.replaceAll('/assets/', `/assets/${release}/`))
 await verifyAssetReferences(outputRoot)
+
 
 console.log(`Built recovered Ghost Lab production UI (${release}) with all referenced assets present.`)
 // Runtime safety follow-up patches for the deployed recovered bundles.
@@ -171,7 +188,9 @@ if (!onShiftHome.includes('list_on_shift_staff')) {
 }
 await writeFile(onShiftHomeAsset, onShiftHome)
 
+
 // Allow cashiers to enter a manual percentage discount in both branch POS forms.
+  const tick = String.fromCharCode(96)
 const manualDiscountAsset = path.join(outputRoot, 'assets', release, 'POSPage-CxiIf3bD.js')
 let manualDiscountContent = await readFile(manualDiscountAsset, 'utf8')
 if (!manualDiscountContent.includes('manualDiscountPct')) {
@@ -193,6 +212,8 @@ if (!manualDiscountContent.includes('manualDiscountPct')) {
 await writeFile(manualDiscountAsset, manualDiscountContent)
 
 
+
+
 // Show each ordinary staff member their own earned commission on Home.
 const personalCommissionAsset = path.join(outputRoot, 'assets', release, 'Home-a48wstN-.js')
 let personalCommissionHome = await readFile(personalCommissionAsset, 'utf8')
@@ -208,6 +229,8 @@ if (!personalCommissionHome.includes('personalCommission')) {
   personalCommissionHome = personalCommissionHome.replace(oldPersonalCommissionCard, newPersonalCommissionCard)
 }
 await writeFile(personalCommissionAsset, personalCommissionHome)
+
+
 
 
 // Persist stock adjustment inputs and the Add Stock modal while navigating.
@@ -230,7 +253,7 @@ if (!stockDraftContent.includes('ghostlab-stock-add:')) {
   const newAddModalStart = 'function A({branches:n,onClose:d,onSaved:u,staff:staff}){var b;const draftKey=' + stockTick + 'ghostlab-stock-add:${staff?.id||"guest"}' + stockTick + ',readDraft=()=>{try{return JSON.parse(localStorage.getItem(draftKey)||"{}")}catch{return{}}},draft=readDraft(),[o,c]=i.useState(draft.name||""),[g,S]=i.useState(draft.category||"วัตถุดิบ"),[C,k]=i.useState(draft.unit||"ชิ้น"),[N,p]=i.useState(draft.quantity??"0"),[v,z]=i.useState(draft.branchId||((b=n[0])==null?void 0:b.id)||""),[l,x]=i.useState(!1);i.useEffect(()=>{try{localStorage.setItem(draftKey,JSON.stringify({name:o,category:g,unit:C,quantity:N,branchId:v}))}catch{}},[o,g,C,N,v]);function clearDraft(){try{localStorage.removeItem(draftKey)}catch{}}async function y(){'
   stockDraftContent = stockDraftContent.replace(oldAddModalStart, newAddModalStart)
   stockDraftContent = stockDraftContent.replace('if(x(!1),a){console.error(a);return}u()', 'if(x(!1),a){console.error(a);return}clearDraft(),u()')
-  stockDraftContent = stockDraftContent.replace('onClick:d,style:{cursor:"pointer",color:"var(--ghost-gray)",fontSize:18},children:"✕"', 'onClick:clearDraft,style:{cursor:"pointer",color:"var(--ghost-gray)",fontSize:18},children:"✕"')
+  stockDraftContent = stockDraftContent.replace('onClick:d,style:{cursor:"pointer",color:"var(--ghost-gray)",fontSize:18},children:"✕"', 'onClick:()=>{clearDraft(),d()},style:{cursor:"pointer",color:"var(--ghost-gray)",fontSize:18},children:"✕"')
   stockDraftContent = stockDraftContent.replace('onClick:d,className:"btn btn-secondary",children:"ยกเลิก"', 'onClick:()=>{clearDraft(),d()},className:"btn btn-secondary",children:"ยกเลิก"')
 }
 await writeFile(stockDraftAsset, stockDraftContent)
