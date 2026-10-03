@@ -68,7 +68,7 @@ await cp(path.join(sourceRoot, 'assets'), path.join(outputRoot, 'assets'), { rec
 const assetFiles = (await listFiles(path.join(sourceRoot, 'assets'))).sort()
 const supabaseBrowserConfig = await readSupabaseBrowserConfig()
 const digest = createHash('sha256')
-digest.update('release-transform-20260926-auth-refresh-and-pos-draft-2')
+digest.update('release-transform-20261003-auth-refresh-pos-draft-kitchen-cancel-1')
 for (const file of assetFiles) digest.update(path.relative(sourceRoot, file)).update(await readFile(file))
 const release = digest.digest('hex').slice(0, 16)
 const versionedRoot = path.join(outputRoot, 'assets', release)
@@ -274,6 +274,7 @@ if (!onShiftHome.includes('list_on_shift_staff')) {
     '}),showOnShiftStaff&&e.jsx("div",{role:"presentation",onClick:t=>{t.target===t.currentTarget&&setShowOnShiftStaff(!1)},style:{alignItems:"center",background:"rgba(0,0,0,.62)",display:"flex",inset:0,justifyContent:"center",padding:18,position:"fixed",zIndex:30},children:e.jsxs("section",{role:"dialog",className:"panel",style:{maxWidth:430,width:"100%"},children:[e.jsxs("div",{style:{alignItems:"center",display:"flex",justifyContent:"space-between",marginBottom:12},children:[e.jsxs("div",{children:[e.jsx("div",{className:"font-display",style:{fontSize:15,fontWeight:600},children:"พนักงานที่เข้างานอยู่"}),e.jsxs("div",{style:{color:"var(--ghost-gray)",fontSize:11,marginTop:3},children:[onShiftStaff.length," คน"]})]}),e.jsx("button",{type:"button",className:"btn",onClick:()=>setShowOnShiftStaff(!1),style:{fontSize:12},children:"ปิด"})]}),onShiftStaff.length===0?e.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:12,padding:"14px 0",textAlign:"center"},children:"ยังไม่มีพนักงานเข้างาน"}):onShiftStaff.map(t=>e.jsxs("div",{style:{alignItems:"center",borderTop:"1px solid var(--line)",display:"flex",justifyContent:"space-between",padding:"10px 0"},children:[e.jsxs("div",{children:[e.jsx("strong",{style:{fontSize:13},children:t.name_en}),e.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:10,marginTop:3},children:t.branch_name||"ไม่ระบุสาขา"})]}),e.jsx("span",{className:"font-mono",style:{color:"#84d6a8",fontSize:11},children:new Date(t.clock_in).toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"})})]},t.id))]})})]})}function p({label:n',
   )
 }
+
 await writeFile(onShiftHomeAsset, onShiftHome)
 
 // Allow cashiers to enter a manual percentage discount in both branch POS forms.
