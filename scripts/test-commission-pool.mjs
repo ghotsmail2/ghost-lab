@@ -96,6 +96,13 @@ test('bill composer previews the signed-in staff commission from current eligibi
   assert.match(buildScript, /preview_my_bill_commission/)
 })
 
+test('CEO receives a branch-scoped read-only commission overview', () => {
+  assert.match(buildScript, /CEO OVERVIEW/)
+  assert.match(buildScript, /ownerFinance&&u\.jsx/)
+  assert.match(buildScript, /สิทธิ์ดูอย่างเดียว/)
+  assert.match(buildScript, /Q=Q\.eq\("branch_id",t\.primary_branch\)/)
+})
+
 test('commission report has inclusive Bangkok date range with Clear and Today', () => {
   assert.match(buildScript, /function CommissionDateRange/)
   assert.match(buildScript, /T00:00:00\+07:00/)

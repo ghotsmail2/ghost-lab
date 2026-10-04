@@ -152,6 +152,10 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
 
     // Adapt the recovered Commission page to the immutable recipient snapshot.
     if (file.endsWith('CommissionPayouts-C8fCkOtW.js')) {
+      content = content.replace(
+        'function P(){const{staff:t}=q(),i=F(t),[f,B]',
+        'function P(){const{staff:t}=q(),ownerFinance=F(t),i=ownerFinance||(t==null?void 0:t.role)==="ceo",[f,B]',
+      )
       const commissionRangeComponent = `function commissionDateKey(e=new Date){const n=e.getFullYear(),r=String(e.getMonth()+1).padStart(2,"0"),t=String(e.getDate()).padStart(2,"0");return n+"-"+r+"-"+t}function commissionRangeBounds(e){if(!e.start)return{};const n=new Date(e.start+"T00:00:00+07:00").toISOString(),r=e.end||e.start,t=new Date(new Date(r+"T00:00:00+07:00").getTime()+864e5).toISOString();return{start:n,endExclusive:t}}function CommissionDateRange({value:e,onChange:n,open:r,setOpen:t}){const[o,s]=a.useState(()=>{const l=e.start?new Date(e.start+"T00:00:00"):new Date;return new Date(l.getFullYear(),l.getMonth(),1)}),i=o.getFullYear(),c=o.getMonth(),d=(new Date(i,c,1).getDay()+6)%7,p=Array.from({length:42},(l,m)=>new Date(i,c,m-d+1)),f=["จ","อ","พ","พฤ","ศ","ส","อา"],h=l=>{const m=commissionDateKey(l);!e.start||e.end||m<e.start?n({start:m,end:""}):(n({start:e.start,end:m}),t(!1))},b=l=>{if(!l)return"";const[m,g,y]=l.split("-");return y+"/"+g+"/"+m},v=e.start&&e.end?b(e.start)+" - "+b(e.end):e.start?b(e.start)+" - เลือกวันสิ้นสุด":"ทุกช่วงเวลา";return u.jsxs("div",{style:{position:"relative"},children:[u.jsxs("button",{type:"button",className:"input",onClick:()=>t(!r),style:{alignItems:"center",background:"#202226",borderColor:r||e.start?"var(--blood)":"var(--line)",color:"var(--bone)",cursor:"pointer",display:"flex",fontSize:12,gap:8,justifyContent:"space-between",minWidth:240},children:[u.jsx("span",{children:v}),u.jsx("span",{children:"▾"})]}),r&&u.jsxs("div",{className:"panel",style:{background:"#17191c",border:"1px solid rgba(196,30,42,.55)",boxShadow:"0 18px 55px rgba(0,0,0,.6)",padding:14,position:"absolute",right:0,top:"calc(100% + 8px)",width:304,zIndex:80},children:[u.jsxs("div",{style:{alignItems:"center",display:"flex",justifyContent:"space-between",marginBottom:12},children:[u.jsx("button",{type:"button",className:"btn",onClick:()=>s(new Date(i,c-1,1)),children:"‹"}),u.jsx("strong",{children:o.toLocaleDateString("th-TH",{month:"long",year:"numeric"})}),u.jsx("button",{type:"button",className:"btn",onClick:()=>s(new Date(i,c+1,1)),children:"›"})]}),u.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)"},children:f.map(l=>u.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:10,padding:"5px 0",textAlign:"center"},children:l},l))}),u.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3},children:p.map(l=>{const m=commissionDateKey(l),g=l.getMonth()===c,y=Boolean(e.start&&e.end&&m>=e.start&&m<=e.end),k=m===e.start||m===e.end;return u.jsx("button",{type:"button",onClick:()=>h(l),style:{background:k?"var(--blood)":y?"rgba(196,30,42,.30)":"transparent",border:k?"1px solid #f05a66":"1px solid transparent",borderRadius:6,color:g?"var(--bone)":"#555",cursor:"pointer",fontSize:11,height:32,padding:0},children:l.getDate()},m)})}),u.jsxs("div",{style:{borderTop:"1px solid var(--line)",display:"flex",justifyContent:"space-between",marginTop:10,paddingTop:10},children:[u.jsx("button",{type:"button",className:"btn",onClick:()=>{n({start:"",end:""}),t(!1)},children:"Clear"}),u.jsx("button",{type:"button",className:"btn btn-primary",onClick:()=>{const l=commissionDateKey();n({start:l,end:l}),t(!1)},children:"Today"})]})]})]})}`
       content = content.replace('const d=t=>`\\xA5${Number(t||0).toLocaleString()}`;function P(){', 'const d=t=>`\\xA5${Number(t||0).toLocaleString()}`;' + commissionRangeComponent + 'function P(){')
       content = content.replace(
@@ -167,7 +171,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       )
       content = content.replace('p_bill_ids:l.bills.map(e=>e.id)', 'p_bill_ids:l.bills.map(e=>e.bill_id||e.id)')
       const oldAdminPayoutQuery = 'c.from("commission_payouts").select("*,staff:staff_id(name_en,phone,avatar_url),branches:branch_id(name,key),payer:paid_by(name_en)").order("paid_at",{ascending:!1}).limit(50)'
-      const newAdminPayoutQuery = '(()=>{const R=commissionRangeBounds(dateRange);let Q=c.from("commission_payouts").select("*,staff:staff_id(name_en,phone,avatar_url),branches:branch_id(name,key),payer:paid_by(name_en)").order("paid_at",{ascending:!1}).limit(50);R.start&&(Q=Q.gte("paid_at",R.start)),R.endExclusive&&(Q=Q.lt("paid_at",R.endExclusive));return Q})()'
+      const newAdminPayoutQuery = '(()=>{const R=commissionRangeBounds(dateRange);let Q=c.from("commission_payouts").select("*,staff:staff_id(name_en,phone,avatar_url),branches:branch_id(name,key),payer:paid_by(name_en)").order("paid_at",{ascending:!1}).limit(50);!ownerFinance&&t?.primary_branch&&(Q=Q.eq("branch_id",t.primary_branch)),R.start&&(Q=Q.gte("paid_at",R.start)),R.endExclusive&&(Q=Q.lt("paid_at",R.endExclusive));return Q})()'
       content = content.replace(oldAdminPayoutQuery, newAdminPayoutQuery)
       const oldOwnPayoutQuery = 'c.from("commission_payouts").select("*,branches:branch_id(name,key),payer:paid_by(name_en)").eq("staff_id",t.id).order("paid_at",{ascending:!1}).limit(50)'
       const newOwnPayoutQuery = '(()=>{const R=commissionRangeBounds(dateRange);let Q=c.from("commission_payouts").select("*,branches:branch_id(name,key),payer:paid_by(name_en)").eq("staff_id",t.id).order("paid_at",{ascending:!1}).limit(50);R.start&&(Q=Q.gte("paid_at",R.start)),R.endExclusive&&(Q=Q.lt("paid_at",R.endExclusive));return Q})()'
@@ -181,7 +185,24 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
         'u.jsxs("span",{children:[e.bills.length," \\u0E1A\\u0E34\\u0E25"]})',
         'u.jsxs("span",{children:[e.bills.length," บิล",e.bills.some(n=>n.bill?.commission_is_peak)&&u.jsx("small",{style:{color:"#35d9e6",display:"block",fontSize:9},children:["PEAK ",e.bills.filter(n=>n.bill?.commission_is_peak).length," บิล"]})]})',
       )
-      if (!content.includes('commissionRangeBounds(dateRange)') || !content.includes('ช่วงวันที่ค่าคอม')) {
+      content = content.replace(
+        'children:i?"OWNER FINANCE":"MY COMMISSION"',
+        'children:ownerFinance?"OWNER FINANCE":i?"CEO OVERVIEW":"MY COMMISSION"',
+      )
+      content = content.replace(
+        /className:"font-display",children:i\?"[^"]+":"[^"]+"/,
+        'className:"font-display",children:ownerFinance?"จ่ายค่าคอมพนักงาน":i?"ภาพรวมค่าคอมพนักงาน":"ค่าคอมของฉัน"',
+      )
+      content = content.replace(
+        /u\.jsx\("p",\{children:i\?"[^"]+":"[^"]+"\}\)/,
+        'u.jsx("p",{children:ownerFinance?"ยอดค้างจ่าย แยกตามทีมและพนักงาน":i?"ดูยอดค่าคอมของพนักงานในสาขาของคุณ · สิทธิ์ดูอย่างเดียว":"รายการค่าคอมที่ Owner โอนให้คุณ"})',
+      )
+      content = content.replace(
+        'u.jsx("button",{className:"btn btn-primary",onClick:()=>p(e),children:"\\u0E1A\\u0E31\\u0E19\\u0E17\\u0E36\\u0E01\\u0E01\\u0E32\\u0E23\\u0E08\\u0E48\\u0E32\\u0E22"})',
+        'ownerFinance&&u.jsx("button",{className:"btn btn-primary",onClick:()=>p(e),children:"บันทึกการจ่าย"})',
+      )
+      content = content.replace('l&&u.jsx("div",{className:"commission-modal"', 'l&&ownerFinance&&u.jsx("div",{className:"commission-modal"')
+      if (!content.includes('commissionRangeBounds(dateRange)') || !content.includes('ช่วงวันที่ค่าคอม') || !content.includes('CEO OVERVIEW') || !content.includes('ownerFinance&&u.jsx')) {
         throw new Error('Recovered Commission bundle changed unexpectedly; refusing to build without commission date range.')
       }
     }
