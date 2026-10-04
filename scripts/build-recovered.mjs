@@ -68,7 +68,7 @@ await cp(path.join(sourceRoot, 'assets'), path.join(outputRoot, 'assets'), { rec
 const assetFiles = (await listFiles(path.join(sourceRoot, 'assets'))).sort()
 const supabaseBrowserConfig = await readSupabaseBrowserConfig()
 const digest = createHash('sha256')
-digest.update('release-transform-20261004-home-and-summary-date-range-2')
+digest.update('release-transform-20261005-commission-pool-range-1')
 for (const file of assetFiles) digest.update(path.relative(sourceRoot, file)).update(await readFile(file))
 const release = digest.digest('hex').slice(0, 16)
 const versionedRoot = path.join(outputRoot, 'assets', release)
@@ -152,14 +152,38 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
 
     // Adapt the recovered Commission page to the immutable recipient snapshot.
     if (file.endsWith('CommissionPayouts-C8fCkOtW.js')) {
+      const commissionRangeComponent = `function commissionDateKey(e=new Date){const n=e.getFullYear(),r=String(e.getMonth()+1).padStart(2,"0"),t=String(e.getDate()).padStart(2,"0");return n+"-"+r+"-"+t}function commissionRangeBounds(e){if(!e.start)return{};const n=new Date(e.start+"T00:00:00+07:00").toISOString(),r=e.end||e.start,t=new Date(new Date(r+"T00:00:00+07:00").getTime()+864e5).toISOString();return{start:n,endExclusive:t}}function CommissionDateRange({value:e,onChange:n,open:r,setOpen:t}){const[o,s]=a.useState(()=>{const l=e.start?new Date(e.start+"T00:00:00"):new Date;return new Date(l.getFullYear(),l.getMonth(),1)}),i=o.getFullYear(),c=o.getMonth(),d=(new Date(i,c,1).getDay()+6)%7,p=Array.from({length:42},(l,m)=>new Date(i,c,m-d+1)),f=["จ","อ","พ","พฤ","ศ","ส","อา"],h=l=>{const m=commissionDateKey(l);!e.start||e.end||m<e.start?n({start:m,end:""}):(n({start:e.start,end:m}),t(!1))},b=l=>{if(!l)return"";const[m,g,y]=l.split("-");return y+"/"+g+"/"+m},v=e.start&&e.end?b(e.start)+" - "+b(e.end):e.start?b(e.start)+" - เลือกวันสิ้นสุด":"ทุกช่วงเวลา";return u.jsxs("div",{style:{position:"relative"},children:[u.jsxs("button",{type:"button",className:"input",onClick:()=>t(!r),style:{alignItems:"center",background:"#202226",borderColor:r||e.start?"var(--blood)":"var(--line)",color:"var(--bone)",cursor:"pointer",display:"flex",fontSize:12,gap:8,justifyContent:"space-between",minWidth:240},children:[u.jsx("span",{children:v}),u.jsx("span",{children:"▾"})]}),r&&u.jsxs("div",{className:"panel",style:{background:"#17191c",border:"1px solid rgba(196,30,42,.55)",boxShadow:"0 18px 55px rgba(0,0,0,.6)",padding:14,position:"absolute",right:0,top:"calc(100% + 8px)",width:304,zIndex:80},children:[u.jsxs("div",{style:{alignItems:"center",display:"flex",justifyContent:"space-between",marginBottom:12},children:[u.jsx("button",{type:"button",className:"btn",onClick:()=>s(new Date(i,c-1,1)),children:"‹"}),u.jsx("strong",{children:o.toLocaleDateString("th-TH",{month:"long",year:"numeric"})}),u.jsx("button",{type:"button",className:"btn",onClick:()=>s(new Date(i,c+1,1)),children:"›"})]}),u.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)"},children:f.map(l=>u.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:10,padding:"5px 0",textAlign:"center"},children:l},l))}),u.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3},children:p.map(l=>{const m=commissionDateKey(l),g=l.getMonth()===c,y=Boolean(e.start&&e.end&&m>=e.start&&m<=e.end),k=m===e.start||m===e.end;return u.jsx("button",{type:"button",onClick:()=>h(l),style:{background:k?"var(--blood)":y?"rgba(196,30,42,.30)":"transparent",border:k?"1px solid #f05a66":"1px solid transparent",borderRadius:6,color:g?"var(--bone)":"#555",cursor:"pointer",fontSize:11,height:32,padding:0},children:l.getDate()},m)})}),u.jsxs("div",{style:{borderTop:"1px solid var(--line)",display:"flex",justifyContent:"space-between",marginTop:10,paddingTop:10},children:[u.jsx("button",{type:"button",className:"btn",onClick:()=>{n({start:"",end:""}),t(!1)},children:"Clear"}),u.jsx("button",{type:"button",className:"btn btn-primary",onClick:()=>{const l=commissionDateKey();n({start:l,end:l}),t(!1)},children:"Today"})]})]})]})}`
+      content = content.replace('const d=t=>`\\xA5${Number(t||0).toLocaleString()}`;function P(){', 'const d=t=>`\\xA5${Number(t||0).toLocaleString()}`;' + commissionRangeComponent + 'function P(){')
+      content = content.replace(
+        '[x,w]=a.useState("");async function j(){',
+        '[x,w]=a.useState(""),[dateRange,setDateRange]=a.useState({start:"",end:""}),[rangeOpen,setRangeOpen]=a.useState(!1);async function j(){',
+      )
       const oldCommissionQuery = 'c.from("bills").select("id,bill_number,staff_id,branch_id,commission,created_at,status,staff:staff_id(name_en,phone,avatar_url),branches:branch_id(name,key)").gt("commission",0).neq("status","rejected").order("created_at",{ascending:!1}).limit(500)'
-      const newCommissionQuery = 'c.from("commission_distributions").select("id,bill_id,user_id,amount,created_at,paid_at,reversed_at,commission_mode,recipient:user_id(name_en,phone,avatar_url),bill:bill_id(bill_number,branch_id,commission,created_at,status,branches:branch_id(name,key))").is("paid_at",null).is("reversed_at",null).order("created_at",{ascending:!1}).limit(2000)'
+      const newCommissionQuery = '(()=>{const R=commissionRangeBounds(dateRange);let Q=c.from("commission_distributions").select("id,bill_id,user_id,amount,created_at,paid_at,reversed_at,commission_mode,calculation_version,snapshot_index,remainder_amount,recipient:user_id(name_en,phone,avatar_url),bill:bill_id(bill_number,branch_id,commission,created_at,first_order_time,commission_is_peak,commission_base_pool,commission_final_pool,commission_active_count,commission_calculation_status,status,branches:branch_id(name,key))").is("paid_at",null).is("reversed_at",null).order("created_at",{ascending:!1}).limit(2000);R.start&&(Q=Q.gte("created_at",R.start)),R.endExclusive&&(Q=Q.lt("created_at",R.endExclusive));return Q})()'
       content = content.replace(oldCommissionQuery, newCommissionQuery)
       content = content.replace(
         'E.error&&r(E.error.message),B(E.data||[]),O((s.data||[]).map(n=>n.bill_id)),b(e.data||[])',
         'E.error&&r(E.error.message);const n=(E.data||[]).map(o=>({...o,id:o.id,bill_id:o.bill_id,staff_id:o.user_id,branch_id:o.bill?.branch_id,commission:o.amount,staff:o.recipient,branches:o.bill?.branches,bill_number:o.bill?.bill_number,status:o.bill?.status}));B(n),O((s.data||[]).map(o=>o.bill_id)),b(e.data||[])',
       )
       content = content.replace('p_bill_ids:l.bills.map(e=>e.id)', 'p_bill_ids:l.bills.map(e=>e.bill_id||e.id)')
+      const oldAdminPayoutQuery = 'c.from("commission_payouts").select("*,staff:staff_id(name_en,phone,avatar_url),branches:branch_id(name,key),payer:paid_by(name_en)").order("paid_at",{ascending:!1}).limit(50)'
+      const newAdminPayoutQuery = '(()=>{const R=commissionRangeBounds(dateRange);let Q=c.from("commission_payouts").select("*,staff:staff_id(name_en,phone,avatar_url),branches:branch_id(name,key),payer:paid_by(name_en)").order("paid_at",{ascending:!1}).limit(50);R.start&&(Q=Q.gte("paid_at",R.start)),R.endExclusive&&(Q=Q.lt("paid_at",R.endExclusive));return Q})()'
+      content = content.replace(oldAdminPayoutQuery, newAdminPayoutQuery)
+      const oldOwnPayoutQuery = 'c.from("commission_payouts").select("*,branches:branch_id(name,key),payer:paid_by(name_en)").eq("staff_id",t.id).order("paid_at",{ascending:!1}).limit(50)'
+      const newOwnPayoutQuery = '(()=>{const R=commissionRangeBounds(dateRange);let Q=c.from("commission_payouts").select("*,branches:branch_id(name,key),payer:paid_by(name_en)").eq("staff_id",t.id).order("paid_at",{ascending:!1}).limit(50);R.start&&(Q=Q.gte("paid_at",R.start)),R.endExclusive&&(Q=Q.lt("paid_at",R.endExclusive));return Q})()'
+      content = content.replace(oldOwnPayoutQuery, newOwnPayoutQuery)
+      content = content.replace('a.useEffect(()=>{t&&j()},[t]);', 'a.useEffect(()=>{t&&j()},[t,dateRange.start,dateRange.end]);')
+      content = content.replace(
+        'A&&u.jsxs("div",{className:"kitchen-error"',
+        'u.jsxs("section",{className:"panel",style:{alignItems:"center",display:"flex",flexWrap:"wrap",gap:12,justifyContent:"space-between",marginBottom:14,padding:"12px 14px"},children:[u.jsxs("div",{children:[u.jsx("strong",{style:{fontSize:12},children:"ช่วงวันที่ค่าคอม"}),u.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:10,marginTop:3},children:"Pool ต่อบิล · Peak 18:00–23:59 +25% · Snapshot ตอนบิลเข้า"})]}),u.jsx(CommissionDateRange,{value:dateRange,onChange:setDateRange,open:rangeOpen,setOpen:setRangeOpen})]}),A&&u.jsxs("div",{className:"kitchen-error"',
+      )
+      content = content.replaceAll(
+        'u.jsxs("span",{children:[e.bills.length," \\u0E1A\\u0E34\\u0E25"]})',
+        'u.jsxs("span",{children:[e.bills.length," บิล",e.bills.some(n=>n.bill?.commission_is_peak)&&u.jsx("small",{style:{color:"#35d9e6",display:"block",fontSize:9},children:["PEAK ",e.bills.filter(n=>n.bill?.commission_is_peak).length," บิล"]})]})',
+      )
+      if (!content.includes('commissionRangeBounds(dateRange)') || !content.includes('ช่วงวันที่ค่าคอม')) {
+        throw new Error('Recovered Commission bundle changed unexpectedly; refusing to build without commission date range.')
+      }
     }
 
     // In the in-app browser, window.prompt is unsupported and aborts bill cancellation
