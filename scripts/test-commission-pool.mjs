@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 const migration = readFileSync(new URL('../supabase/migrations/20261005_sabinagisa_commission_pool.sql', import.meta.url), 'utf8')
+const previewMigration = readFileSync(new URL('../supabase/migrations/20261005_preview_my_bill_commission.sql', import.meta.url), 'utf8')
 const buildScript = readFileSync(new URL('./build-recovered.mjs', import.meta.url), 'utf8')
 
 function basePool(total) {
@@ -85,6 +86,14 @@ test('server validation and transaction-safe trigger remain authoritative', () =
 test('cancellation trigger compares matching status types', () => {
   assert.match(migration, /old\.status::text is distinct from new\.status::text/)
   assert.doesNotMatch(migration, /old\.status::text is distinct from new\.status(?!::text)/)
+})
+
+test('bill composer previews the signed-in staff commission from current eligibility', () => {
+  assert.match(previewMigration, /create or replace function public\.preview_my_bill_commission/)
+  assert.match(previewMigration, /coalesce\(s\.commission_eligible, true\)/)
+  assert.match(previewMigration, /row_number\(\) over\(order by s\.id\)/)
+  assert.match(buildScript, /ค่าคอมของฉัน \(ประมาณ\)/)
+  assert.match(buildScript, /preview_my_bill_commission/)
 })
 
 test('commission report has inclusive Bangkok date range with Clear and Today', () => {

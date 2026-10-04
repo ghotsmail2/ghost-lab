@@ -322,6 +322,38 @@ if (!manualDiscountContent.includes('manualDiscountPct')) {
 }
 await writeFile(manualDiscountAsset, manualDiscountContent)
 
+// Show the signed-in staff member's own commission in the bill composer.
+// SABINAGISA is explicitly marked as an estimate because its final amount is
+// frozen from the attendance snapshot when the bill is submitted.
+const personalCommissionPosAsset = path.join(outputRoot, 'assets', release, 'POSPage-CxiIf3bD.js')
+let personalCommissionPos = await readFile(personalCommissionPosAsset, 'utf8')
+if (!personalCommissionPos.includes('preview_my_bill_commission')) {
+  personalCommissionPos = personalCommissionPos.replace(
+    '    [vehicleClass, setVehicleClass] = i.useState("standard");',
+    '    [vehicleClass, setVehicleClass] = i.useState("standard"),\n    [commissionPreview, setCommissionPreview] = i.useState(null);',
+  )
+  personalCommissionPos = personalCommissionPos.replace(
+    /    pe = M \? 0 : n\.commission_flat;\r?\n  function me\(t\) \{/,
+    '    pe = M ? 0 : n.commission_flat;\n  i.useEffect(() => {\n    let active = true;\n    if (M || O <= 0) { setCommissionPreview({myAmount: 0, finalPool: 0, activeCount: 0, isPeak: false, mode: n.key === "chill" ? "ON_WORK_ALL" : "INDIVIDUAL"}); return () => { active = false; }; }\n    const timer = setTimeout(() => { x.rpc("preview_my_bill_commission", {p_branch_id: n.id, p_order_total: O}).then(({data, error}) => { if (!active) return; error ? console.error("[Ghost Lab] Failed to preview personal commission:", error) : setCommissionPreview(data); }); }, 180);\n    return () => { active = false; clearTimeout(timer); };\n  }, [n.id, n.key, O, M, p == null ? void 0 : p.id]);\n  const displayedPersonalCommission = M ? 0 : Number((commissionPreview == null ? void 0 : commissionPreview.myAmount) ?? (n.key === "chill" ? 0 : pe));\n  function me(t) {',
+  )
+  personalCommissionPos = personalCommissionPos.replace(
+    '          children: ["SERVICE BILL \\xB7 COMMISSION \\xA5", h.commission_flat.toLocaleString(), " ", "/ BILL \\xB7 ", m, " SERVICES"]',
+    '          children: v ? ["SERVICE BILL · COMMISSION POOL · ACTIVE SNAPSHOT · ", m, " SERVICES"] : ["SERVICE BILL · ค่าคอมของผู้เปิดบิล ¥", h.commission_flat.toLocaleString(), " / BILL · ", m, " SERVICES"]',
+  )
+  personalCommissionPos = personalCommissionPos.replace(
+    '            children: "COMMISSION (FLAT)"',
+    '            children: n.key === "chill" ? "ค่าคอมของฉัน (ประมาณ)" : "ค่าคอมของฉัน"',
+  )
+  personalCommissionPos = personalCommissionPos.replace(
+    '            children: ["\\xA5", pe.toLocaleString()]',
+    '            children: ["¥", displayedPersonalCommission.toLocaleString()]',
+  )
+  if (!personalCommissionPos.includes('preview_my_bill_commission') || !personalCommissionPos.includes('displayedPersonalCommission')) {
+    throw new Error('Failed to inject the personal commission preview into the POS bundle.')
+  }
+}
+await writeFile(personalCommissionPosAsset, personalCommissionPos)
+
 
 // Show each ordinary staff member their own earned commission on Home.
 const personalCommissionAsset = path.join(outputRoot, 'assets', release, 'Home-a48wstN-.js')
