@@ -68,7 +68,7 @@ await cp(path.join(sourceRoot, 'assets'), path.join(outputRoot, 'assets'), { rec
 const assetFiles = (await listFiles(path.join(sourceRoot, 'assets'))).sort()
 const supabaseBrowserConfig = await readSupabaseBrowserConfig()
 const digest = createHash('sha256')
-digest.update('release-transform-20261003-auth-refresh-pos-draft-kitchen-cancel-1')
+digest.update('release-transform-20261004-home-date-range-1')
 for (const file of assetFiles) digest.update(path.relative(sourceRoot, file)).update(await readFile(file))
 const release = digest.digest('hex').slice(0, 16)
 const versionedRoot = path.join(outputRoot, 'assets', release)
@@ -314,6 +314,39 @@ if (!personalCommissionHome.includes('personalCommission')) {
   personalCommissionHome = personalCommissionHome.replace(oldPersonalCommissionCard, newPersonalCommissionCard)
 }
 await writeFile(personalCommissionAsset, personalCommissionHome)
+
+
+// Replace the single-day Home filter with one dark-theme calendar that picks
+// a start and end date. Every bill and personal-commission query uses the same
+// inclusive range (the database upper bound is the day after End Date).
+const dateRangeHomeAsset = path.join(outputRoot, 'assets', release, 'Home-a48wstN-.js')
+let dateRangeHome = await readFile(dateRangeHomeAsset, 'utf8')
+if (!dateRangeHome.includes('ghostlab-date-range-calendar')) {
+  const dateRangeComponent = `function DateRangePicker({value:n,onChange:r,onToday:g,onClear:o,open:f,setOpen:b}){const[A,s]=i.useState(()=>{const t=n.start?new Date(n.start+"T00:00:00"):new Date;return new Date(t.getFullYear(),t.getMonth(),1)});i.useEffect(()=>{if(n.start){const t=new Date(n.start+"T00:00:00");s(new Date(t.getFullYear(),t.getMonth(),1))}},[n.start]);const k=["จ","อ","พ","พฤ","ศ","ส","อา"],v=A.getFullYear(),E=A.getMonth(),d=new Date(v,E,1),S=(d.getDay()+6)%7,j=Array.from({length:42},(t,a)=>new Date(v,E,a-S+1));function _(t){const a=Y(t);if(!n.start||n.end||a<n.start){r({start:a,end:""});return}r({start:n.start,end:a}),b(!1)}const z=t=>{if(!t)return"";const[a,l,m]=t.split("-");return m+"/"+l+"/"+a},W=n.start&&n.end?z(n.start)+" - "+z(n.end):n.start?z(n.start)+" - เลือกวันสิ้นสุด":"เลือกช่วงวันที่";return e.jsxs("div",{style:{position:"relative"},children:[e.jsxs("button",{type:"button",className:"btn",onClick:()=>b(!f),"aria-expanded":f,"aria-label":"เลือกช่วงวันที่",style:{alignItems:"center",background:f||n.start?"rgba(196,30,42,.16)":"transparent",borderColor:f||n.start?"var(--blood)":"var(--line)",color:"var(--bone)",display:"flex",fontSize:11,gap:8,minWidth:220,justifyContent:"space-between"},children:[e.jsx("span",{children:W}),e.jsx("span",{children:"▾"})]}),f&&e.jsxs("div",{id:"ghostlab-date-range-calendar",className:"panel",style:{background:"#17191c",border:"1px solid rgba(196,30,42,.55)",boxShadow:"0 18px 55px rgba(0,0,0,.6)",left:0,padding:14,position:"absolute",top:"calc(100% + 8px)",width:304,zIndex:80},children:[e.jsxs("div",{style:{alignItems:"center",display:"flex",justifyContent:"space-between",marginBottom:12},children:[e.jsx("button",{type:"button",className:"btn",onClick:()=>s(new Date(v,E-1,1)),style:{minWidth:34,padding:"7px 9px"},children:"‹"}),e.jsx("strong",{style:{fontSize:13},children:A.toLocaleDateString("th-TH",{month:"long",year:"numeric"})}),e.jsx("button",{type:"button",className:"btn",onClick:()=>s(new Date(v,E+1,1)),style:{minWidth:34,padding:"7px 9px"},children:"›"})]}),e.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",marginBottom:4},children:k.map(t=>e.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:10,padding:"5px 0",textAlign:"center"},children:t},t))}),e.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3},children:j.map(t=>{const a=Y(t),l=t.getMonth()===E,m=Boolean(n.start&&n.end&&a>=n.start&&a<=n.end),P=a===n.start||a===n.end;return e.jsx("button",{type:"button",onClick:()=>_(t),"aria-label":t.toLocaleDateString("th-TH"),style:{background:P?"var(--blood)":m?"rgba(196,30,42,.30)":"transparent",border:P?"1px solid #f05a66":"1px solid transparent",borderRadius:6,color:l?"var(--bone)":"#555",cursor:"pointer",fontSize:11,height:32,padding:0},children:t.getDate()},a)})}),e.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:10,lineHeight:1.5,marginTop:10,minHeight:30},children:n.start&&!n.end?"เลือกวันสิ้นสุด · ถ้าคลิกวันก่อนหน้า ระบบจะเริ่มช่วงใหม่":"เลือกวันเริ่มต้น แล้วเลือกวันสิ้นสุด"}),e.jsxs("div",{style:{borderTop:"1px solid var(--line)",display:"flex",gap:8,justifyContent:"space-between",marginTop:10,paddingTop:10},children:[e.jsx("button",{type:"button",className:"btn",onClick:o,style:{fontSize:11},children:"Clear"}),e.jsx("button",{type:"button",className:"btn btn-primary",onClick:g,style:{fontSize:11},children:"Today"})]})]})]})}`
+  const oldHomeFunction = 'function J(){'
+  const oldRangeState = '[s,k]=i.useState("today"),[v,E]=i.useState(Y),[d,S]'
+  const oldRangeLabel = 'H=new Date(`${v}T00:00:00`).toLocaleDateString("th-TH",{day:"numeric",month:"short",year:"numeric"}),h=s==="date"?H:I[s];'
+  const newRangeLabel = 'H=t=>{if(!t)return"";const[a,l,m]=t.split("-");return m+"/"+l+"/"+a},h=s==="range"?v.start&&v.end?H(v.start)+" - "+H(v.end):v.start?H(v.start)+" - ...":"ช่วงวันที่":I[s];'
+  const oldBillRange = 'const t=new Date;let a=null;if(s==="today"&&t.setHours(0,0,0,0),s==="week"&&(t.setDate(t.getDate()-6),t.setHours(0,0,0,0)),s==="month"&&(t.setDate(1),t.setHours(0,0,0,0)),s==="date"){const[y,w,P]=v.split("-").map(Number);t.setFullYear(y,w-1,P),t.setHours(0,0,0,0),a=new Date(t),a.setDate(a.getDate()+1)}let l=u.from("bills")'
+  const newBillRange = 'const t=new Date;let a=null;if(s==="today"&&t.setHours(0,0,0,0),s==="week"&&(t.setDate(t.getDate()-6),t.setHours(0,0,0,0)),s==="month"&&(t.setDate(1),t.setHours(0,0,0,0)),s==="range"){if(!v.start){g([]);return}const[y,w,P]=v.start.split("-").map(Number);t.setFullYear(y,w-1,P),t.setHours(0,0,0,0);if(v.end){const[Y,W,D]=v.end.split("-").map(Number);a=new Date(Y,W-1,D+1),a.setHours(0,0,0,0)}}let l=u.from("bills")'
+  const oldCommissionRange = 'const t=new Date;let a=null;if(s==="today"&&t.setHours(0,0,0,0),s==="week"&&(t.setDate(t.getDate()-6),t.setHours(0,0,0,0)),s==="month"&&(t.setDate(1),t.setHours(0,0,0,0)),s==="date"){const[y,w,P]=v.split("-").map(Number);t.setFullYear(y,w-1,P),t.setHours(0,0,0,0),a=new Date(t),a.setDate(a.getDate()+1)}let l=u.from("commission_distributions")'
+  const newCommissionRange = 'const t=new Date;let a=null;if(s==="today"&&t.setHours(0,0,0,0),s==="week"&&(t.setDate(t.getDate()-6),t.setHours(0,0,0,0)),s==="month"&&(t.setDate(1),t.setHours(0,0,0,0)),s==="range"){if(!v.start){setPersonalCommission(0),setPersonalCommissionBills(0);return}const[y,w,P]=v.start.split("-").map(Number);t.setFullYear(y,w-1,P),t.setHours(0,0,0,0);if(v.end){const[Y,W,D]=v.end.split("-").map(Number);a=new Date(Y,W-1,D+1),a.setHours(0,0,0,0)}}let l=u.from("commission_distributions")'
+  const oldDateControl = 'e.jsxs("label",{className:"btn",style:{alignItems:"center",background:s==="date"?"rgba(196,30,42,.16)":"transparent",borderColor:s==="date"?"var(--blood)":"var(--line)",color:s==="date"?"var(--bone)":"var(--ghost-gray)",cursor:"pointer",display:"flex",fontSize:11,gap:7,padding:"0 10px"},children:["เลือกวัน",e.jsx("input",{type:"date",value:v,onChange:t=>{E(t.target.value),k("date")},style:{background:"transparent",border:0,color:"inherit",cursor:"pointer",font:"inherit",outline:0,padding:"8px 0"}})]})'
+  const newDateControl = 'e.jsx(DateRangePicker,{value:v,onChange:t=>{E(t),k("range")},open:rangeOpen,setOpen:setRangeOpen,onClear:()=>{E({start:"",end:""}),k("all"),setRangeOpen(!1)},onToday:()=>{const t=Y();E({start:t,end:t}),k("range"),setRangeOpen(!1)}})'
+
+  const requiredMarkers = [oldHomeFunction, oldRangeState, oldRangeLabel, oldBillRange, oldCommissionRange, oldDateControl]
+  if (requiredMarkers.some(marker => !dateRangeHome.includes(marker))) {
+    throw new Error('Recovered Home bundle changed unexpectedly; refusing to build without complete date-range filtering.')
+  }
+  dateRangeHome = dateRangeHome
+    .replace(oldHomeFunction, dateRangeComponent + oldHomeFunction)
+    .replace(oldRangeState, '[s,k]=i.useState("today"),[v,E]=i.useState(()=>({start:Y(),end:Y()})),[rangeOpen,setRangeOpen]=i.useState(!1),[d,S]')
+    .replace(oldRangeLabel, newRangeLabel)
+    .replace(oldBillRange, newBillRange)
+    .replace(oldCommissionRange, newCommissionRange)
+    .replace(oldDateControl, newDateControl)
+}
+await writeFile(dateRangeHomeAsset, dateRangeHome)
 
 
 // Persist stock adjustment inputs and the Add Stock modal while navigating.
