@@ -68,7 +68,7 @@ await cp(path.join(sourceRoot, 'assets'), path.join(outputRoot, 'assets'), { rec
 const assetFiles = (await listFiles(path.join(sourceRoot, 'assets'))).sort()
 const supabaseBrowserConfig = await readSupabaseBrowserConfig()
 const digest = createHash('sha256')
-digest.update('release-transform-20261004-home-date-range-1')
+digest.update('release-transform-20261004-home-and-summary-date-range-2')
 for (const file of assetFiles) digest.update(path.relative(sourceRoot, file)).update(await readFile(file))
 const release = digest.digest('hex').slice(0, 16)
 const versionedRoot = path.join(outputRoot, 'assets', release)
@@ -347,6 +347,31 @@ if (!dateRangeHome.includes('ghostlab-date-range-calendar')) {
     .replace(oldDateControl, newDateControl)
 }
 await writeFile(dateRangeHomeAsset, dateRangeHome)
+
+
+// Daily Summary uses the same flexible range behavior as Home, while keeping
+// the rest of its compact close-of-day layout unchanged.
+const dailySummaryAsset = path.join(outputRoot, 'assets', release, 'DailySummary-OhyJk4lZ.js')
+let dailySummaryContent = await readFile(dailySummaryAsset, 'utf8')
+if (!dailySummaryContent.includes('ghostlab-summary-date-range-calendar')) {
+  const dailyRangeComponent = `function dateKey(e=new Date){const n=e.getFullYear(),c=String(e.getMonth()+1).padStart(2,"0"),l=String(e.getDate()).padStart(2,"0");return n+"-"+c+"-"+l}function SummaryDateRange({value:e,onChange:n,onToday:c,onClear:l,open:o,setOpen:h}){const[m,s]=i.useState(()=>{const a=e.start?new Date(e.start+"T00:00:00"):new Date;return new Date(a.getFullYear(),a.getMonth(),1)});i.useEffect(()=>{if(e.start){const a=new Date(e.start+"T00:00:00");s(new Date(a.getFullYear(),a.getMonth(),1))}},[e.start]);const A=["จ","อ","พ","พฤ","ศ","ส","อา"],D=m.getFullYear(),T=m.getMonth(),F=new Date(D,T,1),M=(F.getDay()+6)%7,O=Array.from({length:42},(a,B)=>new Date(D,T,B-M+1));function C(a){const B=dateKey(a);if(!e.start||e.end||B<e.start){n({start:B,end:""});return}n({start:e.start,end:B}),h(!1)}const $=a=>{if(!a)return"";const[B,I,H]=a.split("-");return H+"/"+I+"/"+B},R=e.start&&e.end?$(e.start)+" - "+$(e.end):e.start?$(e.start)+" - เลือกวันสิ้นสุด":"เลือกช่วงวันที่";return t.jsxs("div",{style:{position:"relative"},children:[t.jsxs("button",{type:"button",className:"input",onClick:()=>h(!o),"aria-expanded":o,"aria-label":"เลือกช่วงวันที่",style:{alignItems:"center",background:"#202226",borderColor:o||e.start?"var(--blood)":"var(--line)",color:"var(--bone)",cursor:"pointer",display:"flex",fontSize:12,gap:8,justifyContent:"space-between",minWidth:240,width:"auto"},children:[t.jsx("span",{children:R}),t.jsx("span",{children:"▾"})]}),o&&t.jsxs("div",{id:"ghostlab-summary-date-range-calendar",className:"panel",style:{background:"#17191c",border:"1px solid rgba(196,30,42,.55)",boxShadow:"0 18px 55px rgba(0,0,0,.6)",padding:14,position:"absolute",right:0,top:"calc(100% + 8px)",width:304,zIndex:80},children:[t.jsxs("div",{style:{alignItems:"center",display:"flex",justifyContent:"space-between",marginBottom:12},children:[t.jsx("button",{type:"button",className:"btn",onClick:()=>s(new Date(D,T-1,1)),style:{minWidth:34,padding:"7px 9px"},children:"‹"}),t.jsx("strong",{style:{fontSize:13},children:m.toLocaleDateString("th-TH",{month:"long",year:"numeric"})}),t.jsx("button",{type:"button",className:"btn",onClick:()=>s(new Date(D,T+1,1)),style:{minWidth:34,padding:"7px 9px"},children:"›"})]}),t.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",marginBottom:4},children:A.map(a=>t.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:10,padding:"5px 0",textAlign:"center"},children:a},a))}),t.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3},children:O.map(a=>{const B=dateKey(a),I=a.getMonth()===T,H=Boolean(e.start&&e.end&&B>=e.start&&B<=e.end),L=B===e.start||B===e.end;return t.jsx("button",{type:"button",onClick:()=>C(a),"aria-label":a.toLocaleDateString("th-TH"),style:{background:L?"var(--blood)":H?"rgba(196,30,42,.30)":"transparent",border:L?"1px solid #f05a66":"1px solid transparent",borderRadius:6,color:I?"var(--bone)":"#555",cursor:"pointer",fontSize:11,height:32,padding:0},children:a.getDate()},B)})}),t.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:10,lineHeight:1.5,marginTop:10,minHeight:30},children:e.start&&!e.end?"เลือกวันสิ้นสุด · เลือกวันเดิมได้สำหรับดู 1 วัน":"เลือกวันเริ่มต้น แล้วเลือกวันสิ้นสุด"}),t.jsxs("div",{style:{borderTop:"1px solid var(--line)",display:"flex",gap:8,justifyContent:"space-between",marginTop:10,paddingTop:10},children:[t.jsx("button",{type:"button",className:"btn",onClick:l,style:{fontSize:11},children:"Clear"}),t.jsx("button",{type:"button",className:"btn btn-primary",onClick:c,style:{fontSize:11},children:"Today"})]})]})]})}`
+  const oldDailyStart = 'function N(){'
+  const oldDailyState = '[d,b]=i.useState(new Date().toISOString().slice(0,10)),[u,y]'
+  const oldDailyQuery = 'async function _(){const e=new Date(`${d}T00:00:00`),n=new Date(`${d}T23:59:59.999`);let c=p.from("bills").select("total,payment_method,status,branch_id,branches:branch_id(name,key)").gte("created_at",e.toISOString()).lte("created_at",n.toISOString()),l=p.from("expenses").select("amount,status,branch_id,branches:branch_id(name,key)").gte("created_at",e.toISOString()).lte("created_at",n.toISOString()),o=p.from("stock_items")'
+  const newDailyQuery = 'async function _(){let c=p.from("bills").select("total,payment_method,status,branch_id,branches:branch_id(name,key)"),l=p.from("expenses").select("amount,status,branch_id,branches:branch_id(name,key)"),o=p.from("stock_items");if(d.start){const e=new Date(d.start+"T00:00:00");c=c.gte("created_at",e.toISOString()),l=l.gte("created_at",e.toISOString())}if(d.end){const[e,n,a]=d.end.split("-").map(Number),B=new Date(e,n-1,a+1);B.setHours(0,0,0,0),c=c.lt("created_at",B.toISOString()),l=l.lt("created_at",B.toISOString())}o=o'
+  const oldDailyInput = 't.jsx("input",{className:"input",type:"date",value:d,onChange:e=>b(e.target.value),style:{width:170}})'
+  const newDailyInput = 't.jsx(SummaryDateRange,{value:d,onChange:b,open:rangeOpen,setOpen:setRangeOpen,onClear:()=>{b({start:"",end:""}),setRangeOpen(!1)},onToday:()=>{const e=dateKey();b({start:e,end:e}),setRangeOpen(!1)}})'
+  const dailyMarkers = [oldDailyStart, oldDailyState, oldDailyQuery, oldDailyInput]
+  if (dailyMarkers.some(marker => !dailySummaryContent.includes(marker))) {
+    throw new Error('Recovered Daily Summary bundle changed unexpectedly; refusing to build without complete date-range filtering.')
+  }
+  dailySummaryContent = dailySummaryContent
+    .replace(oldDailyStart, dailyRangeComponent + oldDailyStart)
+    .replace(oldDailyState, '[d,b]=i.useState(()=>{const e=dateKey();return{start:e,end:e}}),[rangeOpen,setRangeOpen]=i.useState(!1),[u,y]')
+    .replace(oldDailyQuery, newDailyQuery)
+    .replace(oldDailyInput, newDailyInput)
+}
+await writeFile(dailySummaryAsset, dailySummaryContent)
 
 
 // Persist stock adjustment inputs and the Add Stock modal while navigating.
