@@ -419,7 +419,8 @@ language plpgsql security definer
 set search_path = public
 as $$
 begin
-  if new.status::text in ('rejected','cancelled') and old.status::text is distinct from new.status then
+  if new.status::text in ('rejected','cancelled')
+     and old.status::text is distinct from new.status::text then
     update public.commission_distributions
     set reversed_at=coalesce(reversed_at,clock_timestamp())
     where bill_id=new.id and reversed_at is null and paid_at is null;

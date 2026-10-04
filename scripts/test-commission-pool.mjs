@@ -82,6 +82,11 @@ test('server validation and transaction-safe trigger remain authoritative', () =
   assert.doesNotMatch(migration, /truncate\s|drop table\s|drop column\s/i)
 })
 
+test('cancellation trigger compares matching status types', () => {
+  assert.match(migration, /old\.status::text is distinct from new\.status::text/)
+  assert.doesNotMatch(migration, /old\.status::text is distinct from new\.status(?!::text)/)
+})
+
 test('commission report has inclusive Bangkok date range with Clear and Today', () => {
   assert.match(buildScript, /function CommissionDateRange/)
   assert.match(buildScript, /T00:00:00\+07:00/)
