@@ -115,18 +115,29 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
     // own branch through a security-definer aggregate, without gaining access
     // to other employees' attendance rows.
     if (file.endsWith('Home-a48wstN-.js')) {
+      // Use Bangkok time so every role can see whether a newly opened bill
+      // will receive the overnight Peak multiplier, regardless of device time.
+      content = content.replace(
+        'function J(){const{staff:n}=q(),',
+        'function isCommissionPeakNow(){const t=Number(new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Bangkok",hour:"2-digit",hourCycle:"h23"}).format(new Date));return t>=18||t<6}function J(){const{staff:n}=q(),',
+      )
       const oldAttendanceCount = 'let m=u.from("attendance").select("id",{count:"exact",head:!0}).is("clock_out",null);!c&&(n!=null&&n.primary_branch)&&(m=m.eq("branch_id",n.primary_branch)),m.then(({count:y})=>f(y||0))'
       const newAttendanceCount = 'let m=c?u.from("attendance").select("id",{count:"exact",head:!0}).is("clock_out",null):n?.primary_branch?u.rpc("count_on_shift_staff",{p_branch_id:n.primary_branch}):Promise.resolve({data:0,count:null,error:null});m.then(({count:y,data:P,error:w})=>{w||f(Number(c?y:P)||0)})'
       content = content.replace(oldAttendanceCount, newAttendanceCount)
 
       // Show a compact, branch-safe list of the people currently on shift.
       const oldHomeState = ',[d,S]=i.useState(null),[j,_]=i.useState(!1),[z,W]=i.useState([]),c=G(n)'
-      const newHomeState = ',[d,S]=i.useState(null),[j,_]=i.useState(!1),[z,W]=i.useState([]),[onShiftStaff,setOnShiftStaff]=i.useState([]),[showOnShiftStaff,setShowOnShiftStaff]=i.useState(!1),[personalCommission,setPersonalCommission]=i.useState(0),[personalCommissionBills,setPersonalCommissionBills]=i.useState(0),c=G(n)'
+      const newHomeState = ',[d,S]=i.useState(null),[j,_]=i.useState(!1),[z,W]=i.useState([]),[onShiftStaff,setOnShiftStaff]=i.useState([]),[showOnShiftStaff,setShowOnShiftStaff]=i.useState(!1),[personalCommission,setPersonalCommission]=i.useState(0),[personalCommissionBills,setPersonalCommissionBills]=i.useState(0),[peakNow,setPeakNow]=i.useState(isCommissionPeakNow),c=G(n)'
       content = content.replace(oldHomeState, newHomeState)
 
       const oldHomeEffectBoundary = '},[s,v,c,n==null?void 0:n.primary_branch]),i.useEffect(()=>{n!=null&&n.id&&u.from("attendance")'
-      const newHomeEffectBoundary = '},[s,v,c,n==null?void 0:n.primary_branch]),i.useEffect(()=>{if(c||!n?.id){setPersonalCommission(0),setPersonalCommissionBills(0);return}const t=new Date;let a=null;if(s==="today"&&t.setHours(0,0,0,0),s==="week"&&(t.setDate(t.getDate()-6),t.setHours(0,0,0,0)),s==="month"&&(t.setDate(1),t.setHours(0,0,0,0)),s==="date"){const[y,w,P]=v.split("-").map(Number);t.setFullYear(y,w-1,P),t.setHours(0,0,0,0),a=new Date(t),a.setDate(a.getDate()+1)}let l=u.from("commission_distributions").select("amount,created_at").eq("user_id",n.id).is("reversed_at",null);s!=="all"&&(l=l.gte("created_at",t.toISOString())),a&&(l=l.lt("created_at",a.toISOString())),l.then(({data:y,error:w})=>{w?console.error("[Ghost Lab] Failed to load personal commission:",w):(setPersonalCommission((y||[]).reduce((t,a)=>t+Number(a.amount||0),0)),setPersonalCommissionBills((y||[]).length))})},[c,n==null?void 0:n.id,s,v]),i.useEffect(()=>{u.rpc("list_on_shift_staff",{p_branch_id:c?null:n?.primary_branch||null}).then(({data:t,error:a})=>{a?console.error("[Ghost Lab] Failed to load on-shift staff:",a):setOnShiftStaff(t||[])})},[c,n==null?void 0:n.primary_branch]),i.useEffect(()=>{n!=null&&n.id&&u.from("attendance")'
+      const newHomeEffectBoundary = '},[s,v,c,n==null?void 0:n.primary_branch]),i.useEffect(()=>{const t=()=>setPeakNow(isCommissionPeakNow());t();const a=setInterval(t,3e4);return()=>clearInterval(a)},[]),i.useEffect(()=>{if(c||!n?.id){setPersonalCommission(0),setPersonalCommissionBills(0);return}const t=new Date;let a=null;if(s==="today"&&t.setHours(0,0,0,0),s==="week"&&(t.setDate(t.getDate()-6),t.setHours(0,0,0,0)),s==="month"&&(t.setDate(1),t.setHours(0,0,0,0)),s==="date"){const[y,w,P]=v.split("-").map(Number);t.setFullYear(y,w-1,P),t.setHours(0,0,0,0),a=new Date(t),a.setDate(a.getDate()+1)}let l=u.from("commission_distributions").select("amount,created_at").eq("user_id",n.id).is("reversed_at",null);s!=="all"&&(l=l.gte("created_at",t.toISOString())),a&&(l=l.lt("created_at",a.toISOString())),l.then(({data:y,error:w})=>{w?console.error("[Ghost Lab] Failed to load personal commission:",w):(setPersonalCommission((y||[]).reduce((t,a)=>t+Number(a.amount||0),0)),setPersonalCommissionBills((y||[]).length))})},[c,n==null?void 0:n.id,s,v]),i.useEffect(()=>{u.rpc("list_on_shift_staff",{p_branch_id:c?null:n?.primary_branch||null}).then(({data:t,error:a})=>{a?console.error("[Ghost Lab] Failed to load on-shift staff:",a):setOnShiftStaff(t||[])})},[c,n==null?void 0:n.primary_branch]),i.useEffect(()=>{n!=null&&n.id&&u.from("attendance")'
       content = content.replace(oldHomeEffectBoundary, newHomeEffectBoundary)
+
+      content = content.replace(
+        'children:[e.jsx("span",{style:{color:d?"#7ee2a5":"var(--ghost-gray)",fontSize:11,fontWeight:600,letterSpacing:.7},children:d?"● ออนไลน์ · เข้างานแล้ว":"○ ออฟไลน์ · ยังไม่เข้างาน"}),e.jsx("button",{type:"button",onClick:R',
+        'children:[e.jsx("span",{style:{background:peakNow?"rgba(53,217,230,.14)":"rgba(255,255,255,.04)",border:`1px solid ${peakNow?"rgba(53,217,230,.68)":"var(--line)"}`,borderRadius:999,color:peakNow?"#35d9e6":"var(--ghost-gray)",fontSize:10,fontWeight:700,letterSpacing:1,padding:"5px 9px"},children:peakNow?"⚡ PEAK TIME · +25% (18:00–05:59)":"◌ ช่วงปกติ · Peak 18:00–05:59"}),e.jsx("span",{style:{color:d?"#7ee2a5":"var(--ghost-gray)",fontSize:11,fontWeight:600,letterSpacing:.7},children:d?"● ออนไลน์ · เข้างานแล้ว":"○ ออฟไลน์ · ยังไม่เข้างาน"}),e.jsx("button",{type:"button",onClick:R',
+      )
 
       const oldOnShiftCard = 'e.jsx(p,{label:"พนักงานเข้างาน",value:`${o} คน`})'
       const newOnShiftCard = 'e.jsx("button",{type:"button",onClick:()=>setShowOnShiftStaff(!0),ariaLabel:"ดูรายชื่อพนักงานที่เข้างาน",style:{background:"transparent",border:0,color:"inherit",cursor:"pointer",padding:0,textAlign:"left"},children:e.jsx(p,{label:"พนักงานเข้างาน",value:`${o} คน`,meta:"กดดูรายชื่อ"})})'

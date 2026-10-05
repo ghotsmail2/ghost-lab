@@ -114,6 +114,14 @@ test('commission report has inclusive Bangkok date range with Clear and Today', 
   assert.match(buildScript, /children:\"Today\"/)
 })
 
+test('home clearly shows the current Bangkok Peak Time state', () => {
+  assert.match(buildScript, /function isCommissionPeakNow\(\)/)
+  assert.match(buildScript, /timeZone:\"Asia\/Bangkok\"/)
+  assert.match(buildScript, /t>=18\|\|t<6/)
+  assert.match(buildScript, /PEAK TIME · \+25% \(18:00–05:59\)/)
+  assert.match(buildScript, /ช่วงปกติ · Peak 18:00–05:59/)
+})
+
 test('commission payout deducts the full payout from the shared cash fund once', () => {
   assert.match(payoutLedgerMigration, /'commission_payout'/)
   assert.match(payoutLedgerMigration, /payout_total := commission_total \+ coalesce\(p_bonus, 0\)/)
