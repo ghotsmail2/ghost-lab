@@ -18,7 +18,7 @@ function basePool(total) {
 }
 
 function isPeak(localTime) {
-  return localTime >= '18:00:00' && localTime <= '23:59:59'
+  return localTime >= '18:00:00' || localTime < '06:00:00'
 }
 
 function allocate(pool, ids) {
@@ -34,11 +34,13 @@ test('pool boundaries match all ten required cases', () => {
   for (const [total, expected] of cases) assert.equal(basePool(total), expected)
 })
 
-test('Peak boundary is 18:00:00 through 23:59:59', () => {
+test('Peak boundary is 18:00:00 through 05:59:59 across midnight', () => {
   assert.equal(isPeak('17:59:59'), false)
   assert.equal(isPeak('18:00:00'), true)
   assert.equal(isPeak('23:59:59'), true)
-  assert.equal(isPeak('00:00:00'), false)
+  assert.equal(isPeak('00:00:00'), true)
+  assert.equal(isPeak('05:59:59'), true)
+  assert.equal(isPeak('06:00:00'), false)
 })
 
 test('Peak multiplier produces exact supported currency amounts', () => {

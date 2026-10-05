@@ -179,7 +179,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       content = content.replace('a.useEffect(()=>{t&&j()},[t]);', 'a.useEffect(()=>{t&&j()},[t,dateRange.start,dateRange.end]);')
       content = content.replace(
         'A&&u.jsxs("div",{className:"kitchen-error"',
-        'u.jsxs("section",{className:"panel",style:{alignItems:"center",display:"flex",flexWrap:"wrap",gap:12,justifyContent:"space-between",marginBottom:14,padding:"12px 14px"},children:[u.jsxs("div",{children:[u.jsx("strong",{style:{fontSize:12},children:"ช่วงวันที่ค่าคอม"}),u.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:10,marginTop:3},children:"Pool ต่อบิล · Peak 18:00–23:59 +25% · Snapshot ตอนบิลเข้า"})]}),u.jsx(CommissionDateRange,{value:dateRange,onChange:setDateRange,open:rangeOpen,setOpen:setRangeOpen})]}),A&&u.jsxs("div",{className:"kitchen-error"',
+        'u.jsxs("section",{className:"panel",style:{alignItems:"center",display:"flex",flexWrap:"wrap",gap:12,justifyContent:"space-between",marginBottom:14,padding:"12px 14px"},children:[u.jsxs("div",{children:[u.jsx("strong",{style:{fontSize:12},children:"ช่วงวันที่ค่าคอม"}),u.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:10,marginTop:3},children:"Pool ต่อบิล · Peak 18:00–05:59 +25% · Snapshot ตอนบิลเข้า"})]}),u.jsx(CommissionDateRange,{value:dateRange,onChange:setDateRange,open:rangeOpen,setOpen:setRangeOpen})]}),A&&u.jsxs("div",{className:"kitchen-error"',
       )
       content = content.replaceAll(
         'u.jsxs("span",{children:[e.bills.length," \\u0E1A\\u0E34\\u0E25"]})',
