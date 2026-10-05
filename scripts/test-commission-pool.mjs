@@ -4,6 +4,7 @@ import test from 'node:test'
 
 const migration = readFileSync(new URL('../supabase/migrations/20261005_sabinagisa_commission_pool.sql', import.meta.url), 'utf8')
 const previewMigration = readFileSync(new URL('../supabase/migrations/20261005_preview_my_bill_commission.sql', import.meta.url), 'utf8')
+const payoutLedgerMigration = readFileSync(new URL('../supabase/migrations/20261005_commission_payout_cash_ledger.sql', import.meta.url), 'utf8')
 const buildScript = readFileSync(new URL('./build-recovered.mjs', import.meta.url), 'utf8')
 
 function basePool(total) {
@@ -109,4 +110,22 @@ test('commission report has inclusive Bangkok date range with Clear and Today', 
   assert.match(buildScript, /endExclusive/)
   assert.match(buildScript, /children:\"Clear\"/)
   assert.match(buildScript, /children:\"Today\"/)
+})
+
+test('commission payout deducts the full payout from the shared cash fund once', () => {
+  assert.match(payoutLedgerMigration, /'commission_payout'/)
+  assert.match(payoutLedgerMigration, /payout_total := commission_total \+ coalesce\(p_bonus, 0\)/)
+  assert.match(payoutLedgerMigration, /'commission_payout',\s*-payout_total/)
+  assert.match(payoutLedgerMigration, /commission_payout_id/)
+  assert.match(payoutLedgerMigration, /create unique index if not exists cash_ledger_commission_payout_once_idx/)
+})
+
+test('commission payout and ledger deduction remain one atomic database operation', () => {
+  const payoutInsert = payoutLedgerMigration.indexOf('insert into public.commission_payouts')
+  const ledgerInsert = payoutLedgerMigration.indexOf('insert into public.cash_ledger')
+  const distributionUpdate = payoutLedgerMigration.indexOf('update public.commission_distributions')
+  assert.ok(payoutInsert > 0)
+  assert.ok(ledgerInsert > payoutInsert)
+  assert.ok(distributionUpdate > ledgerInsert)
+  assert.doesNotMatch(payoutLedgerMigration, /exception\s+when[\s\S]*commit|\bcommit\b|\brollback\b/i)
 })
