@@ -254,6 +254,17 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       content = content.replace(discountMarker, discountField)
     }
 
+    // Kitchen tickets should be scannable at a glance. Merge identical menu
+    // rows (but keep different special instructions separate) and show xN.
+    if (file.endsWith('ChillKitchen-ctZhfUP1.js')) {
+      const oldKitchenItems = 'e.jsx("ul",{children:(w=s.bill_items)==null?void 0:w.map((S,D)=>e.jsx("li",{children:e.jsxs("span",{children:[S.name_snapshot,S.item_note&&e.jsxs("small",{style:{display:"block",color:"#e5c158"},children:["↳ ",S.item_note]})]})},`${S.name_snapshot}-${D}`))})'
+      const newKitchenItems = 'e.jsx("ul",{children:(()=>{const V=new Map;for(const I of s.bill_items||[]){const J=`${I.name_snapshot}::${I.item_note||""}`,K=V.get(J);K?K.quantity+=1:V.set(J,{...I,quantity:1})}return[...V.values()]})().map((S,D)=>e.jsx("li",{children:e.jsxs("span",{children:[S.name_snapshot,e.jsx("strong",{style:{color:"#e5c158",marginLeft:8},children:["x",S.quantity]}),S.item_note&&e.jsxs("small",{style:{display:"block",color:"#e5c158"},children:["↳ ",S.item_note]})]})},`${S.name_snapshot}-${S.item_note||""}-${D}`))})'
+      if (!content.includes(oldKitchenItems)) {
+        throw new Error('Recovered Kitchen bundle changed unexpectedly; refusing to build without item quantity grouping.')
+      }
+      content = content.replace(oldKitchenItems, newKitchenItems)
+    }
+
     // Membership is data-driven in the collaboration system. Keep the
     // recovered production bundle compatible with old member rows while
     // presenting the new fixed 3/5/7% tiers and cashback benefits.
