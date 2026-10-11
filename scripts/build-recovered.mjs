@@ -68,7 +68,7 @@ await cp(path.join(sourceRoot, 'assets'), path.join(outputRoot, 'assets'), { rec
 const assetFiles = (await listFiles(path.join(sourceRoot, 'assets'))).sort()
 const supabaseBrowserConfig = await readSupabaseBrowserConfig()
 const digest = createHash('sha256')
-digest.update('release-transform-20261005-commission-pool-range-1')
+digest.update('release-transform-20261011-daily-summary-syntax-fix-1')
 for (const file of assetFiles) digest.update(path.relative(sourceRoot, file)).update(await readFile(file))
 const release = digest.digest('hex').slice(0, 16)
 const versionedRoot = path.join(outputRoot, 'assets', release)
@@ -476,6 +476,13 @@ if (!dailySummaryContent.includes('ghostlab-summary-date-range-calendar')) {
     .replace(oldDailyInput, newDailyInput)
     .replace(oldDailyAggregate, newDailyAggregate)
     .replace(oldDailyCards, newDailyCards)
+      // The first WeeklyClosingPanel span needs its style object closed before
+      // JSX children. Without this normalization the emitted dynamic chunk is
+      // syntactically invalid and the Daily Summary route cannot load.
+      .replace(
+        'style:{color:"var(--ghost-gray)",children:["สุทธิจากการดำเนินงาน "',
+        'style:{color:"var(--ghost-gray)"},children:["สุทธิจากการดำเนินงาน "',
+      )
   const stockWarningMarker = ',t.jsxs("section",{className:"panel",style:{marginTop:14},children:[t.jsx("strong",{children:"⚠ แจ้งเตือนสต๊อก / ใกล้หมดอายุ"})'
   if (!dailySummaryContent.includes(stockWarningMarker)) {
     throw new Error('Recovered Daily Summary bundle changed unexpectedly; weekly closing insertion point is missing.')
