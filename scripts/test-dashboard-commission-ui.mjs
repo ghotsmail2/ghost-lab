@@ -32,8 +32,17 @@ test('Home dashboard hero uses the requested GHOST GROUP brand copy', () => {
 })
 
 test('recovered Stock, Expenses, Daily Summary and Commission pages use React classic JSX factory', () => {
-  assert.equal((builder.match(/jsxFactory: 'React\.createElement'/g) || []).length, 3)
+  assert.equal((builder.match(/jsxFactory: 'React\.createElement'/g) || []).length, 4)
   assert.doesNotMatch(builder, /jsxFactory: 'e\.jsx'/)
+})
+
+test('Daily Closing Console source is used by production and keeps close-day persistence disabled', () => {
+  assert.match(builder, /DailyClosingConsole\.js/)
+  assert.match(builder, /import\("\.\/DailyClosingConsole\.js"\)/)
+  assert.match(builder, /WeeklyClosingPanel range=\{\{ start: dateFrom, end: dateTo \|\| dateFrom \}\}/)
+  assert.match(dailySummary, /className="daily-closing__hero"/)
+  assert.match(dailySummary, /className="daily-closing__close" disabled/)
+  assert.match(dailySummary, /ยังไม่บันทึกยอดนับจริงหรือสถานะปิดวัน/)
 })
 
 test('Commission payout page uses distribution snapshots and existing authorized payout/acknowledgement RPCs', () => {

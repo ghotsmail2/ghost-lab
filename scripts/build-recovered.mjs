@@ -120,7 +120,7 @@ await cp(path.join(sourceRoot, 'assets'), path.join(outputRoot, 'assets'), { rec
 const assetFiles = (await listFiles(path.join(sourceRoot, 'assets'))).sort()
 const supabaseBrowserConfig = await readSupabaseBrowserConfig()
 const digest = createHash('sha256')
-digest.update('release-transform-20261013-full-width-workspace-1')
+digest.update('release-transform-20261013-daily-closing-console-1')
 for (const file of assetFiles) digest.update(path.relative(sourceRoot, file)).update(await readFile(file))
 const commissionPoolHelper = path.join(projectRoot, 'src', 'lib', 'commission-pool.js')
 digest.update('commission-pool-helper').update(await readFile(commissionPoolHelper))
@@ -241,6 +241,35 @@ const fullWidthWorkspaceCss = `
 .workspace-topline,.app-header,.page-enter{box-sizing:border-box;max-width:none!important;width:100%!important}
 .workspace-topline,.app-header{margin-left:0!important;margin-right:0!important}
 .page-enter{margin:0!important}
+/* Give page titles a clear reading order instead of floating in the middle of the header. */
+.app-header{display:grid!important;grid-template-columns:40px minmax(0,1fr) auto!important;column-gap:18px!important}
+.app-header__menu-toggle{grid-column:1;grid-row:1;margin-right:0!important}
+.app-header__titleblock{grid-column:2;grid-row:1;justify-self:start;text-align:left!important}
+.app-header__utility{grid-column:3;grid-row:1;justify-self:end}
+/* The loyalty screen should use the same full desktop canvas as the rest of the console. */
+.members-page{box-sizing:border-box;max-width:none!important;width:100%!important}
+.members-hero{align-items:center!important;background:linear-gradient(115deg,rgba(216,74,36,.1),rgba(255,255,255,.018) 46%,rgba(182,138,50,.07)),linear-gradient(145deg,#202224,#17191b)!important;border:1px solid rgba(242,238,231,.12)!important;border-radius:16px!important;margin-bottom:18px!important;padding:22px 26px!important;position:relative}
+.members-hero:after{background:linear-gradient(90deg,transparent,rgba(216,74,36,.45),rgba(182,138,50,.4),transparent);bottom:-1px;content:"";height:1px;left:26px;opacity:.7;position:absolute;right:26px}
+.members-hero h1{font-size:clamp(28px,2.2vw,36px)!important;line-height:1.15!important}
+.members-subtitle{font-size:13px!important;margin-top:7px}
+.members-add{box-shadow:0 8px 20px rgba(216,74,36,.2);min-height:44px;padding:0 20px!important}
+.member-stats{gap:14px!important;margin-bottom:16px!important}
+.member-stat{align-items:center!important;border-radius:13px!important;min-height:98px;padding:17px 19px!important}
+.member-stat__icon{border:1px solid rgba(234,98,108,.2);border-radius:10px!important;flex:0 0 42px;height:42px!important;width:42px!important}
+.member-stat strong{font-size:22px!important}
+.membership-plans{gap:14px!important;margin-bottom:18px!important}
+.membership-plan{background:radial-gradient(ellipse at 100% 0,rgba(255,255,255,.045),transparent 54%),linear-gradient(145deg,#222426,#191b1d)!important;border-radius:14px!important;min-height:218px;padding:20px 22px!important;position:relative;overflow:hidden}
+.membership-plan:before{background:linear-gradient(180deg,rgba(255,255,255,.035),transparent 60%);content:"";inset:0;pointer-events:none;position:absolute}
+.membership-plan>*{position:relative}
+.membership-plan>span{font-size:10px!important;letter-spacing:1.5px!important}
+.membership-plan strong{font-size:26px!important;margin:10px 0 12px!important}
+.membership-plan p{font-size:12px!important;line-height:1.55;margin:5px 0!important}
+.membership-plan__add{border-radius:8px!important;margin-top:16px!important;min-height:38px}
+.membership-workspace,.members-workspace{border-radius:14px!important}
+.members-toolbar{padding:18px 20px 14px!important}
+.member-search{max-width:560px!important}
+.member-row{min-height:82px!important}
+@media(max-width:760px){.app-header{grid-template-columns:40px minmax(0,1fr)!important;row-gap:9px!important}.app-header__titleblock{grid-column:2;grid-row:1}.app-header__utility{grid-column:2;grid-row:2;justify-self:start}.members-hero{align-items:flex-start!important;padding:18px!important}.membership-plan{min-height:0;padding:17px!important}}
 @media(min-width:1500px){
   .stock-page{gap:20px}.stock-heading{min-height:118px;padding:22px 26px!important}.stock-heading__title h1{font-size:27px}.stock-heading__title p{font-size:14px}
   .stock-kpis{gap:14px}.stock-kpi{min-height:108px;padding:18px}.stock-kpi small{font-size:12px}.stock-kpi strong{font-size:27px}.stock-kpi em{font-size:11px}
@@ -646,7 +675,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
   await writeFile(file, content.replaceAll('assets/', `assets/${release}/`))
 }
 const index = await readFile(path.join(outputRoot, 'index.html'), 'utf8')
-const themeControls = `<script>(()=>{const saved=localStorage.getItem('ghostlab-theme')||'light';document.documentElement.dataset.theme=saved;const paint=()=>{document.querySelectorAll('[data-theme-toggle]').forEach(button=>{const light=document.documentElement.dataset.theme==='light';button.textContent=light?'☾ มืด':'☀ สว่าง';button.setAttribute('aria-label',light?'เปลี่ยนเป็นโหมดมืด':'เปลี่ยนเป็นโหมดสว่าง')})};document.addEventListener('DOMContentLoaded',paint);document.addEventListener('click',event=>{const button=event.target.closest('[data-theme-toggle]');if(!button)return;const next=document.documentElement.dataset.theme==='light'?'dark':'light';document.documentElement.dataset.theme=next;localStorage.setItem('ghostlab-theme',next);paint()})})()</script>`
+const themeControls = `<script>(()=>{const saved=localStorage.getItem('ghostlab-theme')||'dark';document.documentElement.dataset.theme=saved;const paint=()=>{document.querySelectorAll('[data-theme-toggle]').forEach(button=>{const light=document.documentElement.dataset.theme==='light';button.textContent=light?'☾ มืด':'☀ สว่าง';button.setAttribute('aria-label',light?'เปลี่ยนเป็นโหมดมืด':'เปลี่ยนเป็นโหมดสว่าง')})};document.addEventListener('DOMContentLoaded',paint);document.addEventListener('click',event=>{const button=event.target.closest('[data-theme-toggle]');if(!button)return;const next=document.documentElement.dataset.theme==='light'?'dark':'light';document.documentElement.dataset.theme=next;localStorage.setItem('ghostlab-theme',next);paint()})})()</script>`
 const themedIndex = index.replaceAll('/assets/', `/assets/${release}/`).replace('</head>', `${themeControls}</head>`)
 await writeFile(path.join(outputRoot, 'index.html'), themedIndex)
 await verifyAssetReferences(outputRoot)
@@ -834,6 +863,10 @@ if (!dailySummaryContent.includes('ghostlab-summary-date-range-calendar')) {
     ',t.jsx(WeeklyClosingPanel,{range:d,onRangeChange:b,staff:r})' + stockWarningMarker,
   )
 }
+if (!dailySummaryContent.includes('function WeeklyClosingPanel(')) {
+  throw new Error('Weekly closing preview is missing; refusing to replace the daily summary without preserving weekly closing.')
+}
+dailySummaryContent = dailySummaryContent.replace('export{N as default};', 'export{N as default,WeeklyClosingPanel};')
 await writeFile(dailySummaryAsset, dailySummaryContent)
 
 
@@ -1012,3 +1045,43 @@ const { outputFiles: commissionOutputFiles } = await buildJsx({
 })
 const commissionBindings = 'import{u as useAuth,r as React,s as supabase}from"./index-vaWnYKxf.js";const{useCallback,useEffect,useMemo,useState}=React;'
 await writeFile(commissionAsset, `${commissionBindings}${commissionOutputFiles[0].text}`)
+
+// Replace the legacy daily summary route with the maintained Daily Closing
+// Console while keeping the existing weekly-close workflow available below it.
+const dailyClosingSourcePath = path.join(projectRoot, 'src', 'pages', 'DailySummary.jsx')
+let dailyClosingSource = await readFile(dailyClosingSourcePath, 'utf8')
+dailyClosingSource = dailyClosingSource
+  .replace(/^import ['"]\.\/DailySummary\.css['"];?\r?\n/m, '')
+  .replace(
+    'export default function DailySummary() {',
+    'import { WeeklyClosingPanel } from "./DailySummary-OhyJk4lZ.js"\nexport default function DailySummary() {',
+  )
+  .replace(
+    '    <section className="daily-closing__lower">',
+    '    <WeeklyClosingPanel range={{ start: dateFrom, end: dateTo || dateFrom }} onRangeChange={({ start, end }) => { setDateFrom(start); setDateTo(end) }} staff={staff} />\n    <section className="daily-closing__lower">',
+  )
+if (!dailyClosingSource.includes('<WeeklyClosingPanel range={{ start: dateFrom')) {
+  throw new Error('Maintained Daily Closing Console could not preserve the weekly closing workflow.')
+}
+const dailyClosingAsset = path.join(outputRoot, 'assets', release, 'DailyClosingConsole.js')
+const { outputFiles: dailyClosingOutputFiles } = await buildJsx({
+  stdin: { contents: dailyClosingSource, sourcefile: 'DailyClosingConsole.jsx', resolveDir: path.dirname(dailyClosingSourcePath), loader: 'jsx' },
+  bundle: true, write: false, format: 'esm', platform: 'browser', target: 'es2022',
+  jsxFactory: 'React.createElement', jsxFragment: 'React.Fragment',
+  plugins: [{ name: 'ghost-react-runtime', setup(build) {
+    build.onResolve({ filter: /^react$/ }, () => ({ path: './expenses-react-runtime.js', external: true }))
+    build.onResolve({ filter: /^\.\/DailySummary-OhyJk4lZ\.js$/ }, () => ({ path: './DailySummary-OhyJk4lZ.js', external: true }))
+  } }],
+})
+const dailyClosingBindings = 'import{u as useAuth,r as React,s as supabase}from"./index-vaWnYKxf.js";const{useEffect,useMemo,useRef,useState}=React;'
+await writeFile(dailyClosingAsset, `${dailyClosingBindings}${dailyClosingOutputFiles[0].text}`)
+
+const appAsset = path.join(outputRoot, 'assets', release, 'index-vaWnYKxf.js')
+let appContent = await readFile(appAsset, 'utf8')
+const oldDailyRoute = 'import("./DailySummary-OhyJk4lZ.js")'
+if (!appContent.includes(oldDailyRoute)) {
+  throw new Error('Daily Summary route marker is missing; refusing to ship the old page.')
+}
+appContent = appContent.replace(oldDailyRoute, 'import("./DailyClosingConsole.js")')
+await writeFile(appAsset, appContent)
+await verifyAssetReferences(outputRoot)
