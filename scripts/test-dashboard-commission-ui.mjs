@@ -39,6 +39,7 @@ test('recovered Stock, Expenses, Daily Summary and Commission pages use React cl
 test('Daily Closing Console source is used by production and keeps close-day persistence disabled', () => {
   assert.match(builder, /DailyClosingConsole\.js/)
   assert.match(builder, /import\("\.\/DailyClosingConsole\.js"\)/)
+  assert.match(builder, /dailyClosingSource\s*=\s*dailyClosingSource[\s\S]*\.replace\(\/\^import \\\{ supabase \\\} from/)
   assert.match(builder, /WeeklyClosingPanel range=\{\{ start: dateFrom, end: dateTo \|\| dateFrom \}\}/)
   assert.match(dailySummary, /className="daily-closing__hero"/)
   assert.match(dailySummary, /className="daily-closing__close" disabled/)

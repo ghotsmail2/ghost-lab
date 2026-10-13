@@ -120,7 +120,7 @@ await cp(path.join(sourceRoot, 'assets'), path.join(outputRoot, 'assets'), { rec
 const assetFiles = (await listFiles(path.join(sourceRoot, 'assets'))).sort()
 const supabaseBrowserConfig = await readSupabaseBrowserConfig()
 const digest = createHash('sha256')
-digest.update('release-transform-20261013-daily-closing-console-1')
+digest.update('release-transform-20261013-daily-closing-console-2')
 for (const file of assetFiles) digest.update(path.relative(sourceRoot, file)).update(await readFile(file))
 const commissionPoolHelper = path.join(projectRoot, 'src', 'lib', 'commission-pool.js')
 digest.update('commission-pool-helper').update(await readFile(commissionPoolHelper))
@@ -1051,6 +1051,9 @@ await writeFile(commissionAsset, `${commissionBindings}${commissionOutputFiles[0
 const dailyClosingSourcePath = path.join(projectRoot, 'src', 'pages', 'DailySummary.jsx')
 let dailyClosingSource = await readFile(dailyClosingSourcePath, 'utf8')
 dailyClosingSource = dailyClosingSource
+  .replace(/^import \{ useEffect, useMemo, useRef, useState \} from ['"]react['"];?\r?\n/m, '')
+  .replace(/^import \{ supabase \} from ['"]\.\.\/lib\/supabase['"];?\r?\n/m, '')
+  .replace(/^import \{ useAuth \} from ['"]\.\.\/context\/AuthContext['"];?\r?\n/m, '')
   .replace(/^import ['"]\.\/DailySummary\.css['"];?\r?\n/m, '')
   .replace(
     'export default function DailySummary() {',
