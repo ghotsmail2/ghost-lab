@@ -14,7 +14,7 @@ export function classifyGarageCommissionClockIn(clockIn) {
   const hour = Number(new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Bangkok', hour: '2-digit', hourCycle: 'h23',
   }).format(at))
-  const period = hour >= 18 ? 'peak' : 'normal'
+  const period = hour >= 18 && hour < 23 ? 'peak' : 'normal'
   return { period, amount: period === 'peak' ? 15_000 : 10_000 }
 }
 

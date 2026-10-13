@@ -78,7 +78,7 @@ export default function POSPage({ branchKey, title, leadRole }) {
             {branch.key === 'chill'
               ? `SERVICE BILL · COMMISSION POOL / BILL · PEAK +25% 18:00–05:59 · ${serviceCount} SERVICES`
               : commissionPolicyForEmployee(branch.key, staff?.role) === 'garage_technician_clock_in'
-                ? `NORMAL — ¥10,000 · PEAK — ¥15,000 · Peak Time 18:00–00:00 · ${serviceCount} SERVICES`
+                ? `NORMAL — ¥10,000 · PEAK — ¥15,000 · Garage Peak Time 18:00–23:00 · ${serviceCount} SERVICES`
               : `SERVICE BILL · COMMISSION ¥${branch.commission_flat.toLocaleString()} / BILL · ${serviceCount} SERVICES`}
           </div>
         </div>
@@ -498,7 +498,7 @@ function NewBillTab({ branch, title, staff }) {
           <div className="font-mono" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--ghost-gray)', marginBottom: 6 }}>
             <span>{branch.key === 'chill' ? 'ค่าคอมของฉัน · Restaurant Pool' : isGarageTechnician ? `ค่าคอม Garage · ${garageCommissionPreview?.garagePeriod === 'peak' ? 'Peak' : garageCommissionPreview?.garagePeriod === 'normal' ? 'Normal' : 'ยังไม่ Clock In'}` : 'COMMISSION (FLAT)'}</span><span>¥{myCommissionPreview.toLocaleString()}</span>
           </div>
-          {branch.key === 'garage' && isGarageTechnician && <div role="status" style={{ color: 'var(--ghost-gray)', fontSize: 10, marginBottom: 10 }}>NORMAL — ¥10,000 · PEAK — ¥15,000 · Peak Time 18:00–00:00{garageCommissionLoading ? ' · กำลังตรวจสอบเวลาเข้างาน…' : ''}</div>}
+          {branch.key === 'garage' && isGarageTechnician && <div role="status" style={{ color: 'var(--ghost-gray)', fontSize: 10, marginBottom: 10 }}>NORMAL — ¥10,000 · PEAK — ¥15,000 · Garage Peak Time 18:00–23:00{garageCommissionLoading ? ' · กำลังตรวจสอบเวลาเข้างาน…' : ''}</div>}
           {branch.key === 'chill' && !isOnShift && (
             <div role="status" style={{ background: 'rgba(236,164,76,.12)', border: '1px solid rgba(236,164,76,.35)', borderRadius: 8, color: '#f0bd78', fontSize: 11, lineHeight: 1.5, marginBottom: 10, padding: '9px 11px' }}>
               ⚠️ อย่าลืมเข้างานนะ เดี๋ยวไม่ได้ค่าคอม

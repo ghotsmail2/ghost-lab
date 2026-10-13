@@ -442,7 +442,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
         content = content.replace(oldAttendanceClockIn, atomicAttendanceClockIn)
       }
       content = content.replace('e.jsx("div",{onClick:l?()=>f(!0):B,className:"btn btn-primary",children:l?"⏱ ปิดกะ & Clock Out":"⏱ Clock In"})', 'e.jsx("button",{type:"button",onClick:l?()=>f(!0):B,className:"btn btn-primary",children:l?"⏱ ปิดกะ & Clock Out":"⏱ Clock In"})')
-      content = content.replace(']}),l&&e.jsxs("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}', ']}),["head_mechanic","mechanic","mechanic_trainee"].includes(n?.role)&&e.jsxs("div",{className:"panel",role:"status",style:{marginBottom:16,color:"var(--ghost-gray)",fontSize:12},children:["Ghost Lab Garage · NORMAL — ¥10,000 · PEAK — ¥15,000 · Peak Time 18:00–00:00",l?.garage_commission_period&&e.jsx("strong",{style:{color:"var(--bone)",marginLeft:10},children:(l.garage_commission_period==="peak"?"Peak":"Normal")+" · ¥"+Number(l.garage_commission_amount||0).toLocaleString()})]}),l&&e.jsxs("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}')
+      content = content.replace(']}),l&&e.jsxs("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}', ']}),["head_mechanic","mechanic","mechanic_trainee"].includes(n?.role)&&e.jsxs("div",{className:"panel",role:"status",style:{marginBottom:16,color:"var(--ghost-gray)",fontSize:12},children:["Ghost Lab Garage · NORMAL — ¥10,000 · PEAK — ¥15,000 · Garage Peak Time 18:00–23:00",l?.garage_commission_period&&e.jsx("strong",{style:{color:"var(--bone)",marginLeft:10},children:(l.garage_commission_period==="peak"?"Peak":"Normal")+" · ¥"+Number(l.garage_commission_amount||0).toLocaleString()})]}),l&&e.jsxs("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}')
       content = content.replace('children:["เข้า"," ",new Date(s.clock_in).toLocaleTimeString("th-TH",{hour12:!1})]', 'children:["เข้า"," ",new Date(s.clock_in).toLocaleTimeString("th-TH",{hour12:!1}),s.garage_commission_period&&` · ${s.garage_commission_period==="peak"?"Peak":"Normal"} ¥${Number(s.garage_commission_amount||0).toLocaleString()}`]')
     }
     if (file.endsWith('Profile-Crf9iFsU.js')) {
@@ -589,10 +589,10 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
 
       content = content.replace(
         'children:[e.jsx("span",{style:{color:d?"#7ee2a5":"var(--ghost-gray)",fontSize:11,fontWeight:600,letterSpacing:.7},children:d?"● ออนไลน์ · เข้างานแล้ว":"○ ออฟไลน์ · ยังไม่เข้างาน"}),e.jsx("button",{type:"button",onClick:R',
-        'children:[e.jsxs("span",{style:{background:peakNow?"rgba(53,217,230,.14)":"rgba(255,255,255,.04)",border:`1px solid ${peakNow?"rgba(53,217,230,.68)":"var(--line)"}`,borderRadius:10,color:peakNow?"#35d9e6":"var(--ghost-gray)",display:"flex",flexDirection:"column",fontSize:9,fontWeight:700,gap:3,letterSpacing:.4,padding:"5px 9px"},children:[e.jsx("span",{children:peakNow?"SABINAGISA · PEAK":"SABINAGISA · NORMAL"}),e.jsx("span",{children:"18:00–05:59"}),e.jsx("span",{style:{borderTop:"1px solid var(--line)",paddingTop:3},children:"GHOST LAB · PEAK 18:00–00:00"})]}),e.jsx("span",{style:{color:d?"#7ee2a5":"var(--ghost-gray)",fontSize:11,fontWeight:600,letterSpacing:.7},children:d?"● ออนไลน์ · เข้างานแล้ว":"○ ออฟไลน์ · ยังไม่เข้างาน"}),e.jsx("button",{type:"button",onClick:R',
+        'children:[e.jsxs("span",{style:{background:peakNow?"rgba(53,217,230,.14)":"rgba(255,255,255,.04)",border:`1px solid ${peakNow?"rgba(53,217,230,.68)":"var(--line)"}`,borderRadius:10,color:peakNow?"#35d9e6":"var(--ghost-gray)",display:"flex",flexDirection:"column",fontSize:9,fontWeight:700,gap:3,letterSpacing:.4,padding:"5px 9px"},children:[e.jsx("span",{children:peakNow?"SABINAGISA · PEAK":"SABINAGISA · NORMAL"}),e.jsx("span",{children:"18:00–05:59"}),e.jsx("span",{style:{borderTop:"1px solid var(--line)",paddingTop:3},children:"GHOST LAB · TECHNICIANS 18:00–23:00"})]}),e.jsx("span",{style:{color:d?"#7ee2a5":"var(--ghost-gray)",fontSize:11,fontWeight:600,letterSpacing:.7},children:d?"● ออนไลน์ · เข้างานแล้ว":"○ ออฟไลน์ · ยังไม่เข้างาน"}),e.jsx("button",{type:"button",onClick:R',
       )
       const oldHomePeakTime = 'e.jsxs("div",{children:[e.jsx("strong",{children:"PEAK"}),e.jsx("small",{children:"18:00–05:59"})]})'
-      const newHomePeakTime = 'e.jsxs("div",{children:[e.jsx("strong",{children:"PEAK TIME"}),e.jsx("small",{children:"SABINAGISA · 18:00–05:59"}),e.jsx("small",{children:"GHOST LAB · 18:00–00:00"})]})'
+      const newHomePeakTime = 'e.jsxs("div",{children:[e.jsx("strong",{children:"PEAK TIME"}),e.jsx("small",{children:"SABINAGISA · 18:00–05:59"}),e.jsx("small",{children:"GHOST LAB · TECHNICIANS 18:00–23:00"})]})'
       if (!content.includes(oldHomePeakTime)) throw new Error('Recovered Home Peak label changed; refusing to ship ambiguous commission hours.')
       content = content.replace(oldHomePeakTime, newHomePeakTime)
 
@@ -750,7 +750,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       if (!content.includes('restaurantCommission = calculateSabinagisaCommissionPool(n.key, O, new Date())')) {
         throw new Error('Recovered POS commission patch did not apply; refusing to ship a flat commission for SABINAGISA.')
       }
-      content = content.replace('children: ["SERVICE BILL \\xB7 COMMISSION \\xA5", h.commission_flat.toLocaleString(), " ", "/ BILL \\xB7 ", m, " SERVICES"]', 'children: v ? ["SERVICE BILL · COMMISSION POOL / BILL · PEAK +25% 18:00–05:59 · ", m, " SERVICES"] : n.key === "garage" && ["head_mechanic","mechanic","mechanic_trainee"].includes(p?.role) ? ["NORMAL — ¥10,000 · PEAK — ¥15,000 · Peak Time 18:00–00:00 · ",m," SERVICES"] : ["SERVICE BILL · COMMISSION ¥", h.commission_flat.toLocaleString(), " / BILL · ", m, " SERVICES"]')
+      content = content.replace('children: ["SERVICE BILL \\xB7 COMMISSION \\xA5", h.commission_flat.toLocaleString(), " ", "/ BILL \\xB7 ", m, " SERVICES"]', 'children: v ? ["SERVICE BILL · COMMISSION POOL / BILL · PEAK +25% 18:00–05:59 · ", m, " SERVICES"] : n.key === "garage" && ["head_mechanic","mechanic","mechanic_trainee"].includes(p?.role) ? ["NORMAL — ¥10,000 · PEAK — ¥15,000 · Garage Peak Time 18:00–23:00 · ",m," SERVICES"] : ["SERVICE BILL · COMMISSION ¥", h.commission_flat.toLocaleString(), " / BILL · ", m, " SERVICES"]')
       content = 'import{calculateSabinagisaCommissionPool}from"./commission-pool.js";\n' + content
 
       const draftKeyAnchor = 'const draftStorageKey = `${POS_DRAFT_PREFIX}${n.key}:${(p == null ? void 0 : p.id) || "guest"}`;'
@@ -1119,7 +1119,7 @@ if (!personalCommissionPos.includes('preview_my_bill_commission')) {
   )
   personalCommissionPos = personalCommissionPos.replace(
     '          children: ["SERVICE BILL \\xB7 COMMISSION \\xA5", h.commission_flat.toLocaleString(), " ", "/ BILL \\xB7 ", m, " SERVICES"]',
-    '          children: v ? ["SERVICE BILL · COMMISSION POOL · ACTIVE SNAPSHOT · ", m, " SERVICES"] : n.key === "garage" && ["head_mechanic","mechanic","mechanic_trainee"].includes(p?.role) ? ["NORMAL — ¥10,000 · PEAK — ¥15,000 · Peak Time 18:00–00:00 · ",m," SERVICES"] : ["SERVICE BILL · ค่าคอมของผู้เปิดบิล ¥", h.commission_flat.toLocaleString(), " / BILL · ", m, " SERVICES"]',
+    '          children: v ? ["SERVICE BILL · COMMISSION POOL · ACTIVE SNAPSHOT · ", m, " SERVICES"] : n.key === "garage" && ["head_mechanic","mechanic","mechanic_trainee"].includes(p?.role) ? ["NORMAL — ¥10,000 · PEAK — ¥15,000 · Garage Peak Time 18:00–23:00 · ",m," SERVICES"] : ["SERVICE BILL · ค่าคอมของผู้เปิดบิล ¥", h.commission_flat.toLocaleString(), " / BILL · ", m, " SERVICES"]',
   )
   personalCommissionPos = personalCommissionPos.replace(
     '            children: "COMMISSION (FLAT)"',

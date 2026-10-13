@@ -71,7 +71,7 @@ export default function Attendance() {
 
       {staff?.branches?.key === 'garage' && ['head_mechanic', 'mechanic', 'mechanic_trainee'].includes(staff.role) && (
         <div className="panel" role="status" style={{ marginBottom: 16, color: 'var(--ghost-gray)', fontSize: 12 }}>
-          NORMAL — ¥10,000 · PEAK — ¥15,000 · Peak Time 18:00–00:00
+          NORMAL — ¥10,000 · PEAK — ¥15,000 · Garage Peak Time 18:00–23:00
           {openEntry?.garage_commission_period && <strong style={{ color: 'var(--bone)', marginLeft: 10 }}>
             กะนี้: {openEntry.garage_commission_period === 'peak' ? 'Peak' : 'Normal'} · ¥{Number(openEntry.garage_commission_amount || 0).toLocaleString()}
           </strong>}

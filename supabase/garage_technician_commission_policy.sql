@@ -8,7 +8,8 @@ immutable
 set search_path = public
 as $$
   select case
-    when extract(hour from (p_clock_in at time zone 'Asia/Bangkok')) >= 18 then 'peak'
+    when extract(hour from (p_clock_in at time zone 'Asia/Bangkok')) >= 18
+      and extract(hour from (p_clock_in at time zone 'Asia/Bangkok')) < 23 then 'peak'
     else 'normal'
   end;
 $$;
