@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "node scripts/build-recovered.mjs",
-    "test": "node --test scripts/test-vehicle-pricing.mjs scripts/test-order-notifications.mjs scripts/test-commission-mode.mjs scripts/test-commission-pool.mjs scripts/test-weekly-closing.mjs",
+    "test": "node --test scripts/test-vehicle-pricing.mjs scripts/test-order-notifications.mjs scripts/test-commission-mode.mjs scripts/test-commission-pool.mjs scripts/test-weekly-closing.mjs scripts/test-theme-switch.mjs scripts/test-dashboard-commission-ui.mjs scripts/test-attendance-heartbeat.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
+    "lucide-react": "^1.55.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.0"

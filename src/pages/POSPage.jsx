@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { calculateMemberDiscount, formatDate, getMembershipPlan, nextMonthlyExpiry } from '../lib/membership'
+import { calculateSabinagisaCommissionPool } from '../lib/commission-pool'
 
 const BILL_NOTE_SNAPSHOT_PREFIX = '[ghost-lab-bill]'
 const MEMBER_FREE_REPAIR_SERVICES = new Set(['engine repair kit', 'full repair kit'])
@@ -74,7 +75,9 @@ export default function POSPage({ branchKey, title, leadRole }) {
         <div>
           <div className="font-display" style={{ fontSize: 20, fontWeight: 600 }}>{branch.name}</div>
           <div style={{ fontSize: 12, color: 'var(--ghost-gray)', marginTop: 2 }}>
-            SERVICE BILL · COMMISSION ¥{branch.commission_flat.toLocaleString()} / BILL · {serviceCount} SERVICES
+            {branch.key === 'chill'
+              ? `SERVICE BILL · COMMISSION POOL / BILL · PEAK +25% 18:00–05:59 · ${serviceCount} SERVICES`
+              : `SERVICE BILL · COMMISSION ¥${branch.commission_flat.toLocaleString()} / BILL · ${serviceCount} SERVICES`}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -126,6 +129,25 @@ function NewBillTab({ branch, title, staff }) {
   const [toast, setToast] = useState('')
   const [selfService, setSelfService] = useState(() => Boolean(initialDraft?.selfService))
   const [memberEnabled, setMemberEnabled] = useState(() => Boolean(initialDraft?.memberEnabled))
+  const [manualDiscountPct, setManualDiscountPct] = useState(() => Number(initialDraft?.manualDiscountPct || 0))
+  const [isOnShift, setIsOnShift] = useState(false)
+  const [showAttendanceConfirm, setShowAttendanceConfirm] = useState(false)
+
+  useEffect(() => {
+    if (branch.key !== 'chill' || !staff?.id) { setIsOnShift(false); return }
+    let active = true
+    const refreshShift = async () => {
+      const { data, error } = await supabase.from('attendance').select('id')
+        .eq('staff_id', staff.id).eq('branch_id', branch.id).is('clock_out', null)
+        .gte('last_seen_at', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()).limit(1)
+      if (!active) return
+      if (error) { console.warn('[SABINAGISA] Could not verify clock-in:', error); setIsOnShift(false) }
+      else setIsOnShift(Boolean(data?.length))
+    }
+    refreshShift()
+    const timer = setInterval(refreshShift, 15_000)
+    return () => { active = false; clearInterval(timer) }
+  }, [branch, staff?.id])
 
   // Customer / member search
   const [customerQuery, setCustomerQuery] = useState('')
@@ -139,13 +161,13 @@ function NewBillTab({ branch, title, staff }) {
   // auth refresh does not discard selected services and entered details.
   useEffect(() => {
     try {
-      if (!cart.length && !plate && !vehicle && !notes && !selfService && !memberEnabled) {
+      if (!cart.length && !plate && !vehicle && !notes && !selfService && !memberEnabled && !manualDiscountPct) {
         sessionStorage.removeItem(draftStorageKey)
         return
       }
-      sessionStorage.setItem(draftStorageKey, JSON.stringify({ cart, plate, vehicle, notes, selfService, memberEnabled }))
+      sessionStorage.setItem(draftStorageKey, JSON.stringify({ cart, plate, vehicle, notes, selfService, memberEnabled, manualDiscountPct }))
     } catch {}
-  }, [cart, plate, vehicle, notes, selfService, memberEnabled, draftStorageKey])
+  }, [cart, plate, vehicle, notes, selfService, memberEnabled, manualDiscountPct, draftStorageKey])
 
   useEffect(() => {
     supabase.from('services').select('*').eq('branch_id', branch.id).eq('active', true)
@@ -206,8 +228,13 @@ function NewBillTab({ branch, title, staff }) {
     : { active: false, percentage: 0, amount: 0, total: memberDiscountSubtotal }
   const memberFreeRepairApplied = memberFreeRepairAmount > 0
   const couponFreeRepairApplied = Boolean(useFreeRepair && availableRewards[0])
-  const displayTotal = selfService || couponFreeRepairApplied ? 0 : memberDiscount.total
-  const displayCommission = selfService ? 0 : branch.commission_flat
+  const safeManualDiscountPct = Math.min(100, Math.max(0, Number(manualDiscountPct) || 0))
+  const manualDiscountAmount = Math.min(memberDiscount.total, Math.round(memberDiscount.total * safeManualDiscountPct / 100))
+  const displayTotal = selfService || couponFreeRepairApplied ? 0 : Math.max(0, memberDiscount.total - manualDiscountAmount)
+  const effectiveDiscountPct = cartTotal > 0 ? Number((100 - (displayTotal / cartTotal * 100)).toFixed(2)) : 0
+  const restaurantCommission = calculateSabinagisaCommissionPool(branch.key, displayTotal)
+  const displayCommission = selfService ? 0 : branch.key === 'chill' ? restaurantCommission.amount : branch.commission_flat
+  const myCommissionPreview = branch.key === 'chill' && !isOnShift ? 0 : displayCommission
 
   function addToCart(service) { setCart(c => [...c, service]) }
   function removeFromCart(idx) { setCart(c => c.filter((_, i) => i !== idx)) }
@@ -237,8 +264,14 @@ function NewBillTab({ branch, title, staff }) {
     })
   }
 
-  async function submitBill() {
-    if (cart.length === 0 || !staff) return
+  async function submitBill(confirmedWithoutAttendance = false) {
+    if (branch.key === 'chill' && !isOnShift && !confirmedWithoutAttendance) {
+      setShowAttendanceConfirm(true)
+      return
+    }
+    setShowAttendanceConfirm(false)
+    if (!staff) return
+    if (cart.length === 0) { showToast('เพิ่มรายการอย่างน้อย 1 รายการก่อนบันทึกบิล'); return }
     if (memberEnabled && !selectedMember) { showToast('กรุณาเลือก Member ก่อนบันทึกบิล'); return }
     setSubmitting(true)
     const billNumber = `${branch.key.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`
@@ -254,7 +287,7 @@ function NewBillTab({ branch, title, staff }) {
       // bill_items remains the source for stock/reward automation.
       notes: makeBillNotes(notes, cart),
       subtotal: cartTotal,
-      discount_pct: selfService ? 0 : couponFreeRepairApplied ? 100 : memberDiscount.percentage,
+      discount_pct: selfService ? 0 : couponFreeRepairApplied ? 100 : effectiveDiscountPct,
       commission: displayCommission,
       commission_mode: branch.key === 'chill' ? 'ON_WORK_ALL' : 'INDIVIDUAL',
       total: displayTotal,
@@ -424,8 +457,13 @@ function NewBillTab({ branch, title, staff }) {
           </div>
 
           <div className="font-mono" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--ghost-gray)', marginBottom: 6 }}>
-            <span>COMMISSION (FLAT)</span><span>¥{displayCommission.toLocaleString()}</span>
+            <span>{branch.key === 'chill' ? 'ค่าคอมของฉัน' : 'COMMISSION (FLAT)'}</span><span>¥{myCommissionPreview.toLocaleString()}</span>
           </div>
+          {branch.key === 'chill' && !isOnShift && (
+            <div role="status" style={{ background: 'rgba(236,164,76,.12)', border: '1px solid rgba(236,164,76,.35)', borderRadius: 8, color: '#f0bd78', fontSize: 11, lineHeight: 1.5, marginBottom: 10, padding: '9px 11px' }}>
+              ⚠️ อย่าลืมเข้างานนะ เดี๋ยวไม่ได้ค่าคอม
+            </div>
+          )}
           {memberEnabled && selectedMember && !selfService && (
             <>
               <div className="font-mono" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--ghost-gray)', marginBottom: 6 }}>
@@ -438,19 +476,54 @@ function NewBillTab({ branch, title, staff }) {
               {couponFreeRepairApplied && <div className="font-mono" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#e5c158', marginBottom: 6 }}><span>FREE REPAIR COUPON</span><span>−¥{memberDiscount.total.toLocaleString()}</span></div>}
             </>
           )}
+          {!selfService && (
+            <label style={{ display: 'grid', gap: 6, marginBottom: 12 }}>
+              <span style={{ color: 'var(--ghost-gray)', fontSize: 10, letterSpacing: .8 }}>ส่วนลด (%)</span>
+              <input
+                className="input"
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                inputMode="decimal"
+                placeholder="เช่น 10"
+                value={manualDiscountPct || ''}
+                onChange={event => setManualDiscountPct(Math.min(100, Math.max(0, Number(event.target.value) || 0)))}
+              />
+              {manualDiscountAmount > 0 && <span className="font-mono" style={{ color: '#84d6a8', fontSize: 11 }}>−¥{manualDiscountAmount.toLocaleString()} จากยอดหลังส่วนลดสมาชิก</span>}
+            </label>
+          )}
           <div className="font-mono" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontWeight: 700, marginBottom: 14 }}>
             <span>TOTAL</span><span style={{ color: 'var(--blood)' }}>¥{displayTotal.toLocaleString()}</span>
           </div>
 
-          <div onClick={submitBill} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', opacity: submitting || cart.length === 0 ? 0.5 : 1 }}>
+          <button type="button" onClick={() => submitBill()} disabled={submitting || (cart.length === 0 && (branch.key !== 'chill' || isOnShift))} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', opacity: submitting || (cart.length === 0 && (branch.key !== 'chill' || isOnShift)) ? 0.5 : 1 }}>
             {submitting ? 'กำลังบันทึก...' : '▸ SUBMIT BILL'}
-          </div>
+          </button>
         </div>
       </div>
 
       {toast && (
         <div style={{ position: 'fixed', bottom: 24, right: 24, background: 'var(--static)', border: '1px solid var(--blood)', padding: '12px 18px', borderRadius: 6, fontSize: 12 }}>
           {toast}
+        </div>
+      )}
+
+      {showAttendanceConfirm && (
+        <div role="presentation" onClick={event => { if (event.target === event.currentTarget) setShowAttendanceConfirm(false) }} style={{ position: 'fixed', inset: 0, zIndex: 120, display: 'grid', placeItems: 'center', padding: 16, background: 'rgba(0,0,0,.68)' }}>
+          <section role="alertdialog" aria-modal="true" aria-labelledby="attendance-warning-title" className="panel" style={{ width: 'min(100%, 420px)', padding: 22, borderColor: 'rgba(230,143,56,.55)' }}>
+            <div style={{ alignItems: 'center', background: 'rgba(230,143,56,.14)', border: '1px solid rgba(230,143,56,.3)', borderRadius: 12, color: '#f2b45f', display: 'flex', fontSize: 24, height: 48, justifyContent: 'center', marginBottom: 12, width: 48 }}>!</div>
+            <div style={{ color: '#d98332', fontSize: 10, letterSpacing: 1.2, fontWeight: 800 }}>SABINAGISA · แจ้งเตือนการเข้างาน</div>
+            <h2 id="attendance-warning-title" style={{ margin: '7px 0 9px', fontSize: 21 }}>ยังไม่ได้เข้างานนะ</h2>
+            <p style={{ color: 'var(--bone)', fontSize: 14, lineHeight: 1.75, margin: '0 0 8px' }}>ถ้าบันทึกบิลตอนนี้ คุณจะไม่ได้รับค่าคอม Pool จากบิลนี้</p>
+            <p style={{ color: 'var(--ghost-gray)', fontSize: 12, lineHeight: 1.65, margin: '0 0 18px' }}>{cart.length ? 'ถ้ากำลังทำงานอยู่ ให้ไปเข้างานก่อนเพื่อรับสิทธิ์ค่าคอม หรือยืนยันบันทึกบิลต่อโดยไม่รับค่าคอม' : 'เพิ่มรายการในบิลก่อน แล้วค่อยกลับมากดยืนยันบันทึกต่อ'}</p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
+              <Link to="/attendance" className="btn btn-secondary">ไปหน้าเข้างาน</Link>
+              {cart.length > 0
+                ? <button type="button" className="btn btn-primary" onClick={() => submitBill(true)}>ยืนยันบิล · ไม่มีค่าคอม</button>
+                : <button type="button" className="btn btn-primary" onClick={() => setShowAttendanceConfirm(false)}>เข้าใจแล้ว</button>}
+            </div>
+          </section>
         </div>
       )}
 
@@ -546,7 +619,7 @@ function BillsHistoryTab({ branch, staff, onBillDeleted }) {
   async function deleteBill(bill) {
     if (!window.confirm(`ยกเลิกบิล ${bill.bill_number} ?\n\nยอดรายรับและ Commission ของบิลนี้จะถูกตัดออก และสต็อกที่ใช้จะถูกคืน`)) return
     const rpcName = staff?.role === 'god' ? 'delete_any_bill_as_god' : 'delete_own_bill'
-    const { error } = await supabase.rpc(rpcName, { target_bill_id: bill.id })
+    const { error } = await supabase.rpc(rpcName, { target_bill_id: bill.id, actor_id: staff?.id })
     if (error) {
       console.error(error)
       alert(`ลบบิลไม่สำเร็จ: ${error.message}`)
@@ -655,7 +728,7 @@ function BillHistoryRow({ bill, expanded, onToggle, canDelete, onDelete }) {
     {expanded && <div style={{ background: 'rgba(255,255,255,.025)', borderTop: '1px solid var(--line)', margin: '0 -8px', padding: '12px 14px' }}>
       <div style={{ color: 'var(--ghost-gray)', fontSize: 10, letterSpacing: .8, marginBottom: 7 }}>รายการที่ทำ</div>
       {groupedItems.length === 0 ? <div style={{ color: 'var(--ghost-gray)', fontSize: 11 }}>ไม่มีรายละเอียดรายการในบิลนี้</div> : groupedItems.map(item => <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}><span>{item.name} <span style={{ color: 'var(--ghost-gray)' }}>×{item.quantity}</span></span><span className="font-mono">¥{item.total.toLocaleString()}</span></div>)}
-      <div style={{ borderTop: '1px dashed var(--line)', display: 'grid', gap: 4, gridTemplateColumns: '1fr auto', marginTop: 9, paddingTop: 9 }}><span style={{ color: 'var(--ghost-gray)' }}>Subtotal</span><span className="font-mono">¥{Number(bill.subtotal || 0).toLocaleString()}</span>{discountAmount > 0 && <><span style={{ color: '#84d6a8' }}>ส่วนลด {bill.discount_pct ? `(${bill.discount_pct}%)` : ''}</span><span className="font-mono" style={{ color: '#84d6a8' }}>−¥{discountAmount.toLocaleString()}</span></>}<span style={{ color: 'var(--ghost-gray)' }}>Commission / Person</span><span className="font-mono" style={{ color: '#e5c158' }}>¥{Number(bill.commission || 0).toLocaleString()}</span><strong>TOTAL</strong><strong className="font-mono" style={{ color: 'var(--blood)' }}>¥{Number(bill.total || 0).toLocaleString()}</strong></div>
+      <div style={{ borderTop: '1px dashed var(--line)', display: 'grid', gap: 4, gridTemplateColumns: '1fr auto', marginTop: 9, paddingTop: 9 }}><span style={{ color: 'var(--ghost-gray)' }}>Subtotal</span><span className="font-mono">¥{Number(bill.subtotal || 0).toLocaleString()}</span>{discountAmount > 0 && <><span style={{ color: '#84d6a8' }}>ส่วนลด {bill.discount_pct ? `(${bill.discount_pct}%)` : ''}</span><span className="font-mono" style={{ color: '#84d6a8' }}>−¥{discountAmount.toLocaleString()}</span></>}<span style={{ color: 'var(--ghost-gray)' }}>{bill.commission_mode === 'ON_WORK_ALL' ? 'Commission Pool / Bill' : 'Commission / Bill'}</span><span className="font-mono" style={{ color: '#e5c158' }}>¥{Number(bill.commission || 0).toLocaleString()}</span><strong>TOTAL</strong><strong className="font-mono" style={{ color: 'var(--blood)' }}>¥{Number(bill.total || 0).toLocaleString()}</strong></div>
       {bill.commission_mode && <div style={{ borderTop: '1px dashed var(--line)', marginTop: 10, paddingTop: 9 }}><div style={{ color: '#e5c158', fontSize: 11, fontWeight: 600 }}>Commission Mode: {modeLabel}</div><div style={{ color: 'var(--ghost-gray)', fontSize: 11, marginTop: 4 }}>On Work Recipients: {distributions.length} คน · Total Commission Payout: ¥{payoutTotal.toLocaleString()}</div>{distributions.length > 0 && <div style={{ marginTop: 6 }}>{distributions.map(item => <div key={item.user_id || item.user_name_snapshot} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}><span>{item.user_name_snapshot}</span><span className="font-mono">¥{Number(item.amount || 0).toLocaleString()}</span></div>)}</div>}</div>}
       {noteSnapshot.note && <div style={{ color: 'var(--ghost-gray)', fontSize: 11, marginTop: 10 }}>หมายเหตุ: {noteSnapshot.note}</div>}
     </div>}

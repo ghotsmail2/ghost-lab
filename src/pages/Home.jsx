@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import BranchFilter from '../components/BranchFilter'
+import './Home.css'
 
 function localDateValue(date = new Date()) {
   const year = date.getFullYear()
@@ -14,6 +15,10 @@ export default function Home() {
   const { staff } = useAuth()
   const [todayBills, setTodayBills] = useState([])
   const [onShiftCount, setOnShiftCount] = useState(0)
+  const [onShiftStaff, setOnShiftStaff] = useState([])
+  const [showOnShiftStaff, setShowOnShiftStaff] = useState(false)
+  const [personalCommission, setPersonalCommission] = useState(0)
+  const [personalCommissionBills, setPersonalCommissionBills] = useState(0)
   const [branchFilter, setBranchFilter] = useState('all')
   const [period, setPeriod] = useState('today')
   const [selectedDate, setSelectedDate] = useState(localDateValue)
@@ -51,12 +56,47 @@ export default function Home() {
     if (periodEnd) billsQuery = billsQuery.lt('created_at', periodEnd.toISOString())
     billsQuery.then(({ data, error }) => { if (!error) setTodayBills(data || []) })
 
-    supabase
-      .from('attendance')
-      .select('id', { count: 'exact', head: true })
-      .is('clock_out', null)
-      .then(({ count }) => setOnShiftCount(count || 0))
-  }, [period, selectedDate])
+    let attendanceRequestActive = true
+    const refreshOnShiftStaff = async () => {
+      const { data, error } = await supabase.rpc('list_on_shift_staff', {
+        p_branch_id: hasOwnerOverview ? null : (staff?.primary_branch || null),
+      })
+      if (!attendanceRequestActive) return
+      if (error) {
+        console.error('[Ghost Lab] Failed to load on-shift staff:', error)
+        return
+      }
+      const currentStaff = data || []
+      setOnShiftStaff(currentStaff)
+      setOnShiftCount(currentStaff.length)
+    }
+    refreshOnShiftStaff()
+    const attendanceRefreshTimer = setInterval(refreshOnShiftStaff, 30_000)
+
+    if (hasOwnerOverview || !staff?.id) {
+      setPersonalCommission(0)
+      setPersonalCommissionBills(0)
+    } else {
+      let commissionQuery = supabase
+        .from('commission_distributions')
+        .select('amount,created_at')
+        .eq('user_id', staff.id)
+        .is('reversed_at', null)
+      if (period !== 'all') commissionQuery = commissionQuery.gte('created_at', periodStart.toISOString())
+      if (periodEnd) commissionQuery = commissionQuery.lt('created_at', periodEnd.toISOString())
+      commissionQuery.then(({ data, error }) => {
+        if (error) console.error('[Ghost Lab] Failed to load personal commission:', error)
+        else {
+          setPersonalCommission((data || []).reduce((total, row) => total + Number(row.amount || 0), 0))
+          setPersonalCommissionBills((data || []).length)
+        }
+      })
+    }
+    return () => {
+      attendanceRequestActive = false
+      clearInterval(attendanceRefreshTimer)
+    }
+  }, [period, selectedDate, staff?.id, staff?.primary_branch, hasOwnerOverview])
 
   useEffect(() => {
     if (!staff?.id) return
@@ -121,7 +161,7 @@ export default function Home() {
     if (!openAttendance && !staff.primary_branch) return alert('ยังไม่ได้กำหนดสาขาหลักให้พนักงานคนนี้')
     setAttendanceSaving(true)
     const { data, error } = openAttendance
-      ? await supabase.from('attendance').update({ clock_out: new Date().toISOString() }).eq('id', openAttendance.id)
+      ? await supabase.from('attendance').update({ clock_out: new Date().toISOString(), clock_out_source: 'manual' }).eq('id', openAttendance.id)
       : await supabase.from('attendance').insert({ staff_id: staff.id, branch_id: staff.primary_branch }).select().single()
 
     if (error) {
@@ -152,6 +192,7 @@ export default function Home() {
   const todayRevenue = todayBills.reduce((a, b) => a + b.total, 0)
   const unpaidBills = filteredBills.filter(bill => !bill.pay_period_id)
   const commissionPending = unpaidBills.reduce((a, b) => a + (b.commission || 0), 0)
+  const commissionForHome = hasOwnerOverview ? commissionPending : personalCommission
   const teamSummary = Object.values(unpaidBills.reduce((summary, bill) => {
     const key = bill.staff_id || 'unknown'
     const current = summary[key] || { id: key, name: bill.staff?.name_en || 'ไม่ระบุพนักงาน', bills: 0, total: 0, commission: 0, billIds: [] }
@@ -160,7 +201,20 @@ export default function Home() {
   }, {})).sort((a, b) => b.total - a.total)
 
   return (
-    <div>
+    <div className="home-dashboard">
+      <section className="dashboard-hero">
+        <div className="dashboard-hero__shade" />
+        <div className="dashboard-hero__copy">
+          <span className="dashboard-hero__eyebrow">SABINAGISA · JAPAN HOSPITALITY</span>
+          <h2>ค่ำคืนที่ทุกช่วงเวลา<br />มีความหมาย</h2>
+          <p>Operations Desk · Ghost Group</p>
+        </div>
+        <div className="dashboard-hero__status">
+          <div><b className={openAttendance ? 'is-online' : ''}>{openAttendance ? '● Open Now' : '○ Offline'}</b><span>{openAttendance ? 'กำลังปฏิบัติงาน' : 'ยังไม่ได้เข้างาน'}</span></div>
+          <div><b>{onShiftCount}</b><span>Staff On Work</span></div>
+          <div><b>{new Date().getHours() >= 18 || new Date().getHours() < 6 ? 'PEAK' : 'NORMAL'}</b><span>18:00 – 05:59</span></div>
+        </div>
+      </section>
       <div className="panel" style={{
         background: 'linear-gradient(120deg, rgba(196,30,42,0.14), transparent 60%), var(--static)',
         padding: '26px 30px', marginBottom: 20, display: 'flex', justifyContent: 'space-between',
@@ -197,9 +251,40 @@ export default function Home() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 22 }}>
         <StatCard label={`ยอด${periodLabel} · GARAGE`} value={`¥${garageTotal.toLocaleString()}`} meta={`${garageBills.length} บิล`} dim={branchFilter === 'chill'} />
         <StatCard label={`ยอด${periodLabel} · GHOST CHILL`} value={`¥${chillTotal.toLocaleString()}`} meta={`${chillBills.length} บิล`} dim={branchFilter === 'garage'} />
-        <StatCard label={`COMMISSION ${periodLabel}`} value={`¥${commissionPending.toLocaleString()}`} accent />
-        <StatCard label="พนักงานเข้างาน" value={`${onShiftCount} คน`} />
+        <StatCard label={hasOwnerOverview ? `COMMISSION ${periodLabel}` : `ค่าคอมของฉัน ${periodLabel}`} value={`¥${commissionForHome.toLocaleString()}`} meta={hasOwnerOverview ? undefined : `${personalCommissionBills} บิล`} accent />
+        <button type="button" onClick={() => setShowOnShiftStaff(true)} aria-label="ดูรายชื่อพนักงานที่เข้างาน" style={{ background: 'transparent', border: 0, color: 'inherit', cursor: 'pointer', padding: 0, textAlign: 'left' }}>
+          <StatCard label="พนักงานเข้างาน" value={`${onShiftCount} คน`} meta="กดดูรายชื่อ" />
+        </button>
       </div>
+
+      <section className="home-onwork panel" aria-label="พนักงานที่กำลังทำงาน">
+        <div className="home-onwork__header"><div><span>TEAM LIVE</span><h3>พนักงานที่ On Work อยู่ตอนนี้</h3></div><button type="button" className="btn" onClick={() => setShowOnShiftStaff(true)}>ดูทั้งหมด →</button></div>
+        {onShiftStaff.length === 0
+          ? <p className="home-onwork__empty">ยังไม่มีพนักงานเข้างานในตอนนี้</p>
+          : <div className="home-onwork__list">{onShiftStaff.slice(0, 8).map(member => <div key={`${member.branch_id}-${member.id}`} className="home-onwork__person"><span>{member.name_en?.slice(0, 2).toUpperCase()}</span><strong>{member.name_en}</strong><small>{member.branch_name || 'Ghost Group'}</small><em>●</em></div>)}</div>}
+      </section>
+
+      {showOnShiftStaff && (
+        <div role="presentation" onClick={event => { if (event.target === event.currentTarget) setShowOnShiftStaff(false) }} style={{ alignItems: 'center', background: 'rgba(0,0,0,.62)', display: 'flex', inset: 0, justifyContent: 'center', padding: 18, position: 'fixed', zIndex: 30 }}>
+          <section role="dialog" aria-modal="true" aria-label="พนักงานที่เข้างานอยู่" className="panel" style={{ maxWidth: 430, width: '100%' }}>
+            <div style={{ alignItems: 'center', display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div>
+                <div className="font-display" style={{ fontSize: 15, fontWeight: 600 }}>พนักงานที่เข้างานอยู่</div>
+                <div style={{ color: 'var(--ghost-gray)', fontSize: 11, marginTop: 3 }}>{onShiftStaff.length} คน</div>
+              </div>
+              <button type="button" className="btn" onClick={() => setShowOnShiftStaff(false)} style={{ fontSize: 12 }}>ปิด</button>
+            </div>
+            {onShiftStaff.length === 0
+              ? <div style={{ color: 'var(--ghost-gray)', fontSize: 12, padding: '14px 0', textAlign: 'center' }}>ยังไม่มีพนักงานเข้างาน</div>
+              : onShiftStaff.map(member => (
+                <div key={`${member.branch_id}-${member.id}`} style={{ alignItems: 'center', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', padding: '10px 0' }}>
+                  <div><strong style={{ fontSize: 13 }}>{member.name_en}</strong><div style={{ color: 'var(--ghost-gray)', fontSize: 10, marginTop: 3 }}>{member.branch_name || 'ไม่ระบุสาขา'}</div></div>
+                  <span className="font-mono" style={{ color: '#84d6a8', fontSize: 11 }}>{new Date(member.clock_in).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+              ))}
+          </section>
+        </div>
+      )}
 
       {hasOwnerOverview && (
         <section style={{ marginBottom: 22 }}>

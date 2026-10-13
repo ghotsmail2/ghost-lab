@@ -44,7 +44,7 @@ export default function Profile() {
   }
   async function clockOut() {
     if (!openEntry) return
-    await supabase.from('attendance').update({ clock_out: new Date().toISOString() }).eq('id', openEntry.id)
+    await supabase.from('attendance').update({ clock_out: new Date().toISOString(), clock_out_source: 'manual' }).eq('id', openEntry.id)
     loadAll()
   }
 

@@ -43,6 +43,10 @@ export default function Login() {
     setSelected(staff)
     setPin('')
     setError('')
+  }
+
+  function continueProfile() {
+    if (!selected) return
     setStep('pin')
   }
 
@@ -50,6 +54,11 @@ export default function Login() {
   const visibleStaff = staffList.filter(member => !searchText
     || member.name_en?.toLowerCase().includes(searchText)
     || member.name_th?.toLowerCase().includes(searchText))
+
+  const staffGroups = [
+    { key: 'garage', label: 'Ghost Lab Garage', subtitle: 'Garage Team', icon: '⌁', members: visibleStaff.filter(member => !member.role?.startsWith('chill_')) },
+    { key: 'chill', label: 'SABINAGISA', subtitle: 'Food & Drink Team', icon: '✦', members: visibleStaff.filter(member => member.role?.startsWith('chill_')) },
+  ].filter(group => group.members.length > 0)
 
   function changeProfile() {
     if (isSubmitting) return
@@ -105,16 +114,24 @@ export default function Login() {
               <span>{visibleStaff.length}/{staffList.length} คน</span>
             </div>
             <div className="staff-picker" role="list" aria-label="รายชื่อพนักงาน">
-              {visibleStaff.map(staff => (
-                <button key={staff.id} type="button" className="staff-card" onClick={() => chooseProfile(staff)} role="listitem">
-                  <StaffAvatar staff={staff} />
-                  <span className="staff-card__details"><strong>{staff.name_en}</strong>{staff.name_th && <small>{staff.name_th}</small>}</span>
-                  <span className="staff-card__arrow" aria-hidden="true">→</span>
-                </button>
+              {staffGroups.map(group => (
+                <section key={group.key} className={`staff-picker__group staff-picker__group--${group.key}`}>
+                  <div className="staff-picker__group-head"><span aria-hidden="true">{group.icon}</span><div><strong>{group.label}</strong><small>{group.subtitle}</small></div><b>{group.members.length} คน</b></div>
+                  <div className="staff-picker__grid">
+                    {group.members.map(staff => (
+                      <button key={staff.id} type="button" className={`staff-card ${selected?.id === staff.id ? 'staff-card--selected' : ''}`} onClick={() => chooseProfile(staff)} role="listitem" aria-pressed={selected?.id === staff.id}>
+                        <StaffAvatar staff={staff} />
+                        <span className="staff-card__details"><strong>{staff.name_en}</strong>{staff.name_th && <small>{staff.name_th}</small>}</span>
+                        {selected?.id === staff.id && <span className="staff-card__check" aria-label="เลือกแล้ว">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                </section>
               ))}
               {staffList.length === 0 && <div className="staff-picker__empty">ยังไม่มีพนักงานในระบบ — เพิ่มผ่าน Supabase dashboard ก่อน</div>}
               {staffList.length > 0 && visibleStaff.length === 0 && <div className="staff-picker__empty">ไม่พบชื่อที่ค้นหา</div>}
             </div>
+            <button type="button" className="login-continue" disabled={!selected} onClick={continueProfile}>ถัดไป (ใส่ PIN) <span aria-hidden="true">→</span></button>
           </div>
         ) : (
           <div className="login-card login-card--pin">

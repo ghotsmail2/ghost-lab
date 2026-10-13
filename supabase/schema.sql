@@ -118,7 +118,8 @@ create table attendance (
   staff_id      uuid references staff(id) not null,
   branch_id     uuid references branches(id) not null,
   clock_in      timestamptz not null default now(),
-  clock_out     timestamptz
+  clock_out     timestamptz,
+  clock_out_source text not null default 'manual' check (clock_out_source in ('manual', 'logout', 'stale_timeout'))
 );
 
 create table stock_items (
@@ -335,6 +336,80 @@ create policy attendance_view_branch on attendance for select using (
   or exists (select 1 from staff where auth_user_id = auth.uid() and role in ('owner','accountant'))
 );
 
+-- Staff can see a branch-safe aggregate without receiving other employees'
+-- attendance rows through the normal RLS query.
+create or replace function count_on_shift_staff(p_branch_id uuid)
+returns integer
+security definer
+set search_path = public, pg_temp
+language plpgsql stable as $$
+declare
+  requester staff;
+  result_count integer;
+begin
+  select * into requester from staff where auth_user_id = auth.uid() and active limit 1;
+  if requester.id is null or p_branch_id is null then return 0; end if;
+  if requester.role not in ('owner', 'god', 'accountant')
+     and requester.primary_branch is distinct from p_branch_id then
+    raise exception 'Staff may only view the on-shift count for their own branch';
+  end if;
+
+  select count(distinct a.staff_id)::integer into result_count
+  from attendance a
+  join staff s on s.id = a.staff_id
+  where a.branch_id = p_branch_id
+    and a.clock_out is null
+    and s.active = true
+    and s.primary_branch = p_branch_id;
+  return coalesce(result_count, 0);
+end;
+$$;
+
+revoke all on function count_on_shift_staff(uuid) from public;
+grant execute on function count_on_shift_staff(uuid) to authenticated;
+
+-- Staff can open a compact, branch-safe list of who is currently on shift.
+create or replace function list_on_shift_staff(p_branch_id uuid default null)
+returns table(
+  id uuid,
+  name_en text,
+  branch_id uuid,
+  branch_name text,
+  clock_in timestamptz
+)
+security definer
+set search_path = public, pg_temp
+language plpgsql stable as $$
+declare
+  requester staff;
+begin
+  select * into requester from staff where auth_user_id = auth.uid() and active limit 1;
+  if requester.id is null then return; end if;
+  if p_branch_id is null and requester.role not in ('owner', 'god', 'accountant') then
+    raise exception 'Staff may only view on-shift names for their own branch';
+  end if;
+  if p_branch_id is not null
+     and requester.role not in ('owner', 'god', 'accountant')
+     and requester.primary_branch is distinct from p_branch_id then
+    raise exception 'Staff may only view on-shift names for their own branch';
+  end if;
+
+  return query
+  select s.id, s.name_en, a.branch_id, br.name, a.clock_in
+  from attendance a
+  join staff s on s.id = a.staff_id
+  left join branches br on br.id = a.branch_id
+  where a.clock_out is null
+    and s.active = true
+    and (p_branch_id is null or a.branch_id = p_branch_id)
+    and s.primary_branch = a.branch_id
+  order by a.clock_in asc, s.name_en asc;
+end;
+$$;
+
+revoke all on function list_on_shift_staff(uuid) from public;
+grant execute on function list_on_shift_staff(uuid) to authenticated;
+
 -- ---- STOCK: only stock_keeper + owner can read/write ----
 create policy stock_access on stock_items for all using (
   exists (select 1 from staff where auth_user_id = auth.uid() and role in ('stock_keeper','owner'))
@@ -366,3 +441,6 @@ create policy members_read on members for select using (auth.uid() is not null);
 create policy members_write on members for all using (auth.uid() is not null);
 create policy member_memberships_read on member_memberships for select using (auth.uid() is not null);
 create policy member_memberships_write on member_memberships for all using (auth.uid() is not null) with check (auth.uid() is not null);
+
+-- Collaboration Membership system extensions are maintained in migration
+-- 20261003_collaboration_membership_system.sql.

@@ -82,6 +82,29 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  // Keep a server-side presence timestamp while the staff app is open. A
+  // browser close cannot reliably send clock-out, so the database sweep uses
+  // this heartbeat to close abandoned shifts after the configured grace time.
+  useEffect(() => {
+    if (!session?.user?.id || !staff?.id) return undefined
+
+    let active = true
+    const heartbeat = async () => {
+      if (!active) return
+      const { error } = await supabase.rpc('heartbeat_current_staff_attendance')
+      if (active && error && error.code !== 'PGRST202') {
+        console.warn('[Ghost Lab] Attendance heartbeat failed:', error)
+      }
+    }
+
+    heartbeat()
+    const timer = setInterval(heartbeat, 30_000)
+    return () => {
+      active = false
+      clearInterval(timer)
+    }
+  }, [session?.user?.id, staff?.id])
+
   async function loadStaff(authUserId, request = ++authRequest.current, allowRefresh = true) {
     let data = null
     let error = null
@@ -111,6 +134,18 @@ export function AuthProvider({ children }) {
 
     if (request !== authRequest.current) return
     if (data) {
+      // A browser can be closed without a chance to run an async clock-out.
+      // Close only genuinely stale shifts when the staff member returns; the
+      // server function is scoped to the currently authenticated user.
+      const { error: staleAttendanceError } = await supabase.rpc('auto_clock_out_current_staff', {
+        p_source: 'stale_timeout',
+      p_max_age_hours: 2,
+      })
+      if (staleAttendanceError) {
+        // Keep login usable while an older database has not received the
+        // attendance migration yet.
+        console.warn('[Ghost Lab] Could not auto-close stale attendance:', staleAttendanceError)
+      }
       setStaff(data)
       try { sessionStorage.setItem(STAFF_CACHE_KEY, JSON.stringify(data)) } catch {}
     } else if (error) {
@@ -136,6 +171,15 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
+    // Explicit logout is the reliable path: close every open shift for this
+    // authenticated staff member before ending the Supabase session.
+    const { error: clockOutError } = await supabase.rpc('auto_clock_out_current_staff', {
+      p_source: 'logout',
+      p_max_age_hours: 2,
+    })
+    if (clockOutError) {
+      console.warn('[Ghost Lab] Could not auto-clock-out on logout:', clockOutError)
+    }
     await supabase.auth.signOut()
   }
 

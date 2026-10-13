@@ -19,9 +19,9 @@ export default function AdminStaff() {
 
   async function load() {
     setLoading(true)
-    // Keep inactive accounts visible here so an accidental deactivation never
-    // looks like the account was deleted. Login still shows active accounts only.
-    const { data, error } = await supabase.from('staff').select('*').order('active', { ascending: false }).order('name_en')
+    // Deleted/deactivated accounts stay in the database for billing history,
+    // but must not reappear in the staff management list.
+    const { data, error } = await supabase.from('staff').select('*').eq('active', true).order('name_en')
     if (error) console.error(error)
     setStaffList(data || [])
     setLoading(false)
@@ -63,22 +63,20 @@ export default function AdminStaff() {
     const ownerCount = staffList.filter(item => item.role === 'owner').length
     if (target.role === 'owner' && ownerCount <= 1) return alert('ต้องมี Owner อย่างน้อย 1 คนในระบบ')
     if (!window.confirm(`ลบ “${target.name_en}” ออกจากรายชื่อพนักงาน?\n\nบัญชีนี้จะไม่แสดงในหน้า Login อีก`)) return
-    const { error } = await supabase.from('staff').delete().eq('id', target.id)
+    // Keep the staff row when it is referenced by bills/attendance, but make
+    // the account permanently unable to sign in. Deleting the row itself
+    // would violate the bills_staff_id_fkey constraint and risk history.
+    const { error } = await supabase.from('staff').update({
+      active: false,
+      auth_user_id: null,
+    }).eq('id', target.id)
     if (error) {
       console.error(error)
-      // A staff record with attendance/bills is intentionally kept as an audit
-      // record. Deactivate it so it disappears from Login and this active list.
-      const { error: deactivateError } = await supabase.from('staff').update({ active: false }).eq('id', target.id)
-      if (deactivateError) {
-        console.error(deactivateError)
-        alert(`ลบหรือปิดบัญชีไม่สำเร็จ: ${deactivateError.message}`)
-        return
-      }
-      setStaffList(list => list.filter(item => item.id !== target.id))
-      alert(`ปิดบัญชี “${target.name_en}” แล้ว — เก็บประวัติการเข้างานและบิลเดิมไว้เรียบร้อย`)
+      alert(`ลบบัญชีไม่สำเร็จ: ${error.message}`)
       return
     }
     setStaffList(list => list.filter(item => item.id !== target.id))
+    alert(`ลบบัญชี “${target.name_en}” ถาวรแล้ว — เก็บประวัติบิลเดิมไว้เรียบร้อย`)
   }
 
   return (

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { Boxes, ChevronRight, ClipboardCheck, Coins, ListFilter, Minus, PackageOpen, PackageX, Plus, Search, TriangleAlert, X } from 'lucide-react'
+import './Stock.css'
 
 export default function Stock() {
   const { staff } = useAuth()
@@ -14,6 +16,9 @@ export default function Stock() {
   const [changes, setChanges] = useState(() => readStockChanges())
   const [savingChanges, setSavingChanges] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [movements, setMovements] = useState([])
 
   function readStockChanges() {
     try { return JSON.parse(localStorage.getItem(stockChangeKey) || 'null') || {} } catch { return {} }
@@ -32,19 +37,32 @@ export default function Stock() {
 
   useEffect(() => {
     setLoading(true)
-    supabase.from('stock_items').select('*, branches:branch_id(key,name)').order('category').order('name')
-      .then(({ data, error }) => {
+    Promise.all([
+      supabase.from('stock_items').select('*, branches:branch_id(key,name)').order('category').order('name'),
+      supabase.from('stock_movements').select('id,stock_item_id,staff_id,change,reason,created_at,staff:staff_id(name_en)').order('created_at', { ascending: false }).limit(30),
+    ]).then(([{ data, error }, { data: movementData }]) => {
         if (error) console.error(error)
         setItems(data || [])
+        setMovements(movementData || [])
         setLoading(false)
       })
   }, [refreshKey])
 
-  const filtered = branchFilter === 'all' ? items : items.filter(i => i.branches?.key === branchFilter)
-  const grouped = filtered.reduce((acc, i) => {
-    (acc[i.category] = acc[i.category] || []).push(i)
-    return acc
-  }, {})
+  const filtered = items.filter(item => {
+    const branchMatch = branchFilter === 'all' || item.branches?.key === branchFilter
+    const q = search.trim().toLocaleLowerCase()
+    const searchMatch = !q || `${item.name} ${item.category} ${item.branches?.name || ''}`.toLocaleLowerCase().includes(q)
+    const qty = Number(item.quantity || 0), threshold = Number(item.low_stock_threshold || 0)
+    const statusMatch = statusFilter === 'all' || (statusFilter === 'normal' && qty > threshold) || (statusFilter === 'low' && qty > 0 && qty <= threshold) || (statusFilter === 'out' && qty <= 0)
+    return branchMatch && searchMatch && statusMatch
+  })
+  const lowItems = items.filter(item => Number(item.quantity || 0) > 0 && Number(item.quantity || 0) <= Number(item.low_stock_threshold || 0))
+  const outItems = items.filter(item => Number(item.quantity || 0) <= 0)
+  const itemById = Object.fromEntries(items.map(item => [item.id, item]))
+  const visibleMovements = movements.filter(move => {
+    const item = itemById[move.stock_item_id]
+    return item && (branchFilter === 'all' || item.branches?.key === branchFilter)
+  }).slice(0, 8)
   const pendingChanges = Object.entries(changes)
     .map(([id, amount]) => ({ item: items.find(item => item.id === id), amount: Number(amount) }))
     .filter(({ item, amount }) => item && amount)
@@ -82,59 +100,30 @@ export default function Stock() {
   }
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-        <div>
-          <div className="font-display" style={{ fontSize: 18, fontWeight: 600 }}>สต๊อก & เบิกจ่าย</div>
-          <div style={{ fontSize: 12, color: 'var(--ghost-gray)' }}>จัดการสต็อกวัตถุดิบและสินค้า</div>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" onClick={saveAllChanges} disabled={!pendingChanges.length || savingChanges} className="btn" style={{ background: pendingChanges.length ? 'rgba(63,185,80,.12)' : 'rgba(255,255,255,.02)', borderColor: pendingChanges.length ? '#3FB950' : 'var(--line)', color: pendingChanges.length ? '#84d6a8' : 'var(--ghost-gray)', opacity: savingChanges ? .6 : 1 }}>
-            {savingChanges ? 'กำลังบันทึก…' : `✓ บันทึกการปรับสต๊อก${pendingChanges.length ? ` (${pendingChanges.length})` : ''}`}
-          </button>
-          <button type="button" onClick={() => setShowAdd(true)} className="btn btn-primary">+ เพิ่มวัตถุดิบ</button>
-        </div>
+    <main className="stock-page">
+      <section className="stock-heading panel"><MetricIcon className="stock-heading__icon" icon={PackageOpen} tone="orange" size={25} /><div className="stock-heading__title"><span>OPERATIONS WORKSPACE</span><h1>สต็อก & เบิกจ่าย</h1><p>Stock & Prepay Management</p></div><div className="stock-heading__actions"><button type="button" className="btn" onClick={saveAllChanges} disabled={!pendingChanges.length || savingChanges}>{savingChanges ? 'กำลังบันทึก…' : <><ClipboardCheck size={16} strokeWidth={2} /> บันทึกการปรับสต็อก{pendingChanges.length ? ` (${pendingChanges.length})` : ''}</>}</button><button type="button" onClick={() => setShowAdd(true)} className="btn btn-primary"><Plus size={17} strokeWidth={2} /> เพิ่มวัตถุดิบ</button></div></section>
+      {saveError && <div className="stock-error"><TriangleAlert size={16} strokeWidth={2} /> {saveError}</div>}
+      <section className="stock-kpis">
+        <StockMetric icon={Boxes} tone="blue" label="จำนวนวัตถุดิบทั้งหมด (SKUs)" value={items.length.toLocaleString()} supporting="รายการในระบบ" />
+        <StockMetric icon={TriangleAlert} tone="amber" label="รายการใกล้หมด" value={lowItems.length.toLocaleString()} supporting="ต่ำกว่าระดับขั้นต่ำ" />
+        <StockMetric icon={PackageX} tone="red" label="รายการหมด / ติดลบ" value={outItems.length.toLocaleString()} supporting="ควรตรวจสอบหรือเติมสต๊อก" />
+        <StockMetric icon={Coins} tone="green" label="มูลค่าสต๊อก" value="—" supporting="ยังไม่มีต้นทุนต่อหน่วยในระบบ" />
+      </section>
+      <div className="stock-branch-filter">{[['all', 'ทุกสาขา'], ...branches.map(b => [b.key, b.name])].map(([key, label]) => <button type="button" key={key} className={branchFilter === key ? 'is-active' : ''} onClick={() => setBranchFilter(key)}>{label}</button>)}</div>
+      <div className="stock-layout">
+        <section className="stock-main">
+          <div className="stock-toolbar panel"><label className="stock-search"><Search size={17} strokeWidth={2} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาวัตถุดิบ เช่น ปลา Steel, Rice" /></label><div className="stock-status-filter"><span className="stock-filter-label"><ListFilter size={15} strokeWidth={2} /> ตัวกรอง</span>{[['all','ทั้งหมด'],['normal','ปกติ'],['low','ใกล้หมด'],['out','หมด']].map(([key,label]) => <button type="button" key={key} className={statusFilter === key ? 'is-active' : ''} onClick={() => setStatusFilter(key)}>{label}</button>)}</div></div>
+          <section className="stock-table-panel panel"><div className="stock-table-title"><div><h2>วัตถุดิบ / รายการ</h2><p>{filtered.length} รายการ · ปรับจำนวนได้จากตารางและบันทึกพร้อมกัน</p></div><span>{pendingChanges.length ? `${pendingChanges.length} รายการรอบันทึก` : 'LIVE STOCK'}</span></div>
+            <div className="stock-table-scroll"><table className="stock-table"><thead><tr><th>รายการ</th><th>สาขา</th><th>คงเหลือ</th><th>ขั้นต่ำ</th><th>สถานะ</th><th>ปรับจำนวน</th><th>หน่วย</th><th>อัปเดตล่าสุด</th></tr></thead><tbody>
+              {loading ? <tr><td colSpan="8" className="stock-empty">กำลังโหลดสต็อก…</td></tr> : filtered.length === 0 ? <tr><td colSpan="8" className="stock-empty">ไม่พบรายการตามตัวกรองนี้</td></tr> : filtered.map(item => { const qty = Number(item.quantity || 0), threshold = Number(item.low_stock_threshold || 0), status = qty <= 0 ? 'out' : qty <= threshold ? 'low' : 'normal'; return <tr key={item.id}><td><strong>{item.name}</strong><small>{item.category || 'ไม่ระบุหมวดหมู่'}</small></td><td><span className={`stock-branch-pill ${item.branches?.key === 'chill' ? 'is-food' : ''}`}>{item.branches?.name || '—'}</span></td><td><strong className={`stock-qty ${qty <= 0 ? 'is-negative' : status === 'low' ? 'is-low' : ''}`}>{qty.toLocaleString()}</strong></td><td>{threshold.toLocaleString()}</td><td><span className={`stock-status is-${status}`}>{status === 'normal' ? 'ปกติ' : status === 'low' ? 'ใกล้หมด' : 'หมด'}</span></td><td><StockQuantityControl item={item} change={changes[item.id] || 0} onChange={setItemChange} /></td><td>{item.unit || 'ชิ้น'}</td><td>{item.updated_at ? <><span>{new Date(item.updated_at).toLocaleDateString('th-TH')}</span><small>{new Date(item.updated_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</small></> : '—'}</td></tr> })}
+            </tbody></table></div>
+          </section>
+        </section>
+        <aside className="stock-aside">
+          <section className="stock-side-panel panel"><div className="stock-side-title"><span className="is-alert"><TriangleAlert size={18} strokeWidth={2} /></span><div><h2>แจ้งเตือนสต็อก</h2><small>รายการใกล้หมดและหมด</small></div><b>{lowItems.length + outItems.length}</b></div><div className="stock-alert-list">{[...outItems, ...lowItems].filter(item => branchFilter === 'all' || item.branches?.key === branchFilter).slice(0, 8).map(item => <button type="button" className="stock-alert-row" key={item.id} onClick={() => {setBranchFilter(item.branches?.key || 'all');setSearch(item.name);setStatusFilter('all')}}><span className="stock-alert-symbol">{item.quantity <= 0 ? <PackageX size={16} /> : <TriangleAlert size={16} />}</span><span><strong>{item.name}</strong><small>{item.branches?.name || '—'} · คงเหลือ {item.quantity} / ขั้นต่ำ {item.low_stock_threshold || 0} {item.unit}</small></span><i className={item.quantity <= 0 ? 'is-out' : ''}>{item.quantity <= 0 ? 'หมด' : 'ใกล้หมด'}</i><ChevronRight size={16} /></button>)}{lowItems.length + outItems.length === 0 && <div className="stock-side-empty">สต็อกทุกอย่างอยู่ในระดับปกติ</div>}</div></section>
+          <section className="stock-side-panel panel"><div className="stock-side-title"><span className="is-history"><ClipboardCheck size={18} strokeWidth={2} /></span><div><h2>ประวัติการเคลื่อนไหว</h2><small>รับเข้า · เบิกออก · ปรับสต็อกล่าสุด</small></div><b>ล่าสุด</b></div><div className="stock-activity-list">{visibleMovements.map(move => {const item = itemById[move.stock_item_id];return <div className="stock-activity-row" key={move.id}><span className={`stock-activity-icon ${move.change > 0 ? 'is-in' : 'is-out'}`}>{move.change > 0 ? <Plus size={15} /> : <Minus size={15} />}</span><div><strong>{move.staff?.name_en || item?.name || 'รายการสต็อก'}</strong><small>{move.reason || `${item?.name || 'สต็อก'} · ${move.change > 0 ? 'รับเข้า' : 'เบิกออก'}`}</small></div><b className={move.change > 0 ? 'is-in' : 'is-out'}>{move.change > 0 ? '+' : ''}{move.change}</b><time>{new Date(move.created_at).toLocaleDateString('th-TH',{day:'2-digit',month:'2-digit'})}<small>{new Date(move.created_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</small></time></div>})}{visibleMovements.length === 0 && <div className="stock-side-empty">ยังไม่มีประวัติการเคลื่อนไหว</div>}</div></section>
+        </aside>
       </div>
-
-      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
-        {[['all', 'ทุกสาขา'], ...branches.map(b => [b.key, b.name])].map(([key, label]) => (
-          <div key={key} onClick={() => setBranchFilter(key)} className="btn" style={{
-            fontSize: 12,
-            borderColor: branchFilter === key ? 'var(--blood)' : 'var(--line)',
-            color: branchFilter === key ? 'var(--bone)' : 'var(--ghost-gray)',
-            background: branchFilter === key ? 'rgba(196,30,42,0.14)' : 'rgba(255,255,255,0.02)',
-          }}>
-            {label}
-          </div>
-        ))}
-      </div>
-      {saveError && <div style={{ background: 'rgba(196,30,42,.12)', border: '1px solid var(--blood)', borderRadius: 6, color: '#f18b92', fontSize: 12, marginBottom: 14, padding: '10px 12px' }}>⚠ {saveError}</div>}
-
-      {loading ? <div style={{ color: 'var(--ghost-gray)', fontSize: 12 }}>กำลังโหลด...</div> : (
-        Object.keys(grouped).length === 0 ? (
-          <div className="panel" style={{ textAlign: 'center', padding: '30px 0', color: 'var(--ghost-gray)', fontSize: 12 }}>
-            ยังไม่มีวัตถุดิบ — กด "+ เพิ่มวัตถุดิบ" เพื่อเริ่มเพิ่ม
-          </div>
-        ) : Object.entries(grouped).map(([category, catItems]) => (
-          <div key={category} className="panel" style={{ marginBottom: 16 }}>
-            <div className="font-display" style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>{category}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr .65fr 1.45fr .65fr', gap: 10, padding: '0 0 8px', fontSize: 10, color: 'var(--ghost-gray)', textTransform: 'uppercase', letterSpacing: 1 }}>
-              <div>รายการ</div><div>สาขา</div><div>คงเหลือ</div><div>ปรับจำนวน</div><div>หน่วย</div>
-            </div>
-            {catItems.map(item => (
-              <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr .65fr 1.45fr .65fr', gap: 10, padding: '8px 0', borderTop: '1px solid var(--line)', alignItems: 'center' }}>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{item.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--ghost-gray)' }}>{item.branches?.name || '—'}</div>
-                <div className="font-mono" style={{ fontSize: 14, fontWeight: 700, color: item.quantity + Number(changes[item.id] || 0) > 0 ? '#3FB950' : 'var(--blood)' }}>
-                  {item.quantity}{Number(changes[item.id] || 0) ? <small style={{ color: Number(changes[item.id]) > 0 ? '#84d6a8' : '#f18b92', fontSize: 10, marginLeft: 5 }}>{Number(changes[item.id]) > 0 ? '+' : ''}{changes[item.id]}</small> : null}
-                </div>
-                <StockQuantityControl item={item} change={changes[item.id] || 0} onChange={setItemChange} />
-                <div style={{ fontSize: 12, color: 'var(--ghost-gray)' }}>{item.unit || 'ชิ้น'}</div>
-              </div>
-            ))}
-          </div>
-        ))
-      )}
 
       {showAdd && (
         <AddStockModal
@@ -144,7 +133,7 @@ export default function Stock() {
           onSaved={() => { setShowAdd(false); setRefreshKey(k => k + 1) }}
         />
       )}
-    </div>
+    </main>
   )
 }
 
@@ -152,13 +141,21 @@ function StockQuantityControl({ item, change, onChange }) {
   function nudge(amount) { onChange(item.id, Number(change || 0) + amount) }
 
   return <div style={{ alignItems: 'center', display: 'flex', gap: 5 }}>
-    <button type="button" onClick={() => nudge(-1)} aria-label={`ลด ${item.name}`} style={stepButtonStyle}>−</button>
+    <button type="button" onClick={() => nudge(-1)} aria-label={`ลด ${item.name}`} style={stepButtonStyle}><Minus size={14} strokeWidth={2} /></button>
     <input className="input font-mono" type="number" value={change || ''} onChange={event => onChange(item.id, event.target.value === '' ? 0 : Number(event.target.value))} placeholder="0" style={{ minWidth: 0, padding: '7px 6px', textAlign: 'center', width: 62 }} />
-    <button type="button" onClick={() => nudge(1)} aria-label={`เพิ่ม ${item.name}`} style={stepButtonStyle}>+</button>
+    <button type="button" onClick={() => nudge(1)} aria-label={`เพิ่ม ${item.name}`} style={stepButtonStyle}><Plus size={14} strokeWidth={2} /></button>
   </div>
 }
 
-const stepButtonStyle = { background: 'rgba(255,255,255,.03)', border: '1px solid var(--line)', borderRadius: 5, color: 'var(--bone)', cursor: 'pointer', fontSize: 15, height: 30, lineHeight: 1, width: 30 }
+function MetricIcon({ icon: Icon, tone = 'blue', size = 24, className = '' }) {
+  return <span className={`stock-metric-icon is-${tone} ${className}`} aria-hidden="true"><Icon size={size} strokeWidth={2} /></span>
+}
+
+function StockMetric({ icon: Icon, tone, label, value, supporting }) {
+  return <article className="stock-kpi"><MetricIcon icon={Icon} tone={tone} size={24} /><div className="stock-kpi__content"><small>{label}</small><strong>{value}</strong><em>{supporting}</em></div></article>
+}
+
+const stepButtonStyle = { alignItems: 'center', background: 'rgba(255,255,255,.03)', border: '1px solid var(--line)', borderRadius: 5, color: 'var(--bone)', cursor: 'pointer', display: 'inline-flex', height: 30, justifyContent: 'center', width: 30 }
 
 function AdjustModal({ item, staff, onClose, onSaved }) {
   const [amount, setAmount] = useState('')
@@ -187,7 +184,7 @@ function AdjustModal({ item, staff, onClose, onSaved }) {
       <div className="panel" style={{ width: '100%', maxWidth: 380, background: 'var(--static)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div className="font-display" style={{ fontSize: 15, fontWeight: 600 }}>ปรับสต็อก · {item.name}</div>
-          <div onClick={onClose} style={{ cursor: 'pointer', color: 'var(--ghost-gray)', fontSize: 18 }}>✕</div>
+          <button type="button" aria-label="ปิด" onClick={onClose} className="stock-modal-close"><X size={18} /></button>
         </div>
         <div style={{ fontSize: 12, color: 'var(--ghost-gray)', marginBottom: 10 }}>คงเหลือปัจจุบัน: {item.quantity} {item.unit}</div>
         <div style={{ marginBottom: 10 }}>
@@ -248,7 +245,7 @@ function AddStockModal({ branches, staff, onClose, onSaved }) {
       <div className="panel" style={{ width: '100%', maxWidth: 420, background: 'var(--static)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div className="font-display" style={{ fontSize: 16, fontWeight: 600 }}>เพิ่มวัตถุดิบ</div>
-          <div onClick={closeAndClearDraft} style={{ cursor: 'pointer', color: 'var(--ghost-gray)', fontSize: 18 }}>✕</div>
+          <button type="button" aria-label="ปิด" onClick={closeAndClearDraft} className="stock-modal-close"><X size={18} /></button>
         </div>
         <div style={{ marginBottom: 10 }}>
           <label style={{ fontSize: 11, color: 'var(--ghost-gray)', display: 'block', marginBottom: 6 }}>ชื่อ</label>
