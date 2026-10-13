@@ -29,3 +29,13 @@ test('Garage Standard price commits automatically after typing and on Enter/blur
   assert.match(build, /if \(r\.key === "Enter"\) r\.currentTarget\.blur\(\)/)
   assert.match(build, /alert\("บันทึกราคาไม่สำเร็จ: "\+reason\)/)
 })
+
+test('Garage price save uses a branch-scoped RPC with role validation', async () => {
+  const build = await readFile(new URL('./scripts/build-recovered.mjs', import.meta.url), 'utf8')
+  const migration = await readFile(new URL('./supabase/garage_service_price_rpc.sql', import.meta.url), 'utf8')
+  assert.match(build, /x\.rpc\("update_garage_service_price"/)
+  assert.match(migration, /branch\.key::text = 'garage'/)
+  assert.match(migration, /actor\.role::text not in \('owner', 'god'\)/)
+  assert.match(migration, /actor\.role::text = 'ceo' and actor\.primary_branch = target_service\.branch_id/)
+  assert.match(migration, /grant execute on function public\.update_garage_service_price\(uuid, text, integer\) to authenticated/)
+})

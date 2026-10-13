@@ -898,7 +898,10 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       } : {
         [r]: c
       };
-    const {data,error}=await x.from("services").update(S).eq("id",s).select("id").maybeSingle();
+    const priceField=r==="price"||r==="supercar_price";
+    const {data,error}=priceField
+      ? await x.rpc("update_garage_service_price",{p_service_id:s,p_vehicle_class:r==="price"?"standard":"supercar",p_price:r==="price"?Number(c):c===""?null:Number(c)})
+      : await x.from("services").update(S).eq("id",s).select("id").maybeSingle();
     if(error||!data){const reason=error?.message||"ไม่พบแถวบริการที่บัญชีนี้มีสิทธิ์แก้ไข";console.error(error||new Error(reason));await k();alert("บันทึกราคาไม่สำเร็จ: "+reason);}
   }`
       if (serviceSaveStart < 0 || serviceSaveEnd < 0) throw new Error('Service catalog save handler changed; refusing to build without verified update feedback.')
