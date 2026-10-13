@@ -388,8 +388,10 @@ html[data-theme="dark"] .home-dashboard>.panel:last-child>div:not(.font-display)
 html[data-theme="dark"] .home-onwork{background:linear-gradient(145deg,#292b2e,#202224)!important;border-color:rgba(242,238,231,.13)!important;color:#f2eee7!important}
 html[data-theme="dark"] .home-onwork__person strong{color:#f2eee7!important}
 html[data-theme="dark"] .home-onwork__person small,html[data-theme="dark"] .home-onwork__empty{color:#aaa39b!important}
+.dashboard-onwork__avatar{overflow:hidden;position:relative}.dashboard-onwork__avatar img{height:100%;object-fit:cover;width:100%}
 `
 let liveDashboardWidgets = `function DashboardWidgets({bills,staff,garageTotal,chillTotal,periodLabel,onViewStaff}){const total=garageTotal+chillTotal,garagePct=total?Math.round(garageTotal/total*100):0,peakRows=bills.filter(b=>{const h=new Date(b.created_at).getHours();return h>=18||h<6}),peakTotal=peakRows.reduce((sum,b)=>sum+Number(b.total||0),0),hourly=Array.from({length:24},(_,hour)=>({hour,total:bills.filter(b=>new Date(b.created_at).getHours()===hour).reduce((sum,b)=>sum+Number(b.total||0),0)})),maxHour=Math.max(1,...hourly.map(item=>item.total));return e.jsxs("div",{className:"dashboard-widgets",children:[e.jsxs("section",{className:"panel dashboard-widget",children:[e.jsxs("div",{className:"dashboard-widget__title",children:[e.jsx("i",{}),e.jsx("h3",{children:"พนักงานที่ On Work อยู่ตอนนี้"}),e.jsxs("small",{children:[staff.length," คน"]}),e.jsx("button",{type:"button",className:"btn",onClick:onViewStaff,children:"ดูทั้งหมด →"})]}),staff.length?e.jsx("div",{className:"dashboard-onwork__people",children:staff.slice(0,8).map(member=>e.jsxs("div",{className:"dashboard-onwork__person",children:[e.jsx("span",{className:"dashboard-onwork__avatar",children:(member.name_en||"GL").slice(0,2).toUpperCase()}),e.jsx("strong",{children:member.name_en}),e.jsx("small",{children:member.branch_name||"Ghost Group"}),e.jsx("em",{})]},member.branch_id+member.id))}):e.jsx("div",{className:"dashboard-widget__empty",children:"ยังไม่มีพนักงานเข้างานในตอนนี้"})]}),e.jsxs("section",{className:"panel dashboard-widget dashboard-composition",children:[e.jsxs("div",{className:"dashboard-widget__title",style:{gridColumn:"1/-1",marginBottom:0},children:[e.jsx("i",{}),e.jsx("h3",{children:"สัดส่วนยอดขายตามสาขา"}),e.jsx("small",{children:periodLabel})]}),e.jsx("div",{className:"dashboard-donut",style:{"--garage-pct":garagePct+"%"},children:e.jsxs("div",{className:"dashboard-donut__center",children:[e.jsxs("strong",{children:["¥",total.toLocaleString()]}),e.jsx("span",{children:"ยอดรวม"})]})}),e.jsxs("div",{className:"dashboard-legend",children:[e.jsxs("div",{className:"dashboard-legend__row",children:[e.jsx("i",{className:"dashboard-legend__dot",style:{background:"#e9572d"}}),e.jsx("span",{children:"Ghost Lab Garage"}),e.jsxs("strong",{children:[garagePct,"%"]})]}),e.jsxs("div",{className:"dashboard-legend__row",children:[e.jsx("i",{className:"dashboard-legend__dot",style:{background:"#e9ad53"}}),e.jsx("span",{children:"SABINAGISA"}),e.jsxs("strong",{children:[100-garagePct,"%"]})]})]})]}),e.jsxs("section",{className:"panel dashboard-widget dashboard-hourly",children:[e.jsxs("div",{className:"dashboard-widget__title",children:[e.jsx("i",{}),e.jsx("h3",{children:"ยอดขายรายชั่วโมง"}),e.jsx("small",{children:periodLabel})]}),e.jsx("div",{className:"dashboard-hourly__chart",children:hourly.map(item=>e.jsxs("div",{className:"dashboard-hourly__bar"+(item.hour>=18||item.hour<6?" is-peak":""),style:{height:Math.max(3,item.total/maxHour*100)+"%"},title:String(item.hour).padStart(2,"0")+":00 · ¥"+item.total.toLocaleString(),children:[item.hour%3===0&&e.jsx("label",{children:String(item.hour).padStart(2,"0")})]},item.hour))}),e.jsx("div",{className:"dashboard-hourly__meta",children:"ยอดรวมตามเวลาเปิดบิล · สีเข้มคือช่วง Peak 18:00–05:59"})]}),e.jsxs("section",{className:"panel dashboard-widget dashboard-live",children:[e.jsxs("div",{className:"dashboard-widget__title",children:[e.jsx("i",{}),e.jsx("h3",{children:"LIVE INSIGHT"}),e.jsx("small",{children:"คำนวณจากข้อมูลช่วงที่เลือก"})]}),e.jsxs("div",{className:"dashboard-live__body",children:[e.jsxs("div",{className:"dashboard-live__peak",children:["ช่วง Peak 18:00–05:59 · ",e.jsx("strong",{children:"¥"+peakTotal.toLocaleString()})," · ",peakRows.length," บิล"]}),e.jsxs("div",{className:"dashboard-live__text",children:["แสดงยอดจาก ",bills.length," บิล · พนักงานกำลังทำงาน ",staff.length," คน · ทุกยอดอัปเดตตามตัวกรองสาขาและวันที่"]})]})]})]})}`
+liveDashboardWidgets = liveDashboardWidgets.replace('children:(member.name_en||"GL").slice(0,2).toUpperCase()', 'children:member.avatar_url?e.jsx("img",{src:member.avatar_url,alt:"",loading:"lazy",onError:event=>{event.currentTarget.hidden=!0}}):(member.name_en||"GL").slice(0,2).toUpperCase()')
 liveDashboardWidgets = liveDashboardWidgets.replace(',e.jsxs("div",{className:"dashboard-live__text",children:["แสดงยอดจาก ",bills.length," บิล · พนักงานกำลังทำงาน ",staff.length," คน · ทุกยอดอัปเดตตามตัวกรองสาขาและวันที่"]})', '')
 liveDashboardWidgets = 'const dashboardHourFormatter=new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Bangkok",hour:"2-digit",hourCycle:"h23"});function dashboardBangkokHour(value){return Number(dashboardHourFormatter.format(new Date(value)))}async function fetchDashboardRows(query){const rows=[];for(let from=0;;from+=500){const{data,error}=await query.range(from,from+499);if(error)throw error;if(!data||!data.length)return rows;rows.push(...data);if(data.length<500)return rows}}' + liveDashboardWidgets.replaceAll('new Date(b.created_at).getHours()', 'dashboardBangkokHour(b.created_at)')
 const versionedRoot = path.join(outputRoot, 'assets', release)
@@ -415,13 +417,13 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
 
     if (file.endsWith('index-vaWnYKxf.js')) {
       const oldPublicStaffDirectory = 'Ne.from("staff").select("id, name_en, phone, avatar_url, role, primary_branch, branches:primary_branch(key, name)").eq("active",!0).order("name_en")'
-      const safeLoginDirectory = 'Ne.from("login_profiles").select("id, name_en, name_th, role, primary_branch, branches").order("name_en")'
+      const safeLoginDirectory = 'Ne.from("login_profiles").select("id, name_en, name_th, role, primary_branch, branches, avatar_url").order("name_en")'
       if (!content.includes('from("login_profiles")')) {
         if (!content.includes(oldPublicStaffDirectory)) throw new Error('Recovered public login directory changed; refusing to expose staff records to anon.')
         content = content.replace(oldPublicStaffDirectory, safeLoginDirectory)
       }
       content = content.replace('ค้นหาชื่อ IC หรือเบอร์ IC...', 'ค้นหาชื่อพนักงาน...')
-      if (!content.includes('from("login_profiles")') || content.includes('from("staff").select("id, name_en, phone, avatar_url, role, primary_branch')) throw new Error('Safe login directory is missing from production bundle.')
+      if (!content.includes('from("login_profiles")') || !content.includes('avatar_url").order("name_en")') || content.includes('from("staff").select("id, name_en, phone, avatar_url, role, primary_branch')) throw new Error('Safe login directory with staff avatars is missing from production bundle.')
     }
 
     if (file.endsWith('Home-a48wstN-.js')) {
@@ -440,6 +442,8 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
         content = content.replace(oldAttendanceClockIn, atomicAttendanceClockIn)
       }
       content = content.replace('e.jsx("div",{onClick:l?()=>f(!0):B,className:"btn btn-primary",children:l?"⏱ ปิดกะ & Clock Out":"⏱ Clock In"})', 'e.jsx("button",{type:"button",onClick:l?()=>f(!0):B,className:"btn btn-primary",children:l?"⏱ ปิดกะ & Clock Out":"⏱ Clock In"})')
+      content = content.replace(']}),l&&e.jsxs("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}', ']}),["head_mechanic","mechanic","mechanic_trainee"].includes(n?.role)&&e.jsxs("div",{className:"panel",role:"status",style:{marginBottom:16,color:"var(--ghost-gray)",fontSize:12},children:["Ghost Lab Garage · NORMAL — ¥10,000 · PEAK — ¥15,000 · Peak Time 18:00–00:00",l?.garage_commission_period&&e.jsx("strong",{style:{color:"var(--bone)",marginLeft:10},children:(l.garage_commission_period==="peak"?"Peak":"Normal")+" · ¥"+Number(l.garage_commission_amount||0).toLocaleString()})]}),l&&e.jsxs("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}')
+      content = content.replace('children:["เข้า"," ",new Date(s.clock_in).toLocaleTimeString("th-TH",{hour12:!1})]', 'children:["เข้า"," ",new Date(s.clock_in).toLocaleTimeString("th-TH",{hour12:!1}),s.garage_commission_period&&` · ${s.garage_commission_period==="peak"?"Peak":"Normal"} ¥${Number(s.garage_commission_amount||0).toLocaleString()}`]')
     }
     if (file.endsWith('Profile-Crf9iFsU.js')) {
       const oldProfileClock = 'async function E(){await i.from("attendance").insert({staff_id:a.id,branch_id:a.primary_branch}),m()}async function A(){o&&(await i.from("attendance").update({clock_out:new Date().toISOString()}).eq("id",o.id),m())}'
@@ -704,7 +708,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
         'discount_pct: M ? 0 : de ? 100 : N.percentage,',
         'discount_pct: discountPctForBill,',
       )
-      content = content.replace('pe = M || p.commission_eligible === false ? 0 : n.commission_flat;', 'restaurantCommission = calculateSabinagisaCommissionPool(n.key, O, new Date()),\n    pe = M || p.commission_eligible === false ? 0 : n.key === "chill" ? restaurantCommission.amount : n.commission_flat;')
+      content = content.replace('pe = M || p.commission_eligible === false ? 0 : n.commission_flat;', 'restaurantCommission = calculateSabinagisaCommissionPool(n.key, O, new Date()),\n    garageTechnician = n.key === "garage" && ["head_mechanic","mechanic","mechanic_trainee"].includes(p?.role),\n    pe = M || p.commission_eligible === false ? 0 : n.key === "chill" ? restaurantCommission.amount : garageTechnician ? 0 : n.commission_flat;')
       const attendanceHookMarker = '  const initialDraft = readPosDraft(draftStorageKey);'
       const attendanceHook = `
   const [isOnShift, setIsOnShift] = i.useState(false);
@@ -742,7 +746,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       if (!content.includes('restaurantCommission = calculateSabinagisaCommissionPool(n.key, O, new Date())')) {
         throw new Error('Recovered POS commission patch did not apply; refusing to ship a flat commission for SABINAGISA.')
       }
-      content = content.replace('children: ["SERVICE BILL \\xB7 COMMISSION \\xA5", h.commission_flat.toLocaleString(), " ", "/ BILL \\xB7 ", m, " SERVICES"]', 'children: v ? ["SERVICE BILL · COMMISSION POOL / BILL · PEAK +25% 18:00–05:59 · ", m, " SERVICES"] : ["SERVICE BILL · COMMISSION ¥", h.commission_flat.toLocaleString(), " / BILL · ", m, " SERVICES"]')
+      content = content.replace('children: ["SERVICE BILL \\xB7 COMMISSION \\xA5", h.commission_flat.toLocaleString(), " ", "/ BILL \\xB7 ", m, " SERVICES"]', 'children: v ? ["SERVICE BILL · COMMISSION POOL / BILL · PEAK +25% 18:00–05:59 · ", m, " SERVICES"] : n.key === "garage" && ["head_mechanic","mechanic","mechanic_trainee"].includes(p?.role) ? ["NORMAL — ¥10,000 · PEAK — ¥15,000 · Peak Time 18:00–00:00 · ",m," SERVICES"] : ["SERVICE BILL · COMMISSION ¥", h.commission_flat.toLocaleString(), " / BILL · ", m, " SERVICES"]')
       content = 'import{calculateSabinagisaCommissionPool}from"./commission-pool.js";\n' + content
 
       const draftKeyAnchor = 'const draftStorageKey = `${POS_DRAFT_PREFIX}${n.key}:${(p == null ? void 0 : p.id) || "guest"}`;'
@@ -864,6 +868,27 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       content = content.replace(supercarPriceLabel, supercarPriceField)
       content = content.replace('const S = r === "price" ? {\n        price: parseInt(c) || 0\n      } : {', 'const S = r === "price" ? {\n        price: parseInt(c) || 0\n      } : r === "supercar_price" ? {\n        supercar_price: c === "" ? null : parseInt(c) || null\n      } : {')
       if (!content.includes('aria-label": `ราคา Super Car ${s.name}`') || !content.includes('supercar_price: c === "" ? null')) throw new Error('Super Car price field is not wired to persistent service updates.')
+
+      // Surface RLS/permission failures instead of silently leaving the edited
+      // value in the field; verify that an update actually matched a service.
+      const serviceSaveStart = content.indexOf('  async function l(s, r, c) {')
+      const serviceSaveEnd = content.indexOf('  async function uploadServiceImage', serviceSaveStart)
+      const verifiedServiceSave = `  async function l(s, r, c) {
+    const S = r === "price" ? {
+        price: c === "" ? 0 : Number(c)
+      } : r === "supercar_price" ? {
+        supercar_price: c === "" ? null : Number(c) || null
+      } : {
+        [r]: c
+      };
+    const {data,error}=await x.from("services").update(S).eq("id",s).select("id").maybeSingle();
+    if(error||!data){console.error(error||new Error("No service row updated"));await k();alert("บันทึกราคาไม่สำเร็จ กรุณาตรวจสอบสิทธิ์ฐานข้อมูลแล้วลองใหม่");}
+  }`
+      if (serviceSaveStart < 0 || serviceSaveEnd < 0) throw new Error('Service catalog save handler changed; refusing to build without verified update feedback.')
+      content = content.slice(0, serviceSaveStart) + verifiedServiceSave + '\n' + content.slice(serviceSaveEnd)
+      const standardPriceField = 'className: "input font-mono",\n            value: s.price'
+      if (content.includes(standardPriceField)) content = content.replace(standardPriceField, 'className: "input font-mono",\n            type: "number",\n            min: 0,\n            step: 1,\n            inputMode: "numeric",\n            "aria-label": `ราคา Standard ${s.name}`,\n            value: s.price')
+      if (!content.includes('"aria-label": `ราคา Standard ${s.name}`')) throw new Error('Standard service price field is not validated as numeric in production.')
     }
 
     // Kitchen tickets should be scannable at a glance. Merge identical menu
@@ -1077,12 +1102,20 @@ if (!personalCommissionPos.includes('preview_my_bill_commission')) {
     '    [vehicleClass, setVehicleClass] = i.useState("standard"),\n    [commissionPreview, setCommissionPreview] = i.useState(null);',
   )
   personalCommissionPos = personalCommissionPos.replace(
-    /    restaurantCommission = calculateSabinagisaCommissionPool\(n\.key, O, new Date\(\)\),\r?\n    pe = M \|\| p\.commission_eligible === false \? 0 : n\.key === "chill" \? restaurantCommission\.amount : n\.commission_flat;\r?\n  function me\(t\) \{/,
-    '    restaurantCommission = calculateSabinagisaCommissionPool(n.key, O, new Date()),\n    pe = M || p.commission_eligible === false ? 0 : n.key === "chill" ? restaurantCommission.amount : n.commission_flat;\n  i.useEffect(() => {\n    let active = true;\n    if (M || O <= 0) { setCommissionPreview({myAmount: 0, finalPool: 0, activeCount: 0, isPeak: false, mode: n.key === "chill" ? "ON_WORK_ALL" : "INDIVIDUAL"}); return () => { active = false; }; }\n    const timer = setTimeout(() => { x.rpc("preview_my_bill_commission", {p_branch_id: n.id, p_order_total: O}).then(({data, error}) => { if (!active) return; error ? console.error("[Ghost Lab] Failed to preview personal commission:", error) : setCommissionPreview(data); }); }, 180);\n    return () => { active = false; clearTimeout(timer); };\n  }, [n.id, n.key, O, M, p == null ? void 0 : p.id]);\n  const displayedPersonalCommission = M ? 0 : Number((commissionPreview == null ? void 0 : commissionPreview.myAmount) ?? (n.key === "chill" ? 0 : pe));\n  function me(t) {',
+    '    restaurantCommission = calculateSabinagisaCommissionPool(n.key, O, new Date()),\n    pe = M || p.commission_eligible === false ? 0 : n.key === "chill" ? restaurantCommission.amount : n.commission_flat;',
+    '    restaurantCommission = calculateSabinagisaCommissionPool(n.key, O, new Date()),\n    garageTechnician = n.key === "garage" && ["head_mechanic","mechanic","mechanic_trainee"].includes(p?.role),\n    pe = M || p.commission_eligible === false ? 0 : n.key === "chill" ? restaurantCommission.amount : garageTechnician ? 0 : n.commission_flat;',
+  )
+  personalCommissionPos = personalCommissionPos.replace(
+    '(n.key === "chill" ? 0 : pe)',
+    '(n.key === "chill" || garageTechnician ? 0 : pe)',
+  )
+  personalCommissionPos = personalCommissionPos.replace(
+    /    restaurantCommission = calculateSabinagisaCommissionPool\(n\.key, O, new Date\(\)\),\r?\n    garageTechnician = n\.key === "garage" && \["head_mechanic","mechanic","mechanic_trainee"\]\.includes\(p\?\.role\),\r?\n    pe = M \|\| p\.commission_eligible === false \? 0 : n\.key === "chill" \? restaurantCommission\.amount : garageTechnician \? 0 : n\.commission_flat;\r?\n  function me\(t\) \{/,
+    '    restaurantCommission = calculateSabinagisaCommissionPool(n.key, O, new Date()),\n    garageTechnician = n.key === "garage" && ["head_mechanic","mechanic","mechanic_trainee"].includes(p?.role),\n    pe = M || p.commission_eligible === false ? 0 : n.key === "chill" ? restaurantCommission.amount : garageTechnician ? 0 : n.commission_flat;\n  i.useEffect(() => {\n    let active = true;\n    if (M || O <= 0) { setCommissionPreview({myAmount: 0, finalPool: 0, activeCount: 0, isPeak: false, mode: n.key === "chill" ? "ON_WORK_ALL" : "INDIVIDUAL"}); return () => { active = false; }; }\n    const timer = setTimeout(() => { x.rpc("preview_my_bill_commission", {p_branch_id: n.id, p_order_total: O}).then(({data, error}) => { if (!active) return; error ? console.error("[Ghost Lab] Failed to preview personal commission:", error) : setCommissionPreview(data); }); }, 180);\n    return () => { active = false; clearTimeout(timer); };\n  }, [n.id, n.key, O, M, p == null ? void 0 : p.id]);\n  const displayedPersonalCommission = M ? 0 : Number((commissionPreview == null ? void 0 : commissionPreview.myAmount) ?? (n.key === "chill" || garageTechnician ? 0 : pe));\n  function me(t) {',
   )
   personalCommissionPos = personalCommissionPos.replace(
     '          children: ["SERVICE BILL \\xB7 COMMISSION \\xA5", h.commission_flat.toLocaleString(), " ", "/ BILL \\xB7 ", m, " SERVICES"]',
-    '          children: v ? ["SERVICE BILL · COMMISSION POOL · ACTIVE SNAPSHOT · ", m, " SERVICES"] : ["SERVICE BILL · ค่าคอมของผู้เปิดบิล ¥", h.commission_flat.toLocaleString(), " / BILL · ", m, " SERVICES"]',
+    '          children: v ? ["SERVICE BILL · COMMISSION POOL · ACTIVE SNAPSHOT · ", m, " SERVICES"] : n.key === "garage" && ["head_mechanic","mechanic","mechanic_trainee"].includes(p?.role) ? ["NORMAL — ¥10,000 · PEAK — ¥15,000 · Peak Time 18:00–00:00 · ",m," SERVICES"] : ["SERVICE BILL · ค่าคอมของผู้เปิดบิล ¥", h.commission_flat.toLocaleString(), " / BILL · ", m, " SERVICES"]',
   )
   personalCommissionPos = personalCommissionPos.replace(
     '            children: "COMMISSION (FLAT)"',

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { calculateMemberDiscount, formatDate, getMembershipPlan, nextMonthlyExpiry } from '../lib/membership'
-import { calculateSabinagisaCommissionPool } from '../lib/commission-pool'
+import { calculateSabinagisaCommissionPool, commissionPolicyForEmployee } from '../lib/commission-pool'
 
 const BILL_NOTE_SNAPSHOT_PREFIX = '[ghost-lab-bill]'
 const MEMBER_FREE_REPAIR_SERVICES = new Set(['engine repair kit', 'full repair kit'])
@@ -77,6 +77,8 @@ export default function POSPage({ branchKey, title, leadRole }) {
           <div style={{ fontSize: 12, color: 'var(--ghost-gray)', marginTop: 2 }}>
             {branch.key === 'chill'
               ? `SERVICE BILL · COMMISSION POOL / BILL · PEAK +25% 18:00–05:59 · ${serviceCount} SERVICES`
+              : commissionPolicyForEmployee(branch.key, staff?.role) === 'garage_technician_clock_in'
+                ? `NORMAL — ¥10,000 · PEAK — ¥15,000 · Peak Time 18:00–00:00 · ${serviceCount} SERVICES`
               : `SERVICE BILL · COMMISSION ¥${branch.commission_flat.toLocaleString()} / BILL · ${serviceCount} SERVICES`}
           </div>
         </div>
@@ -140,6 +142,8 @@ function NewBillTab({ branch, title, staff }) {
   const [memberEnabled, setMemberEnabled] = useState(() => Boolean(initialDraft?.memberEnabled))
   const [manualDiscountPct, setManualDiscountPct] = useState(() => Number(initialDraft?.manualDiscountPct || 0))
   const [isOnShift, setIsOnShift] = useState(false)
+  const [garageCommissionPreview, setGarageCommissionPreview] = useState(null)
+  const [garageCommissionLoading, setGarageCommissionLoading] = useState(false)
   const [showAttendanceConfirm, setShowAttendanceConfirm] = useState(false)
 
   useEffect(() => {
@@ -242,10 +246,33 @@ function NewBillTab({ branch, title, staff }) {
   const displayTotal = selfService || couponFreeRepairApplied ? 0 : Math.max(0, memberDiscount.total - manualDiscountAmount)
   const effectiveDiscountPct = cartTotal > 0 ? Number((100 - (displayTotal / cartTotal * 100)).toFixed(2)) : 0
   const restaurantCommission = calculateSabinagisaCommissionPool(branch.key, displayTotal)
+  const commissionPolicy = commissionPolicyForEmployee(branch.key, staff?.role)
+  const isGarageTechnician = commissionPolicy === 'garage_technician_clock_in'
   const displayCommission = selfService ? 0 : branch.key === 'chill'
     ? restaurantCommission.amount
-    : staff?.commission_eligible === false ? 0 : branch.commission_flat
+    : isGarageTechnician ? Number(garageCommissionPreview?.myAmount || 0)
+      : staff?.commission_eligible === false ? 0 : branch.commission_flat
   const myCommissionPreview = branch.key === 'chill' && !isOnShift ? 0 : displayCommission
+
+  useEffect(() => {
+    if (!isGarageTechnician || selfService || displayTotal <= 0) {
+      setGarageCommissionPreview(null)
+      setGarageCommissionLoading(false)
+      return
+    }
+    let active = true
+    setGarageCommissionLoading(true)
+    supabase.rpc('preview_my_bill_commission', { p_branch_id: branch.id, p_order_total: displayTotal })
+      .then(({ data, error }) => {
+        if (!active) return
+        if (error) {
+          console.error('[Ghost Lab Garage] Commission preview failed:', error)
+          setGarageCommissionPreview(null)
+        } else setGarageCommissionPreview(data)
+      })
+      .finally(() => { if (active) setGarageCommissionLoading(false) })
+    return () => { active = false }
+  }, [branch.id, displayTotal, isGarageTechnician, selfService])
 
   function addToCart(service) { setCart(c => [...c, service]) }
   function removeFromCart(idx) { setCart(c => c.filter((_, i) => i !== idx)) }
@@ -276,6 +303,7 @@ function NewBillTab({ branch, title, staff }) {
   }
 
   async function submitBill(confirmedWithoutAttendance = false) {
+    if (isGarageTechnician && displayTotal > 0 && garageCommissionLoading) return
     if (!pendingCheckout && branch.key === 'chill' && !isOnShift && !confirmedWithoutAttendance) {
       setShowAttendanceConfirm(true)
       return
@@ -301,7 +329,7 @@ function NewBillTab({ branch, title, staff }) {
           notes: makeBillNotes(notes, cart),
           subtotal: cartTotal,
           discount_pct: effectiveDiscountPct,
-          commission: displayCommission,
+          commission: myCommissionPreview,
           commission_mode: branch.key === 'chill' ? 'ON_WORK_ALL' : 'INDIVIDUAL',
           total: displayTotal,
           status: 'paid',
@@ -468,8 +496,9 @@ function NewBillTab({ branch, title, staff }) {
           </div>
 
           <div className="font-mono" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--ghost-gray)', marginBottom: 6 }}>
-            <span>{branch.key === 'chill' ? 'ค่าคอมของฉัน' : 'COMMISSION (FLAT)'}</span><span>¥{myCommissionPreview.toLocaleString()}</span>
+            <span>{branch.key === 'chill' ? 'ค่าคอมของฉัน · Restaurant Pool' : isGarageTechnician ? `ค่าคอม Garage · ${garageCommissionPreview?.garagePeriod === 'peak' ? 'Peak' : garageCommissionPreview?.garagePeriod === 'normal' ? 'Normal' : 'ยังไม่ Clock In'}` : 'COMMISSION (FLAT)'}</span><span>¥{myCommissionPreview.toLocaleString()}</span>
           </div>
+          {branch.key === 'garage' && isGarageTechnician && <div role="status" style={{ color: 'var(--ghost-gray)', fontSize: 10, marginBottom: 10 }}>NORMAL — ¥10,000 · PEAK — ¥15,000 · Peak Time 18:00–00:00{garageCommissionLoading ? ' · กำลังตรวจสอบเวลาเข้างาน…' : ''}</div>}
           {branch.key === 'chill' && !isOnShift && (
             <div role="status" style={{ background: 'rgba(236,164,76,.12)', border: '1px solid rgba(236,164,76,.35)', borderRadius: 8, color: '#f0bd78', fontSize: 11, lineHeight: 1.5, marginBottom: 10, padding: '9px 11px' }}>
               ⚠️ อย่าลืมเข้างานนะ เดี๋ยวไม่ได้ค่าคอม
@@ -859,17 +888,18 @@ function ServicesTab({ branch }) {
   async function saveField(id, field, value) {
     setActionError('')
     const payload = field === 'price'
-      ? { price: parseInt(value) || 0 }
+      ? { price: value === '' ? 0 : Number(value) }
       : field === 'supercar_price'
-        ? { supercar_price: value === '' ? null : parseInt(value) || null }
+        ? { supercar_price: value === '' ? null : Number(value) || null }
         : { [field]: value }
     try {
-      const { error } = await supabase.from('services').update(payload).eq('id', id)
+      const { data, error } = await supabase.from('services').update(payload).eq('id', id).select('id').maybeSingle()
       if (error) throw error
+      if (!data) throw new Error('ไม่มีสิทธิ์แก้ไขบริการสาขานี้ หรือไม่พบรายการ')
     } catch (error) {
       console.error(error)
       await load()
-      setActionError('บันทึกบริการไม่สำเร็จ ค่าจริงจากระบบถูกโหลดกลับมาแล้ว')
+      setActionError(`บันทึกราคาไม่สำเร็จ: ${error?.message || 'ตรวจสอบสิทธิ์ฐานข้อมูล'} — โหลดค่าจริงจากระบบกลับมาแล้ว`)
     }
   }
 
@@ -922,7 +952,8 @@ function ServicesTab({ branch }) {
                   onBlur={e => saveField(s.id, 'category', e.target.value)}
                 />
                 <input
-                  className="input font-mono" value={s.price}
+                  aria-label={`ราคา Standard ${s.name}`}
+                  className="input font-mono" type="number" min="0" step="1" inputMode="numeric" value={s.price}
                   style={{ color: 'var(--blood)', fontWeight: 600 }}
                   onChange={e => updateField(s.id, 'price', e.target.value)}
                   onBlur={e => saveField(s.id, 'price', e.target.value)}

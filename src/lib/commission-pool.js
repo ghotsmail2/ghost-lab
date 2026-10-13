@@ -6,6 +6,26 @@ const POOL_TIERS = [
   { minimum: 800, pool: 300 },
 ]
 
+export const GARAGE_TECHNICIAN_ROLES = new Set(['head_mechanic', 'mechanic', 'mechanic_trainee'])
+
+export function classifyGarageCommissionClockIn(clockIn) {
+  const at = clockIn instanceof Date ? clockIn : new Date(clockIn)
+  if (Number.isNaN(at.getTime())) throw new TypeError('clockIn must be a valid timestamp')
+  const hour = Number(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Bangkok', hour: '2-digit', hourCycle: 'h23',
+  }).format(at))
+  const period = hour >= 18 ? 'peak' : 'normal'
+  return { period, amount: period === 'peak' ? 15_000 : 10_000 }
+}
+
+// Explicitly route policies by business and role. SABINAGISA retains its
+// original pool and 18:00–06:00 peak behavior.
+export function commissionPolicyForEmployee(branchKey, role) {
+  if (branchKey === 'chill') return 'sabinagisa_commission_pool'
+  if (branchKey === 'garage' && GARAGE_TECHNICIAN_ROLES.has(role)) return 'garage_technician_clock_in'
+  return 'branch_individual'
+}
+
 export function calculateSabinagisaCommissionPool(branchKey, billTotal, at = new Date()) {
   if (branchKey !== 'chill') return { base: 0, amount: 0, isPeak: false }
 
