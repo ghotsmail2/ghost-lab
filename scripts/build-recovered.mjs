@@ -128,7 +128,7 @@ await cp(path.join(sourceRoot, 'assets'), path.join(outputRoot, 'assets'), { rec
 const assetFiles = (await listFiles(path.join(sourceRoot, 'assets'))).sort()
 const supabaseBrowserConfig = await readSupabaseBrowserConfig()
 const digest = createHash('sha256')
-digest.update('release-transform-20261013-login-hero-wheel-assist-1')
+digest.update('release-transform-20261013-dual-brand-login-1')
 for (const file of assetFiles) digest.update(path.relative(sourceRoot, file)).update(await readFile(file))
 for (const file of (await listFiles(kitchenAssetRoot)).sort()) digest.update(path.relative(projectRoot, file)).update(await readFile(file))
 const commissionPoolHelper = path.join(projectRoot, 'src', 'lib', 'commission-pool.js')
@@ -176,7 +176,9 @@ body{background:radial-gradient(circle at 66% -12%,#fffdf9 0,#f6f1e9 31%,#ede5db
 .sidebar-link.active,.sidebar-link.is-active{background:linear-gradient(90deg,#e24a24,#b3321b)!important;box-shadow:0 8px 18px rgba(164,43,23,.28)!important;color:#fffaf5!important}
 .sidebar-link.active:before,.sidebar-link.is-active:before{background:#ffd28c!important;box-shadow:0 0 14px #ffd28c!important}
 .sidebar-nav{padding:8px 10px 12px!important}.sidebar-group{border-bottom:1px solid rgba(255,255,255,.085)!important;padding:7px 0 9px!important}.sidebar-group__toggle{color:#c9b8a7!important;font-size:9px!important;letter-spacing:.09em!important;padding:8px 8px!important;text-transform:none!important}.sidebar-group__toggle:hover,.sidebar-group__toggle.is-open{color:#ffd39b!important}.sidebar-group__toggle small{align-items:center;background:rgba(255,255,255,.1)!important;border-radius:99px!important;color:#e7d7c8!important;display:flex;height:19px;justify-content:center;min-width:19px;padding:0 5px}.sidebar-group__toggle b{color:#e45a31!important;font-size:14px!important}.sidebar-group__items{padding:2px 0 4px!important}.sidebar-link{font-size:12px!important;min-height:39px}
-.sidebar-user,.sidebar-footer{border-top:1px solid rgba(255,255,255,.1)!important}
+.sidebar.is-drawer-open{display:flex!important;flex-direction:column!important;height:100dvh!important;max-height:100dvh!important;min-height:100dvh!important;overflow:hidden!important}
+.sidebar-nav{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overscroll-behavior:contain;scrollbar-gutter:stable}
+.sidebar-user,.sidebar-footer{border-top:1px solid rgba(255,255,255,.1)!important;flex:0 0 auto!important;margin-top:auto!important}
 .panel,.card,.stat-card,.summary-card,.membership-plans,.daily-summary-card,.stock-card,.expenses-card{background:rgba(255,253,249,.94)!important;border:1px solid rgba(83,59,37,.13)!important;border-radius:15px!important;box-shadow:0 12px 26px rgba(64,43,26,.055)!important;color:#231f1a!important}
 .panel:hover,.card:hover{box-shadow:0 16px 34px rgba(64,43,26,.09)!important}
 .panel h1,.panel h2,.panel h3,.panel strong,.card h1,.card h2,.card h3{color:#211c17!important}
@@ -255,6 +257,42 @@ const loginHeroSeamlessCss = `
    the text column creates a visible rectangular crop against the page image. */
 .login-brand{background:transparent!important}
 @media(max-width:760px){.login-brand{background:transparent!important}}
+/* Interactive dual-brand login: hover previews, a click locks the selected team. */
+.login-page{isolation:isolate;overflow:hidden!important}
+.login-page:after{background-position:center;background-size:cover;content:"";inset:0;opacity:0;pointer-events:none;position:fixed;transition:opacity .42s cubic-bezier(.22,1,.36,1);z-index:-1}
+.login-page[data-brand="sabinagisa"]:after{background-image:linear-gradient(100deg,rgba(13,10,8,.42),rgba(18,12,9,.15)),url("./dashboard-sabinagisa-v1.png");opacity:.92}
+.login-page[data-brand="garage"]:after{background-image:linear-gradient(100deg,rgba(10,8,8,.5),rgba(12,12,13,.18)),url("./dashboard-garage-v1.png");opacity:.92}
+.login-shell{grid-template-columns:minmax(0,58fr) minmax(360px,42fr)!important;transition:grid-template-columns .42s cubic-bezier(.22,1,.36,1),column-gap .42s cubic-bezier(.22,1,.36,1);z-index:1}
+.login-shell[data-brand="default"]{grid-template-columns:minmax(0,1fr)!important;column-gap:0!important}
+.login-shell[data-brand="default"] .login-brand{align-items:center;grid-column:1;grid-row:1/3;justify-self:center;max-width:980px;text-align:center}
+.login-shell[data-brand="default"] .login-brand__manifesto{justify-self:center;text-align:left}
+.login-shell[data-brand="default"] .login-card{display:none}
+.login-shell[data-brand="default"] .login-footer{grid-column:1;grid-row:2;justify-self:center;max-width:520px}
+.login-brand__selectors{display:grid;gap:clamp(10px,1.2vw,18px);grid-template-columns:repeat(2,minmax(0,1fr));margin-top:clamp(24px,5vh,54px);max-width:780px;width:min(100%,780px)}
+.login-brand__zone{align-items:flex-start;background:linear-gradient(130deg,rgba(25,24,23,.68),rgba(10,11,12,.48));backdrop-filter:blur(12px);border:1px solid rgba(255,239,216,.2);border-radius:14px;color:#fff5e8;cursor:pointer;display:flex;flex-direction:column;gap:5px;min-height:100px;padding:clamp(14px,1.7vw,23px);text-align:left;transition:background .35s cubic-bezier(.22,1,.36,1),border-color .35s cubic-bezier(.22,1,.36,1),transform .35s cubic-bezier(.22,1,.36,1),box-shadow .35s cubic-bezier(.22,1,.36,1)}
+.login-brand__zone:hover,.login-brand__zone:focus-visible,.login-brand__zone.is-active{background:linear-gradient(130deg,rgba(51,35,26,.82),rgba(15,15,16,.68));border-color:rgba(243,183,122,.58);box-shadow:0 16px 45px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.12);outline:none;transform:translateY(-2px)}
+.login-brand__zone>span{color:#e5b37f;font-size:9px;font-weight:700;letter-spacing:.2em}
+.login-brand__zone>strong{font:500 clamp(19px,2vw,27px)/1.2 'Cormorant Garamond',Georgia,serif;letter-spacing:.025em}
+.login-brand__zone>small{color:rgba(255,243,226,.68);font-size:11px}
+.login-shell:not([data-brand="default"]) .login-brand{grid-column:1;grid-row:1/3;align-items:flex-start;justify-self:stretch;text-align:left}
+.login-shell:not([data-brand="default"]) .login-brand__selectors{margin-top:clamp(18px,3vh,32px);width:100%}
+.login-shell:not([data-brand="default"]) .login-brand__zone{min-height:76px;padding:12px 14px}
+.login-shell:not([data-brand="default"]) .login-brand__zone:not(.login-brand__zone--active){opacity:.76}
+.login-shell:not([data-brand="default"]) .login-card{animation:brand-panel-in .42s cubic-bezier(.22,1,.36,1) both;backdrop-filter:blur(24px) saturate(125%);background:linear-gradient(145deg,rgba(26,25,25,.9),rgba(13,14,15,.86))!important;border-color:rgba(255,239,216,.2)!important;color:#fff8ef!important;display:flex;flex-direction:column;max-height:calc(100dvh - 40px);min-height:0;overflow:hidden;position:relative}
+.login-shell[data-brand="sabinagisa"] .login-card{box-shadow:0 28px 80px rgba(0,0,0,.48),0 0 34px rgba(210,149,71,.12)!important}
+.login-shell[data-brand="garage"] .login-card{box-shadow:0 28px 80px rgba(0,0,0,.5),0 0 34px rgba(204,47,51,.12)!important}
+.login-shell:not([data-brand="default"]) .staff-groups{flex:1 1 auto;min-height:0;max-height:none!important;overflow-y:auto!important;overscroll-behavior:contain;scrollbar-gutter:stable}
+.login-change-team{background:transparent;border:0;color:#e7b985;cursor:pointer;float:right;font:600 11px Inter,'Noto Sans Thai',sans-serif;padding:5px 0 5px 10px}
+.login-change-team:hover{color:#fff4e7;text-decoration:underline;text-underline-offset:3px}
+.login-shell[data-brand="sabinagisa"] .login-card__eyebrow{color:#e9bd75}
+.login-shell[data-brand="garage"] .login-card__eyebrow{color:#f07866}
+.login-shell:not([data-brand="default"]) .staff-group--chill{border-color:rgba(226,177,100,.28)}
+.login-shell:not([data-brand="default"]) .staff-group--garage{border-color:rgba(216,77,69,.25)}
+@keyframes brand-panel-in{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:translateX(0)}}
+@media(max-width:1050px){.login-shell,.login-shell[data-brand="default"]{align-items:center;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr);padding:clamp(14px,3vh,28px) clamp(14px,4vw,36px)!important}.login-shell[data-brand="default"] .login-brand{align-items:center;grid-row:1;text-align:center}.login-shell:not([data-brand="default"]) .login-brand{display:flex;grid-row:1;max-height:100%;overflow:hidden}.login-shell:not([data-brand="default"]) .login-brand__kanji{font-size:clamp(38px,7vw,66px);margin:clamp(8px,2vh,18px) 0 3px}.login-shell:not([data-brand="default"]) .login-brand__manifesto{display:none}.login-shell:not([data-brand="default"]) .login-brand__selectors{margin-top:clamp(14px,2vh,20px)}.login-shell:not([data-brand="default"]) .login-brand__zone{min-height:56px;padding:9px 11px}.login-shell:not([data-brand="default"]) .login-card{inset:12px;max-height:none!important;position:fixed;width:auto!important;z-index:5}.login-shell:not([data-brand="default"]) .login-footer{display:none}}
+@media(max-width:600px){.login-shell,.login-shell[data-brand="default"]{padding:12px!important}.login-shell[data-brand="default"] .login-brand__kanji{font-size:clamp(40px,12vw,62px);margin:20px 0 4px}.login-brand__selectors{gap:9px;margin-top:22px;width:100%}.login-brand__zone{border-radius:12px;min-height:92px;padding:12px}.login-brand__zone>strong{font-size:clamp(17px,5vw,22px)}.login-brand__zone>small{font-size:10px}.login-shell:not([data-brand="default"]) .login-brand{display:none}.login-shell:not([data-brand="default"]) .login-card{inset:8px;max-height:none!important;padding:18px 14px;width:auto!important}.login-shell:not([data-brand="default"]) .login-card__header{margin-bottom:12px}.login-shell:not([data-brand="default"]) .staff-picker__toolbar{gap:8px}.login-shell:not([data-brand="default"]) .staff-groups{max-height:none!important}}
+@media(max-width:1050px) and (max-height:520px){.login-shell,.login-shell[data-brand="default"]{padding:6px 18px!important}.login-brand__wordmark{font-size:9px}.login-brand__kicker{font-size:8px;margin-top:4px}.login-brand__kanji,.login-shell[data-brand="default"] .login-brand__kanji{font-size:clamp(34px,6vw,44px);margin:8px 0 0}.login-brand__reading{font-size:12px}.login-brand__services{font-size:10px;margin-top:5px;padding-top:5px}.login-brand__manifesto{gap:2px;margin-top:8px;padding-left:10px}.login-brand__manifesto span:first-child{font-size:14px}.login-brand__manifesto span:last-child{color:#fff4e8;font-size:14px;font-weight:650;letter-spacing:.02em}.login-brand__selectors{gap:7px;margin-top:9px}.login-brand__zone{min-height:54px;padding:8px 12px}.login-brand__zone>span{font-size:8px}.login-brand__zone>strong{font-size:18px}.login-brand__zone>small{font-size:9px}}
+@media(prefers-reduced-motion:reduce){.login-page:after,.login-shell,.login-brand__zone,.login-shell:not([data-brand="default"]) .login-card{animation:none!important;transition:none!important}}
 `
 
 const fullWidthWorkspaceCss = `
@@ -674,9 +712,32 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       if (!content.includes(profileStepEyebrow)) throw new Error('Login profile step label changed; refusing to remove unexpected markup.')
       content = content.replace(profileStepEyebrow, 'w.jsx("span",{className:"login-card__eyebrow",children:"GHOST·LAB × SABINAGISA · TEAM ACCESS"}),')
       const oldLoginBrand = 'w.jsxs("div",{className:"login-brand",children:[w.jsxs("div",{className:"font-display login-brand__name",children:["GHOST",w.jsx("span",{className:"login-brand__dot",children:"·"}),"LAB"]}),w.jsx("div",{className:"login-brand__subtitle",children:"ゴースト ラボ"})]})'
-      const newLoginBrand = 'w.jsxs("div",{className:"login-brand",children:[w.jsx("div",{className:"login-brand__wordmark",children:"GHOST·LAB × SABINAGISA"}),w.jsx("div",{className:"login-brand__kicker",children:"TWO SOULS, ONE GARAGE"}),w.jsx("div",{className:"login-brand__kanji",children:"技 · 味 · 心"}),w.jsx("div",{className:"login-brand__reading",children:"わざ · あじ · こころ"}),w.jsx("div",{className:"login-brand__services",children:"งานช่าง · บริการ · อาหาร · ประสบการณ์"}),w.jsxs("div",{className:"login-brand__manifesto",children:[w.jsx("span",{children:"二つの世界、ひとつの美学。"}),w.jsx("span",{children:"สองธุรกิจ หนึ่งมาตรฐาน"})]})]})'
+      const newLoginBrand = 'w.jsxs("div",{className:"login-brand",children:[w.jsx("div",{className:"login-brand__wordmark",children:"GHOST·LAB × SABINAGISA"}),w.jsx("div",{className:"login-brand__kicker",children:"TWO SOULS, ONE GARAGE"}),w.jsx("div",{className:"login-brand__kanji",children:"技 · 味 · 心"}),w.jsx("div",{className:"login-brand__reading",children:"わざ · あじ · こころ"}),w.jsx("div",{className:"login-brand__services",children:"งานช่าง · บริการ · อาหาร · ประสบการณ์"}),w.jsxs("div",{className:"login-brand__manifesto",children:[w.jsx("span",{children:"二つの世界、ひとつの美学。"}),w.jsx("span",{children:"สองธุรกิจ หนึ่งมาตรฐาน"})]}),w.jsxs("div",{className:"login-brand__selectors","aria-label":"เลือกทีม",children:[w.jsxs("button",{type:"button",className:"login-brand__zone login-brand__zone--sabinagisa",onMouseEnter:()=>previewBrand("sabinagisa"),onFocus:()=>previewBrand("sabinagisa"),onClick:()=>lockBrand("sabinagisa"),children:[w.jsx("span",{children:"FOOD & DRINK"}),w.jsx("strong",{children:"SABINAGISA"}),w.jsx("small",{children:"ร้านอาหารญี่ปุ่น"})]}),w.jsxs("button",{type:"button",className:"login-brand__zone login-brand__zone--garage",onMouseEnter:()=>previewBrand("garage"),onFocus:()=>previewBrand("garage"),onClick:()=>lockBrand("garage"),children:[w.jsx("span",{children:"GARAGE TEAM"}),w.jsx("strong",{children:"Ghost Lab Garage"}),w.jsx("small",{children:"งานช่างและบริการ"})]})]})]})'
+      const interactiveLoginBrand = newLoginBrand
+        .replace('className:"login-brand__zone login-brand__zone--sabinagisa",onMouseEnter', 'className:`login-brand__zone login-brand__zone--sabinagisa${activeBrand==="sabinagisa"?" is-active":""}`,onMouseEnter')
+        .replace('className:"login-brand__zone login-brand__zone--garage",onMouseEnter', 'className:`login-brand__zone login-brand__zone--garage${activeBrand==="garage"?" is-active":""}`,onMouseEnter')
       if (!content.includes(oldLoginBrand)) throw new Error('Login brand markup changed; refusing to replace the bilingual brand text.')
-      content = content.replace(oldLoginBrand, newLoginBrand)
+      content = content.replace(oldLoginBrand, interactiveLoginBrand)
+
+      // The login opens as a dual-brand landing page. Hover previews a team;
+      // clicking locks it until the user explicitly returns to the hero.
+      const loginStateMarker = 'function p_(){const[t,e]=k.useState([]),[r,n]=k.useState(""),[s,i]=k.useState(null),[o,a]=k.useState("profile"),[l,u]=k.useState(""),[d,c]=k.useState(""),[h,f]=k.useState(!1),'
+      if (!content.includes(loginStateMarker)) throw new Error('Login state changed; refusing to install dual-brand selection without matching auth flow.')
+      content = content.replace(loginStateMarker, loginStateMarker + '[activeBrand,setActiveBrand]=k.useState(null),[lockedBrand,setLockedBrand]=k.useState(null),')
+      const loginSearchMarker = 'function g(R){i(R),u(""),c(""),a("pin")}const _=r.trim().toLowerCase()'
+      if (!content.includes(loginSearchMarker)) throw new Error('Login profile selection changed; refusing to alter the production auth workflow.')
+      content = content.replace(loginSearchMarker, 'function previewBrand(R){if(lockedBrand||Date.now()<(window.__loginSuppressHoverUntil||0))return;window.clearTimeout(window.__loginBrandPreviewTimer),setActiveBrand(R)}function clearBrandPreview(){if(lockedBrand)return;window.clearTimeout(window.__loginBrandPreviewTimer),window.__loginBrandPreviewTimer=window.setTimeout(()=>setActiveBrand(null),150)}function lockBrand(R){if(lockedBrand&&lockedBrand!==R)return;window.clearTimeout(window.__loginBrandPreviewTimer),setLockedBrand(R),setActiveBrand(R)}function unlockBrand(){window.clearTimeout(window.__loginBrandPreviewTimer),window.__loginSuppressHoverUntil=Date.now()+700,setLockedBrand(null),setActiveBrand(null)}function g(R){if(activeBrand)setLockedBrand(activeBrand);i(R),u(""),c(""),a("pin")}const _=r.trim().toLowerCase()')
+      content = content.replace('staff:b.filter(U=>f_(U)===R.key)', 'staff:b.filter(U=>(f_(U)===R.key||f_(U)==="shared")&&R.key===(activeBrand==="sabinagisa"?"chill":"garage"))')
+      content = content.replace('children:[b.length,"/",t.length," คน"]', 'children:[E.reduce((R,U)=>R+U.staff.length,0)," คน"]')
+      content = content.replace('const h_=[{key:"garage",title:"Ghost Lab",subtitle:"Garage Team"}', 'const h_=[{key:"garage",title:"GHOST LAB GARAGE",subtitle:"Garage Team"}')
+      const loginRootMarker = 'w.jsx("main",{className:"login-page",children:w.jsxs("section",{className:"login-shell","aria-label":"เข้าสู่ระบบ Ghost Lab",children:['
+      if (!content.includes(loginRootMarker)) throw new Error('Login shell changed; refusing to apply brand lock behavior to an unknown layout.')
+      content = content.replace(loginRootMarker, 'w.jsx("main",{className:"login-page","data-brand":activeBrand||"default",children:w.jsxs("section",{className:"login-shell","data-brand":activeBrand||"default","data-locked":lockedBrand?"true":"false","aria-label":"เข้าสู่ระบบ Ghost Lab",onMouseLeave:clearBrandPreview,children:[')
+      const brandPanelHeader = 'w.jsx("h1",{children:"เลือกโปรไฟล์ของคุณ"})'
+      if (!content.includes(brandPanelHeader)) throw new Error('Login panel heading changed; refusing to hide staff before team selection.')
+      content = content.replace(brandPanelHeader, 'w.jsx("button",{type:"button",className:"login-change-team",onClick:unlockBrand,children:"← เปลี่ยนทีม"}),w.jsx("h1",{children:"เลือกโปรไฟล์ของคุณ"})')
+      content = content.replace('children:"GHOST·LAB × SABINAGISA · TEAM ACCESS"', 'children:activeBrand==="sabinagisa"?"SABINAGISA · FOOD & DRINK TEAM":"GHOST LAB GARAGE · GARAGE TEAM"')
+      content = content.replace('children:"← เปลี่ยนโปรไฟล์"', 'children:"← เปลี่ยนโปรไฟล์"')
       const oldKitchenNav = '{key:"chill-kitchen",permission:"chill_access",label:"Kitchen Board",path:"/chill/kitchen",allow:[I.OWNER,I.CEO,I.CHILL_MANAGER,I.CHILL_STAFF]},'
       const oldKitchenRoute = 'w.jsx(ge,{path:"/chill/kitchen",element:w.jsx(Oe,{branchKey:"chill",allow:[I.OWNER,I.CEO,I.CHILL_MANAGER,I.CHILL_STAFF],permission:"chill_access",children:w.jsx(Ae,{title:"SABINAGISA Kitchen",sub:"Kitchen Display System",children:w.jsx(S_,{})})})}),'
       if (!content.includes(oldKitchenNav) || !content.includes(oldKitchenRoute)) throw new Error('Recovered Kitchen Board route changed; refusing to remove the separate kitchen page.')

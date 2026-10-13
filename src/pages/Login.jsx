@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { publicSupabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -16,6 +16,9 @@ export default function Login() {
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [activeBrand, setActiveBrand] = useState(null)
+  const [lockedBrand, setLockedBrand] = useState(null)
+  const previewTimer = useRef(null)
   const { loginWithPin, session, staff, loading } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -40,6 +43,7 @@ export default function Login() {
   }, [])
 
   function chooseProfile(staff) {
+    if (activeBrand) setLockedBrand(activeBrand)
     setSelected(staff)
     setPin('')
     setError('')
@@ -58,7 +62,35 @@ export default function Login() {
   const staffGroups = [
     { key: 'garage', label: 'Ghost Lab Garage', subtitle: 'Garage Team', icon: '⌁', members: visibleStaff.filter(member => !member.role?.startsWith('chill_')) },
     { key: 'chill', label: 'SABINAGISA', subtitle: 'Food & Drink Team', icon: '✦', members: visibleStaff.filter(member => member.role?.startsWith('chill_')) },
-  ].filter(group => group.members.length > 0)
+  ].filter(group => group.members.length > 0 && activeBrand && group.key === (activeBrand === 'sabinagisa' ? 'chill' : 'garage'))
+
+  function previewBrand(brand) {
+    if (lockedBrand || Date.now() < (window.__loginSuppressHoverUntil || 0)) return
+    window.clearTimeout(previewTimer.current)
+    setActiveBrand(brand)
+  }
+
+  function clearBrandPreview() {
+    if (lockedBrand) return
+    window.clearTimeout(previewTimer.current)
+    previewTimer.current = window.setTimeout(() => setActiveBrand(null), 150)
+  }
+
+  function lockBrand(brand) {
+    if (lockedBrand && lockedBrand !== brand) return
+    window.clearTimeout(previewTimer.current)
+    setLockedBrand(brand)
+    setActiveBrand(brand)
+  }
+
+  function unlockBrand() {
+    window.clearTimeout(previewTimer.current)
+    window.__loginSuppressHoverUntil = Date.now() + 700
+    setLockedBrand(null)
+    setActiveBrand(null)
+    setSelected(null)
+    setStep('profile')
+  }
 
   function changeProfile() {
     if (isSubmitting) return
@@ -91,8 +123,8 @@ export default function Login() {
   }
 
   return (
-    <main className="login-page">
-      <section className="login-shell" aria-label="เข้าสู่ระบบ Ghost Lab">
+    <main className="login-page" data-brand={activeBrand || 'default'}>
+      <section className="login-shell" data-brand={activeBrand || 'default'} data-locked={lockedBrand ? 'true' : 'false'} aria-label="เข้าสู่ระบบ Ghost Lab" onMouseLeave={clearBrandPreview}>
         <div className="login-brand">
           <div className="login-brand__wordmark">GHOST·LAB × SABINAGISA</div>
           <div className="login-brand__kicker">TWO SOULS, ONE GARAGE</div>
@@ -103,12 +135,21 @@ export default function Login() {
             <span>二つの世界、ひとつの美学。</span>
             <span>สองธุรกิจ หนึ่งมาตรฐาน</span>
           </div>
+          <div className="login-brand__selectors" aria-label="เลือกทีม">
+            <button type="button" className={`login-brand__zone login-brand__zone--sabinagisa${activeBrand === 'sabinagisa' ? ' is-active' : ''}`} onMouseEnter={() => previewBrand('sabinagisa')} onFocus={() => previewBrand('sabinagisa')} onClick={() => lockBrand('sabinagisa')}>
+              <span>FOOD &amp; DRINK</span><strong>SABINAGISA</strong><small>ร้านอาหารญี่ปุ่น</small>
+            </button>
+            <button type="button" className={`login-brand__zone login-brand__zone--garage${activeBrand === 'garage' ? ' is-active' : ''}`} onMouseEnter={() => previewBrand('garage')} onFocus={() => previewBrand('garage')} onClick={() => lockBrand('garage')}>
+              <span>GARAGE TEAM</span><strong>Ghost Lab Garage</strong><small>งานช่างและบริการ</small>
+            </button>
+          </div>
         </div>
 
-        {step === 'profile' ? (
+        {step === 'profile' && activeBrand ? (
           <div className="login-card login-card--profiles">
             <div className="login-card__header">
-              <span className="login-card__eyebrow">GHOST·LAB × SABINAGISA · TEAM ACCESS</span>
+              <button type="button" className="login-change-team" onClick={unlockBrand}>← เปลี่ยนทีม</button>
+              <span className="login-card__eyebrow">{activeBrand === 'sabinagisa' ? 'SABINAGISA · FOOD & DRINK TEAM' : 'GHOST LAB GARAGE · GARAGE TEAM'}</span>
               <h1>เลือกโปรไฟล์ของคุณ</h1>
               <p>เลือกชื่อก่อน แล้วจึงใส่ PIN เพื่อเข้าสู่ระบบ</p>
             </div>
@@ -140,7 +181,7 @@ export default function Login() {
             </div>
             <button type="button" className="login-continue" disabled={!selected} onClick={continueProfile}>ถัดไป (ใส่ PIN) <span aria-hidden="true">→</span></button>
           </div>
-        ) : (
+        ) : step === 'pin' ? (
           <div className="login-card login-card--pin">
             <button type="button" className="change-profile" onClick={changeProfile} disabled={isSubmitting}>← เปลี่ยนโปรไฟล์</button>
             <div className="selected-profile">
@@ -161,7 +202,7 @@ export default function Login() {
               {isSubmitting && <div className="pin-panel__status">กำลังตรวจสอบ PIN…</div>}
             </div>
           </div>
-        )}
+        ) : null}
         <footer className="login-footer">พนักงานใหม่? <Link to="/signup">สมัครสมาชิก</Link></footer>
       </section>
     </main>
