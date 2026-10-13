@@ -21,3 +21,10 @@ test('Atomic server validator is patched to verify editable service-row prices',
   assert.match(migration, /expected_price := service_row\.supercar_price/)
   assert.match(migration, /supercar_price is null/)
 })
+
+test('Garage Standard price commits automatically after typing and on Enter/blur', async () => {
+  const build = await readFile(new URL('./scripts/build-recovered.mjs', import.meta.url), 'utf8')
+  assert.match(build, /window\.__garagePriceSaveTimers\[s\.id\] = setTimeout\(\(\) => l\(s\.id, "price", value\), 650\)/)
+  assert.match(build, /onBlur: r => \{ clearTimeout\(window\.__garagePriceSaveTimers\?\.\[s\.id\]\); l\(s\.id, "price", r\.target\.value\); \}/)
+  assert.match(build, /if \(r\.key === "Enter"\) r\.currentTarget\.blur\(\)/)
+})

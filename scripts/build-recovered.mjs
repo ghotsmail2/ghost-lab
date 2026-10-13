@@ -912,11 +912,16 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
         .replace('readOnly: n.key === "garage" && catalogEntry(s)?.status === "priced",', '')
         .replace('title: n.key === "garage" && catalogEntry(s)?.status === "priced" ? "ราคาจาก catalog_lite.html" : "ราคาเดิมของบริการ",', '')
         .replace('            value: n.key === "garage" && catalogEntry(s)?.status === "priced" ? priceService(s).price : s.price,', '            value: s.price,')
-        .replace('            onBlur: r => { if (!(n.key === "garage" && catalogEntry(s)?.status === "priced")) l(s.id, "price", r.target.value); }', '            onBlur: r => l(s.id, "price", r.target.value)')
+        .replace('onChange: r => m(s.id, "price", r.target.value),', 'onChange: r => { const value = r.target.value; m(s.id, "price", value); window.__garagePriceSaveTimers ||= {}; clearTimeout(window.__garagePriceSaveTimers[s.id]); window.__garagePriceSaveTimers[s.id] = setTimeout(() => l(s.id, "price", value), 650); },')
+        .replace('onBlur: r => { if (!(n.key === "garage" && catalogEntry(s)?.status === "priced")) l(s.id, "price", r.target.value); }', 'onBlur: r => { clearTimeout(window.__garagePriceSaveTimers?.[s.id]); l(s.id, "price", r.target.value); }, onKeyDown: r => { if (r.key === "Enter") r.currentTarget.blur(); }')
       if (content.includes('readOnly: n.key === "garage" && catalogEntry(s)?.status === "priced"')
           || content.includes('value: n.key === "garage" && catalogEntry(s)?.status === "priced" ? priceService(s).price : s.price')
           || content.includes('if (!(n.key === "garage" && catalogEntry(s)?.status === "priced"))')) {
         throw new Error('Garage catalog price lock remains in the Services editor.')
+      }
+      if (!content.includes('window.__garagePriceSaveTimers[s.id] = setTimeout(() => l(s.id, "price", value), 650)')
+          || !content.includes('if (r.key === "Enter") r.currentTarget.blur()')) {
+        throw new Error('Garage Standard price autosave/Enter commit is not wired in the Services editor.')
       }
       if (!content.includes('"aria-label": `ราคา Standard ${s.name}`')) throw new Error('Standard service price field is not validated as numeric in production.')
     }
