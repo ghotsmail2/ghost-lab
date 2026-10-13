@@ -97,6 +97,8 @@ test('bill composer previews the signed-in staff commission from current eligibi
   assert.match(previewMigration, /row_number\(\) over\(order by s\.id\)/)
   assert.match(buildScript, /ค่าคอมของฉัน \(ประมาณ\)/)
   assert.match(buildScript, /preview_my_bill_commission/)
+  assert.match(buildScript, /if \(!personalCommissionPos\.includes\('preview_my_bill_commission'\)\)/)
+  assert.match(buildScript, /restaurantCommission = calculateSabinagisaCommissionPool\(n\.key, O, new Date\(\)\)/)
 })
 
 test('CEO receives a branch-scoped read-only commission overview', () => {

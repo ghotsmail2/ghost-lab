@@ -704,7 +704,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
         'discount_pct: M ? 0 : de ? 100 : N.percentage,',
         'discount_pct: discountPctForBill,',
       )
-      content = content.replace('pe = M ? 0 : n.commission_flat;', 'restaurantCommission = calculateSabinagisaCommissionPool(n.key, O, new Date()),\n    pe = M ? 0 : n.key === "chill" ? restaurantCommission.amount : n.commission_flat;')
+      content = content.replace('pe = M || p.commission_eligible === false ? 0 : n.commission_flat;', 'restaurantCommission = calculateSabinagisaCommissionPool(n.key, O, new Date()),\n    pe = M || p.commission_eligible === false ? 0 : n.key === "chill" ? restaurantCommission.amount : n.commission_flat;')
       const attendanceHookMarker = '  const initialDraft = readPosDraft(draftStorageKey);'
       const attendanceHook = `
   const [isOnShift, setIsOnShift] = i.useState(false);
@@ -739,6 +739,9 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       content = content.replace(unclockedReminderAnchor, unclockedReminder)
       content = content.replace('opacity: f || u.length === 0 || pricingBlocked ? 0.5 : 1', 'opacity: f || pricingBlocked || (u.length === 0 && (n.key !== "chill" || isOnShift)) ? 0.5 : 1')
       content = content.replace('children: ["\\xA5", pe.toLocaleString()]', 'children: ["\\xA5", (n.key === "chill" && !isOnShift ? 0 : pe).toLocaleString()]')
+      if (!content.includes('restaurantCommission = calculateSabinagisaCommissionPool(n.key, O, new Date())')) {
+        throw new Error('Recovered POS commission patch did not apply; refusing to ship a flat commission for SABINAGISA.')
+      }
       content = content.replace('children: ["SERVICE BILL \\xB7 COMMISSION \\xA5", h.commission_flat.toLocaleString(), " ", "/ BILL \\xB7 ", m, " SERVICES"]', 'children: v ? ["SERVICE BILL · COMMISSION POOL / BILL · PEAK +25% 18:00–05:59 · ", m, " SERVICES"] : ["SERVICE BILL · COMMISSION ¥", h.commission_flat.toLocaleString(), " / BILL · ", m, " SERVICES"]')
       content = 'import{calculateSabinagisaCommissionPool}from"./commission-pool.js";\n' + content
 
@@ -1068,14 +1071,14 @@ await writeFile(manualDiscountAsset, manualDiscountContent)
 // frozen from the attendance snapshot when the bill is submitted.
 const personalCommissionPosAsset = path.join(outputRoot, 'assets', release, 'POSPage-CxiIf3bD.js')
 let personalCommissionPos = await readFile(personalCommissionPosAsset, 'utf8')
-if (!personalCommissionPos.includes('preview_my_bill_commission') && !personalCommissionPos.includes('restaurantCommission')) {
+if (!personalCommissionPos.includes('preview_my_bill_commission')) {
   personalCommissionPos = personalCommissionPos.replace(
     '    [vehicleClass, setVehicleClass] = i.useState("standard");',
     '    [vehicleClass, setVehicleClass] = i.useState("standard"),\n    [commissionPreview, setCommissionPreview] = i.useState(null);',
   )
   personalCommissionPos = personalCommissionPos.replace(
-    /    pe = M \|\| p\.commission_eligible === false \? 0 : n\.commission_flat;\r?\n  function me\(t\) \{/,
-    '    pe = M || p.commission_eligible === false ? 0 : n.commission_flat;\n  i.useEffect(() => {\n    let active = true;\n    if (M || O <= 0) { setCommissionPreview({myAmount: 0, finalPool: 0, activeCount: 0, isPeak: false, mode: n.key === "chill" ? "ON_WORK_ALL" : "INDIVIDUAL"}); return () => { active = false; }; }\n    const timer = setTimeout(() => { x.rpc("preview_my_bill_commission", {p_branch_id: n.id, p_order_total: O}).then(({data, error}) => { if (!active) return; error ? console.error("[Ghost Lab] Failed to preview personal commission:", error) : setCommissionPreview(data); }); }, 180);\n    return () => { active = false; clearTimeout(timer); };\n  }, [n.id, n.key, O, M, p == null ? void 0 : p.id]);\n  const displayedPersonalCommission = M ? 0 : Number((commissionPreview == null ? void 0 : commissionPreview.myAmount) ?? (n.key === "chill" ? 0 : pe));\n  function me(t) {',
+    /    restaurantCommission = calculateSabinagisaCommissionPool\(n\.key, O, new Date\(\)\),\r?\n    pe = M \|\| p\.commission_eligible === false \? 0 : n\.key === "chill" \? restaurantCommission\.amount : n\.commission_flat;\r?\n  function me\(t\) \{/,
+    '    restaurantCommission = calculateSabinagisaCommissionPool(n.key, O, new Date()),\n    pe = M || p.commission_eligible === false ? 0 : n.key === "chill" ? restaurantCommission.amount : n.commission_flat;\n  i.useEffect(() => {\n    let active = true;\n    if (M || O <= 0) { setCommissionPreview({myAmount: 0, finalPool: 0, activeCount: 0, isPeak: false, mode: n.key === "chill" ? "ON_WORK_ALL" : "INDIVIDUAL"}); return () => { active = false; }; }\n    const timer = setTimeout(() => { x.rpc("preview_my_bill_commission", {p_branch_id: n.id, p_order_total: O}).then(({data, error}) => { if (!active) return; error ? console.error("[Ghost Lab] Failed to preview personal commission:", error) : setCommissionPreview(data); }); }, 180);\n    return () => { active = false; clearTimeout(timer); };\n  }, [n.id, n.key, O, M, p == null ? void 0 : p.id]);\n  const displayedPersonalCommission = M ? 0 : Number((commissionPreview == null ? void 0 : commissionPreview.myAmount) ?? (n.key === "chill" ? 0 : pe));\n  function me(t) {',
   )
   personalCommissionPos = personalCommissionPos.replace(
     '          children: ["SERVICE BILL \\xB7 COMMISSION \\xA5", h.commission_flat.toLocaleString(), " ", "/ BILL \\xB7 ", m, " SERVICES"]',
