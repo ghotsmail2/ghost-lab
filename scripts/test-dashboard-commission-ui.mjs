@@ -49,6 +49,15 @@ test('Login profile selection uses the editorial brand copy, cinematic glass pan
   assert.match(builder, /Cormorant\+Garamond/)
 })
 
+test('Login brand cards switch teams in place and clear the previous profile selection', () => {
+  assert.match(login, /function lockBrand\(brand\) \{\s*if \(isSubmitting\) return\s*[\s\S]*setSelected\(null\)\s*setStep\('profile'\)\s*setPin\(''\)\s*setError\(''\)\s*setSearch\(''\)\s*\}/)
+  assert.match(login, /aria-pressed=\{activeBrand === 'sabinagisa'\}/)
+  assert.match(login, /aria-pressed=\{activeBrand === 'garage'\}/)
+  assert.doesNotMatch(login, /className="login-change-team"/)
+  assert.match(builder, /setActiveBrand\(R\),i\(null\),u\(""\),c\(""\),a\("profile"\),n\(""\)/)
+  assert.doesNotMatch(builder, /className:"login-change-team"/)
+})
+
 test('recovered Stock, Expenses, Daily Summary and Commission pages use React classic JSX factory', () => {
   assert.equal((builder.match(/jsxFactory: 'React\.createElement'/g) || []).length, 4)
   assert.doesNotMatch(builder, /jsxFactory: 'e\.jsx'/)

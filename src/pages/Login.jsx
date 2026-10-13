@@ -77,19 +77,15 @@ export default function Login() {
   }
 
   function lockBrand(brand) {
-    if (lockedBrand && lockedBrand !== brand) return
+    if (isSubmitting) return
     window.clearTimeout(previewTimer.current)
     setLockedBrand(brand)
     setActiveBrand(brand)
-  }
-
-  function unlockBrand() {
-    window.clearTimeout(previewTimer.current)
-    window.__loginSuppressHoverUntil = Date.now() + 700
-    setLockedBrand(null)
-    setActiveBrand(null)
     setSelected(null)
     setStep('profile')
+    setPin('')
+    setError('')
+    setSearch('')
   }
 
   function changeProfile() {
@@ -136,10 +132,10 @@ export default function Login() {
             <span>สองธุรกิจ หนึ่งมาตรฐาน</span>
           </div>
           <div className="login-brand__selectors" aria-label="เลือกทีม">
-            <button type="button" className={`login-brand__zone login-brand__zone--sabinagisa${activeBrand === 'sabinagisa' ? ' is-active' : ''}`} onMouseEnter={() => previewBrand('sabinagisa')} onFocus={() => previewBrand('sabinagisa')} onClick={() => lockBrand('sabinagisa')}>
+            <button type="button" className={`login-brand__zone login-brand__zone--sabinagisa${activeBrand === 'sabinagisa' ? ' is-active' : ''}`} aria-pressed={activeBrand === 'sabinagisa'} onMouseEnter={() => previewBrand('sabinagisa')} onFocus={() => previewBrand('sabinagisa')} onClick={() => lockBrand('sabinagisa')}>
               <span>FOOD &amp; DRINK</span><strong>SABINAGISA</strong><small>ร้านอาหารญี่ปุ่น</small>
             </button>
-            <button type="button" className={`login-brand__zone login-brand__zone--garage${activeBrand === 'garage' ? ' is-active' : ''}`} onMouseEnter={() => previewBrand('garage')} onFocus={() => previewBrand('garage')} onClick={() => lockBrand('garage')}>
+            <button type="button" className={`login-brand__zone login-brand__zone--garage${activeBrand === 'garage' ? ' is-active' : ''}`} aria-pressed={activeBrand === 'garage'} onMouseEnter={() => previewBrand('garage')} onFocus={() => previewBrand('garage')} onClick={() => lockBrand('garage')}>
               <span>GARAGE TEAM</span><strong>Ghost Lab Garage</strong><small>งานช่างและบริการ</small>
             </button>
           </div>
@@ -148,7 +144,6 @@ export default function Login() {
         {step === 'profile' && activeBrand ? (
           <div className="login-card login-card--profiles">
             <div className="login-card__header">
-              <button type="button" className="login-change-team" onClick={unlockBrand}>← เปลี่ยนทีม</button>
               <span className="login-card__eyebrow">{activeBrand === 'sabinagisa' ? 'SABINAGISA · FOOD & DRINK TEAM' : 'GHOST LAB GARAGE · GARAGE TEAM'}</span>
               <h1>เลือกโปรไฟล์ของคุณ</h1>
               <p>เลือกชื่อก่อน แล้วจึงใส่ PIN เพื่อเข้าสู่ระบบ</p>
