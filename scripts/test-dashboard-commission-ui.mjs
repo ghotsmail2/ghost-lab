@@ -44,6 +44,8 @@ test('Login profile selection uses the editorial brand copy, cinematic glass pan
   assert.match(builder, /login-courtyard-v1\.png/)
   assert.match(builder, /loginHeroSeamlessCss/)
   assert.match(builder, /\.login-brand\{background:transparent!important\}/)
+  assert.match(builder, /addEventListener\("wheel",event=>\{const list=event\.target\.closest\?\.\("\.login-card--profiles \.staff-picker"\)/)
+  assert.match(builder, /\{capture:true,passive:false\}/)
   assert.match(builder, /Cormorant\+Garamond/)
 })
 

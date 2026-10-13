@@ -128,7 +128,7 @@ await cp(path.join(sourceRoot, 'assets'), path.join(outputRoot, 'assets'), { rec
 const assetFiles = (await listFiles(path.join(sourceRoot, 'assets'))).sort()
 const supabaseBrowserConfig = await readSupabaseBrowserConfig()
 const digest = createHash('sha256')
-digest.update('release-transform-20261013-login-hero-seamless-1')
+digest.update('release-transform-20261013-login-hero-wheel-assist-1')
 for (const file of assetFiles) digest.update(path.relative(sourceRoot, file)).update(await readFile(file))
 for (const file of (await listFiles(kitchenAssetRoot)).sort()) digest.update(path.relative(projectRoot, file)).update(await readFile(file))
 const commissionPoolHelper = path.join(projectRoot, 'src', 'lib', 'commission-pool.js')
@@ -669,6 +669,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       const oldKitchenRoute = 'w.jsx(ge,{path:"/chill/kitchen",element:w.jsx(Oe,{branchKey:"chill",allow:[I.OWNER,I.CEO,I.CHILL_MANAGER,I.CHILL_STAFF],permission:"chill_access",children:w.jsx(Ae,{title:"SABINAGISA Kitchen",sub:"Kitchen Display System",children:w.jsx(S_,{})})})}),'
       if (!content.includes(oldKitchenNav) || !content.includes(oldKitchenRoute)) throw new Error('Recovered Kitchen Board route changed; refusing to remove the separate kitchen page.')
       content = content.replace(oldKitchenNav, '').replace(oldKitchenRoute, '')
+      content += ';document.addEventListener("wheel",event=>{const list=event.target.closest?.(".login-card--profiles .staff-picker");if(!list||list.scrollHeight<=list.clientHeight)return;const unit=event.deltaMode===1?16:event.deltaMode===2?list.clientHeight:1;event.preventDefault();list.scrollTop+=event.deltaY*unit},{capture:true,passive:false});'
     }
 
     // Legacy order alerts now lead to the restaurant POS, where Kitchen Mini
