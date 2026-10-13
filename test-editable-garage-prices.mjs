@@ -34,10 +34,14 @@ test('Atomic server validator is patched to verify editable service-row prices',
 
 test('Garage Standard price commits automatically after typing and on Enter/blur', async () => {
   const build = await readFile(new URL('./scripts/build-recovered.mjs', import.meta.url), 'utf8')
-  assert.match(build, /window\.__garagePriceSaveTimers\[s\.id\] = setTimeout\(\(\) => l\(s\.id, "price", value\), 650\)/)
+  assert.match(build, /if \(\/\^\\\\d\+\$\/\.test\(value\)\) window\.__garagePriceSaveTimers\[s\.id\] = setTimeout\(\(\) => l\(s\.id, "price", value\), 650\)/)
   assert.match(build, /onBlur: r => \{ clearTimeout\(window\.__garagePriceSaveTimers\?\.\[s\.id\]\); l\(s\.id, "price", r\.target\.value\); \}/)
   assert.match(build, /if \(r\.key === "Enter"\) r\.currentTarget\.blur\(\)/)
-  assert.match(build, /alert\("บันทึกราคาไม่สำเร็จ: "\+reason\)/)
+  assert.match(build, /if\(priceField&&!validInput\)\{await restoreRow\(\);return;\}/)
+  assert.match(build, /notice\.setAttribute\("role","status"\)/)
+  assert.doesNotMatch(build, /alert\("บันทึกราคาไม่สำเร็จ:/)
+  assert.match(build, /await restoreRow\(\);const notice=document\.createElement\("div"\)/)
+  assert.match(build, /digest\.update\('build-transform'\)\.update\(await readFile\(fileURLToPath\(import\.meta\.url\)\)\)/)
 })
 
 test('Garage price save uses a branch-scoped RPC with role validation', async () => {
