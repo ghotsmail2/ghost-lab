@@ -37,6 +37,13 @@ export function priceService(service, vehicleClass = 'standard', branchKey = 'ga
     if (!Object.hasOwn(vehicleLabels, vehicleClass)) {
       price = null;
       pricingError = 'กรุณาเลือกประเภทรถ';
+    } else if (vehicleClass === 'supercar' && service.supercar_price != null && service.supercar_price !== '') {
+      price = Number(service.supercar_price);
+      pricingSource = 'service';
+      if (!validPrice(price) || price <= 0) {
+        price = null;
+        pricingError = 'ราคา Super Car ไม่ถูกต้อง';
+      }
     } else if (entry?.status === 'priced') {
       price = entry[vehicleClass];
       pricingSource = 'catalog';

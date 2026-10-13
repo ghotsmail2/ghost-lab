@@ -43,9 +43,9 @@ export default function POSPage({ branchKey, title, leadRole }) {
   const [billCount, setBillCount] = useState(0)
   const [serviceCount, setServiceCount] = useState(0)
 
-  // Only the owner can change services or their material recipes. Staff still
-  // use the POS normally, but cannot alter what a sale consumes from stock.
+  // Owners/GOD manage globally; CEOs can manage only their assigned branch.
   const canManage = staff?.role === 'owner' || staff?.role === 'god'
+    || (staff?.role === 'ceo' && Boolean(branch) && staff?.primary_branch === branch.id)
 
   useEffect(() => {
     supabase.from('branches').select('*').eq('key', branchKey).single()
@@ -98,11 +98,14 @@ export default function POSPage({ branchKey, title, leadRole }) {
 
 function TabButton({ active, onClick, children }) {
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
+      aria-pressed={active}
       className="btn"
       style={{
         fontSize: 12,
+        fontFamily: 'inherit',
         background: active ? 'var(--bone)' : 'rgba(255,255,255,0.03)',
         color: active ? 'var(--void)' : 'var(--ghost-gray)',
         borderColor: active ? 'var(--bone)' : 'var(--line)',
@@ -110,14 +113,20 @@ function TabButton({ active, onClick, children }) {
       }}
     >
       {children}
-    </div>
+    </button>
   )
 }
 
 // ---------------- New Bill (POS) ----------------
 function NewBillTab({ branch, title, staff }) {
   const draftStorageKey = `${POS_DRAFT_PREFIX}${branch.key}:${staff?.id || 'guest'}`
+  const checkoutStorageKey = `ghostlab-pos-checkout:${branch.key}:${staff?.id || 'guest'}`
   const initialDraft = readPosDraft(draftStorageKey)
+  const [pendingCheckout, setPendingCheckout] = useState(() => {
+    // Keep an unconfirmed request after tab/browser restarts so it can be
+    // retried with the same server id instead of accidentally creating a new bill.
+    try { return JSON.parse(localStorage.getItem(checkoutStorageKey) || 'null') } catch { return null }
+  })
   const [services, setServices] = useState([])
   const [activeCat, setActiveCat] = useState('all')
   const [serviceSearch, setServiceSearch] = useState('')
@@ -161,13 +170,13 @@ function NewBillTab({ branch, title, staff }) {
   // auth refresh does not discard selected services and entered details.
   useEffect(() => {
     try {
-      if (!cart.length && !plate && !vehicle && !notes && !selfService && !memberEnabled && !manualDiscountPct) {
+      if (!pendingCheckout && !cart.length && !plate && !vehicle && !notes && !selfService && !memberEnabled && !manualDiscountPct) {
         sessionStorage.removeItem(draftStorageKey)
         return
       }
       sessionStorage.setItem(draftStorageKey, JSON.stringify({ cart, plate, vehicle, notes, selfService, memberEnabled, manualDiscountPct }))
     } catch {}
-  }, [cart, plate, vehicle, notes, selfService, memberEnabled, manualDiscountPct, draftStorageKey])
+  }, [cart, plate, vehicle, notes, selfService, memberEnabled, manualDiscountPct, pendingCheckout, draftStorageKey])
 
   useEffect(() => {
     supabase.from('services').select('*').eq('branch_id', branch.id).eq('active', true)
@@ -233,7 +242,9 @@ function NewBillTab({ branch, title, staff }) {
   const displayTotal = selfService || couponFreeRepairApplied ? 0 : Math.max(0, memberDiscount.total - manualDiscountAmount)
   const effectiveDiscountPct = cartTotal > 0 ? Number((100 - (displayTotal / cartTotal * 100)).toFixed(2)) : 0
   const restaurantCommission = calculateSabinagisaCommissionPool(branch.key, displayTotal)
-  const displayCommission = selfService ? 0 : branch.key === 'chill' ? restaurantCommission.amount : branch.commission_flat
+  const displayCommission = selfService ? 0 : branch.key === 'chill'
+    ? restaurantCommission.amount
+    : staff?.commission_eligible === false ? 0 : branch.commission_flat
   const myCommissionPreview = branch.key === 'chill' && !isOnShift ? 0 : displayCommission
 
   function addToCart(service) { setCart(c => [...c, service]) }
@@ -265,64 +276,61 @@ function NewBillTab({ branch, title, staff }) {
   }
 
   async function submitBill(confirmedWithoutAttendance = false) {
-    if (branch.key === 'chill' && !isOnShift && !confirmedWithoutAttendance) {
+    if (!pendingCheckout && branch.key === 'chill' && !isOnShift && !confirmedWithoutAttendance) {
       setShowAttendanceConfirm(true)
       return
     }
     setShowAttendanceConfirm(false)
     if (!staff) return
-    if (cart.length === 0) { showToast('เพิ่มรายการอย่างน้อย 1 รายการก่อนบันทึกบิล'); return }
-    if (memberEnabled && !selectedMember) { showToast('กรุณาเลือก Member ก่อนบันทึกบิล'); return }
+    if (!pendingCheckout && cart.length === 0) { showToast('เพิ่มรายการอย่างน้อย 1 รายการก่อนบันทึกบิล'); return }
+    if (!pendingCheckout && memberEnabled && !selectedMember) { showToast('กรุณาเลือก Member ก่อนบันทึกบิล'); return }
     setSubmitting(true)
-    const billNumber = `${branch.key.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`
-
-    const { data: bill, error: billError } = await supabase.from('bills').insert({
-      bill_number: billNumber,
-      branch_id: branch.id,
-      staff_id: staff.id,
-      member_id: selectedMember?.id || null,
-      plate: plate || null,
-      vehicle: vehicle || null,
-      // Keep a snapshot in the bill itself as a reliable history fallback.
-      // bill_items remains the source for stock/reward automation.
-      notes: makeBillNotes(notes, cart),
-      subtotal: cartTotal,
-      discount_pct: selfService ? 0 : couponFreeRepairApplied ? 100 : effectiveDiscountPct,
-      commission: displayCommission,
-      commission_mode: branch.key === 'chill' ? 'ON_WORK_ALL' : 'INDIVIDUAL',
-      total: displayTotal,
-      // A successful checkout is a completed bill. The database trigger
-      // snapshots ON_WORK_ALL recipients at this exact transition.
-      status: 'paid',
-    }).select().single()
-
-    if (billError) { console.error(billError); showToast('เกิดข้อผิดพลาด: ' + billError.message); setSubmitting(false); return }
-
-    const items = cart.map(s => ({ bill_id: bill.id, service_id: s.id, name_snapshot: s.name, price_snapshot: s.price }))
-    const { error: itemsError } = await supabase.from('bill_items').insert(items)
-    if (itemsError) {
-      console.error(itemsError)
-      showToast(`บันทึกเลขบิล ${billNumber} แล้ว แต่บันทึกรายการบริการไม่สำเร็จ: ${itemsError.message}`)
+    try {
+      const request = pendingCheckout || {
+        requestId: globalThis.crypto?.randomUUID?.() || 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => {
+          const random = Math.random() * 16 | 0
+          return (char === 'x' ? random : (random & 0x3 | 0x8)).toString(16)
+        }),
+        billData: {
+          bill_number: `${branch.key.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`,
+          branch_id: branch.id,
+          staff_id: staff.id,
+          member_id: selectedMember?.id || null,
+          plate: plate || null,
+          vehicle: vehicle || null,
+          notes: makeBillNotes(notes, cart),
+          subtotal: cartTotal,
+          discount_pct: effectiveDiscountPct,
+          commission: displayCommission,
+          commission_mode: branch.key === 'chill' ? 'ON_WORK_ALL' : 'INDIVIDUAL',
+          total: displayTotal,
+          status: 'paid',
+        },
+        items: cart.map(service => ({ service_id: service.id, name_snapshot: service.name, price_snapshot: service.price })),
+        rewardId: couponFreeRepairApplied ? availableRewards[0].id : null,
+      }
+      if (!pendingCheckout) {
+        try { localStorage.setItem(checkoutStorageKey, JSON.stringify(request)) }
+        catch { throw new Error('บันทึกคำขอสำรองในเบราว์เซอร์ไม่ได้ กรุณาตรวจสอบพื้นที่จัดเก็บแล้วลองใหม่') }
+        setPendingCheckout(request)
+      }
+      const { error } = await supabase.rpc('create_bill_with_items_atomic', {
+        p_request_id: request.requestId,
+        p_bill_data: request.billData,
+        p_items: request.items,
+        p_reward_id: request.rewardId,
+      })
+      if (error) throw error
+      localStorage.removeItem(checkoutStorageKey)
+      setPendingCheckout(null)
+      setCart([]); setPlate(''); setVehicle(''); setNotes(''); setSelectedMember(null); setSelfService(false); setMemberEnabled(false); setUseFreeRepair(false)
+      showToast('บันทึกบิลสำเร็จ ✓ ' + request.billData.bill_number)
+    } catch (error) {
+      console.error(error)
+      showToast(`ยังยืนยันผลบิลไม่ได้ — เก็บคำขอเดิมไว้แล้ว กดลองตรวจสอบ/ส่งซ้ำอีกครั้ง (${error.message || 'เครือข่ายขัดข้อง'})`)
+    } finally {
       setSubmitting(false)
-      return
     }
-
-    if (selectedMember) {
-      await supabase.from('members').update({
-        total_spent: (selectedMember.total_spent || 0) + displayTotal,
-        visits: (selectedMember.visits || 0) + 1,
-      }).eq('id', selectedMember.id)
-    }
-    if (couponFreeRepairApplied) {
-      const { error: rewardError } = await supabase.from('member_rewards').update({
-        status: 'redeemed', redeemed_bill_id: bill.id, redeemed_at: new Date().toISOString(),
-      }).eq('id', availableRewards[0].id).eq('status', 'available')
-      if (rewardError) console.error(rewardError)
-    }
-
-    setCart([]); setPlate(''); setVehicle(''); setNotes(''); setSelectedMember(null); setSelfService(false); setMemberEnabled(false); setUseFreeRepair(false)
-    showToast('บันทึกบิลสำเร็จ ✓ ' + billNumber)
-    setSubmitting(false)
   }
 
   return (
@@ -339,23 +347,24 @@ function NewBillTab({ branch, title, staff }) {
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
             {categories.map(cat => (
-              <div key={cat} onClick={() => setActiveCat(cat)} className="btn" style={{
+              <button type="button" key={cat} onClick={() => setActiveCat(cat)} aria-pressed={activeCat === cat} className="btn" style={{
                 fontSize: 11, textTransform: 'uppercase',
+                fontFamily: 'inherit',
                 borderColor: activeCat === cat ? 'var(--blood)' : 'var(--line)',
                 color: activeCat === cat ? 'var(--bone)' : 'var(--ghost-gray)',
                 background: activeCat === cat ? 'rgba(196,30,42,0.14)' : 'rgba(255,255,255,0.02)',
               }}>
                 {cat === 'all' ? 'ALL' : cat}
-              </div>
+              </button>
             ))}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
             {visible.map(s => (
-              <div key={s.id} onClick={() => addToCart(s)} className="panel" style={{ cursor: 'pointer' }}>
+              <button type="button" key={s.id} onClick={() => addToCart(s)} className="panel" style={{ color: 'inherit', cursor: 'pointer', font: 'inherit', textAlign: 'left', width: '100%' }}>
                 <div style={{ fontSize: 9, color: 'var(--ghost-gray)', textTransform: 'uppercase', marginBottom: 4 }}>{s.category}</div>
                 <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{s.name}</div>
                 <div className="font-mono" style={{ fontSize: 13, color: 'var(--blood)', fontWeight: 600 }}>¥{s.price.toLocaleString()}</div>
-              </div>
+              </button>
             ))}
             {services.length === 0 && (
               <div style={{ gridColumn: '1/-1', color: 'var(--ghost-gray)', fontSize: 12 }}>
@@ -388,17 +397,19 @@ function NewBillTab({ branch, title, staff }) {
                     <span className="font-mono" style={{ minWidth: 21, textAlign: 'center' }}>×{line.quantity}</span>
                     <button type="button" onClick={() => addToCart(line)} aria-label={`เพิ่มจำนวน ${line.name}`} style={{ background: 'transparent', border: '1px solid var(--line)', borderRadius: 4, color: 'var(--bone)', cursor: 'pointer', height: 22, width: 22 }}>+</button>
                     <strong className="font-mono" style={{ minWidth: 60, textAlign: 'right' }}>¥{line.lineTotal.toLocaleString()}</strong>
-                    <span onClick={() => setCart(current => current.filter(service => service.id !== line.id))} style={{ color: 'var(--ghost-gray)', cursor: 'pointer', fontSize: 14 }}>✕</span>
+                    <button type="button" onClick={() => setCart(current => current.filter(service => service.id !== line.id))} aria-label={`นำ ${line.name} ออกจากบิล`} style={{ background: 'transparent', border: 0, color: 'var(--ghost-gray)', cursor: 'pointer', fontSize: 14 }}>✕</button>
                   </div>
                 </div>
               ))
             }
           </div>
 
-          <div
+          <button
+            type="button"
             onClick={toggleMember}
+            aria-pressed={memberEnabled}
             className="panel"
-            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', marginBottom: memberEnabled ? 8 : 12, cursor: 'pointer' }}
+            style={{ color: 'inherit', cursor: 'pointer', display: 'flex', font: 'inherit', alignItems: 'center', gap: 10, padding: '10px 12px', marginBottom: memberEnabled ? 8 : 12, textAlign: 'left', width: '100%' }}
           >
             <div style={{ width: 34, height: 18, borderRadius: 10, background: memberEnabled ? 'var(--blood)' : 'rgba(255,255,255,0.15)', position: 'relative', flexShrink: 0, transition: 'background .15s' }}>
               <div style={{ width: 14, height: 14, borderRadius: '50%', background: 'var(--bone)', position: 'absolute', top: 2, left: memberEnabled ? 18 : 2, transition: 'left .15s' }} />
@@ -407,7 +418,7 @@ function NewBillTab({ branch, title, staff }) {
               <div style={{ fontSize: 12, fontWeight: 600 }}>★ มี MEMBER</div>
               <div style={{ fontSize: 10, color: 'var(--ghost-gray)' }}>เลือกสมาชิกเพื่อสะสมเป้าหมาย MT และคูปอง</div>
             </div>
-          </div>
+          </button>
 
           {memberEnabled && (
             <div style={{ marginBottom: 12 }} onClick={event => event.stopPropagation()}>
@@ -417,7 +428,7 @@ function NewBillTab({ branch, title, staff }) {
               </div>
               {selectedMember ? (
                 <div className="panel" style={{ padding: '10px 12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><div><div style={{ fontSize: 13, fontWeight: 600 }}>{selectedMember.name}</div><div style={{ fontSize: 11, color: 'var(--ghost-gray)' }}>{memberDiscount.plan.label} · {memberDiscount.active ? `หมดอายุ ${formatDate(selectedMember.membership_expires_at)}` : 'สมาชิกหมดอายุ — ไม่ได้รับส่วนลด'}</div></div><div onClick={() => setSelectedMember(null)} style={{ color: 'var(--ghost-gray)', cursor: 'pointer', fontSize: 14 }}>✕</div></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><div><div style={{ fontSize: 13, fontWeight: 600 }}>{selectedMember.name}</div><div style={{ fontSize: 11, color: 'var(--ghost-gray)' }}>{memberDiscount.plan.label} · {memberDiscount.active ? `หมดอายุ ${formatDate(selectedMember.membership_expires_at)}` : 'สมาชิกหมดอายุ — ไม่ได้รับส่วนลด'}</div></div><button type="button" onClick={() => setSelectedMember(null)} aria-label="นำสมาชิกออกจากบิล" style={{ background: 'transparent', border: 0, color: 'var(--ghost-gray)', cursor: 'pointer', fontSize: 14 }}>✕</button></div>
                   {memberDiscount.active && <div style={{ color: '#e5c158', fontSize: 11, fontWeight: 600, marginTop: 10 }}>✦ MEMBER: Engine Repair Kit และ Full Repair Kit ฟรี</div>}
                   {availableRewards.length > 0 && <label style={{ alignItems: 'center', color: '#e5c158', cursor: 'pointer', display: 'flex', fontSize: 11, gap: 7, marginTop: 10 }}><input type="checkbox" checked={useFreeRepair} onChange={event => setUseFreeRepair(event.target.checked)} /> ใช้คูปองซ่อมฟรี 1 ครั้ง ({availableRewards.length} ใบ)</label>}
                 </div>
@@ -426,8 +437,8 @@ function NewBillTab({ branch, title, staff }) {
                   <input className="input" autoFocus placeholder="ค้นหาทะเบียนรถ หรือชื่อ Member..." value={customerQuery} onChange={e => setCustomerQuery(e.target.value)} />
                   {(customerResults.length > 0 || customerQuery.trim()) && (
                     <div className="panel" style={{ position: 'absolute', top: '110%', left: 0, right: 0, zIndex: 10, padding: 8 }}>
-                      {customerResults.map(m => <div key={m.id} onClick={() => pickMember(m)} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 6px', cursor: 'pointer', borderRadius: 6 }}><div><span style={{ fontSize: 13, fontWeight: 500 }}>{m.name}</span><span style={{ fontSize: 11, color: 'var(--ghost-gray)', marginLeft: 8 }}>{m.plate_or_note}</span></div><div style={{ fontSize: 11, color: 'var(--ghost-gray)' }}>{calculateMemberDiscount(m, cartTotal).active ? 'ACTIVE' : 'หมดอายุ'}</div></div>)}
-                      <div onClick={() => setShowAddMember(true)} style={{ padding: '8px 6px', color: 'var(--blood)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ เพิ่ม Member ใหม่</div>
+                      {customerResults.map(m => <button type="button" key={m.id} onClick={() => pickMember(m)} style={{ alignItems: 'center', background: 'transparent', border: 0, color: 'inherit', cursor: 'pointer', display: 'flex', font: 'inherit', justifyContent: 'space-between', padding: '8px 6px', textAlign: 'left', width: '100%' }}><span><span style={{ fontSize: 13, fontWeight: 500 }}>{m.name}</span><span style={{ fontSize: 11, color: 'var(--ghost-gray)', marginLeft: 8 }}>{m.plate_or_note}</span></span><span style={{ fontSize: 11, color: 'var(--ghost-gray)' }}>{calculateMemberDiscount(m, cartTotal).active ? 'ACTIVE' : 'หมดอายุ'}</span></button>)}
+                      <button type="button" onClick={() => setShowAddMember(true)} style={{ background: 'transparent', border: 0, color: 'var(--blood)', cursor: 'pointer', font: 'inherit', fontSize: 12, fontWeight: 600, padding: '8px 6px', textAlign: 'left', width: '100%' }}>+ เพิ่ม Member ใหม่</button>
                     </div>
                   )}
                 </div>
@@ -497,8 +508,8 @@ function NewBillTab({ branch, title, staff }) {
             <span>TOTAL</span><span style={{ color: 'var(--blood)' }}>¥{displayTotal.toLocaleString()}</span>
           </div>
 
-          <button type="button" onClick={() => submitBill()} disabled={submitting || (cart.length === 0 && (branch.key !== 'chill' || isOnShift))} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', opacity: submitting || (cart.length === 0 && (branch.key !== 'chill' || isOnShift)) ? 0.5 : 1 }}>
-            {submitting ? 'กำลังบันทึก...' : '▸ SUBMIT BILL'}
+          <button type="button" onClick={() => submitBill()} disabled={submitting || (!pendingCheckout && cart.length === 0 && (branch.key !== 'chill' || isOnShift))} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', opacity: submitting || (!pendingCheckout && cart.length === 0 && (branch.key !== 'chill' || isOnShift)) ? 0.5 : 1 }}>
+            {submitting ? 'กำลังบันทึก...' : pendingCheckout ? 'ตรวจสอบ / ลองบันทึกบิลเดิมซ้ำ' : '▸ SUBMIT BILL'}
           </button>
         </div>
       </div>
@@ -535,40 +546,76 @@ function NewBillTab({ branch, title, staff }) {
           onCreated={(m) => { pickMember(m); setShowAddMember(false) }}
         />
       )}
+
+      {pendingCheckout && (
+        <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 150, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(5, 6, 7, .82)', backdropFilter: 'blur(8px)' }}>
+          <section role="alertdialog" aria-modal="true" aria-labelledby="checkout-retry-title" className="panel" style={{ width: 'min(100%, 460px)', padding: 24, borderColor: 'rgba(214, 66, 39, .7)', boxShadow: '0 24px 80px rgba(0,0,0,.5)' }}>
+            <span style={{ color: 'var(--blood)', fontSize: 10, fontWeight: 800, letterSpacing: 1.2 }}>CHECKOUT · VERIFYING</span>
+            <h2 id="checkout-retry-title" style={{ margin: '8px 0', fontSize: 21 }}>กำลังตรวจสอบผลบิลเดิม</h2>
+            <p style={{ color: 'var(--ghost-gray)', fontSize: 13, lineHeight: 1.7, marginBottom: 16 }}>ระบบอาจบันทึกบิลสำเร็จแล้วแต่การตอบกลับขาดหาย เราจะส่งคำขอเดิมซ้ำด้วยรหัสเดิมเพื่อไม่ให้เกิดบิลซ้ำ กรุณาอย่าเริ่มบิลใหม่จนกว่าจะยืนยันผลได้</p>
+            {toast && <p role="status" style={{ color: '#f0bd78', fontSize: 12, lineHeight: 1.6 }}>{toast}</p>}
+            <button type="button" className="btn btn-primary" disabled={submitting} onClick={() => submitBill(true)}>{submitting ? 'กำลังตรวจสอบ…' : 'ตรวจสอบ / ลองส่งคำขอเดิมซ้ำ'}</button>
+          </section>
+        </div>
+      )}
     </div>
   )
 }
 
 // ---------------- Add customer modal ----------------
 function AddMemberModal({ branch, initialQuery, onClose, onCreated }) {
-  const [name, setName] = useState(initialQuery || '')
-  const [phone, setPhone] = useState('')
-  const [plate, setPlateNote] = useState('')
+  const requestKey = `ghostlab-pos-member-request:${branch.id}`
+  const [pendingRequest, setPendingRequest] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(requestKey) || 'null') }
+    catch { return null }
+  })
+  const [name, setName] = useState(() => pendingRequest?.memberData?.name || initialQuery || '')
+  const [phone, setPhone] = useState(() => pendingRequest?.memberData?.phone || '')
+  const [plate, setPlateNote] = useState(() => pendingRequest?.memberData?.plate_or_note || '')
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   async function save() {
-    if (!name.trim()) return
+    if (saving) return
+    if (!name.trim()) { setError('กรุณากรอกชื่อลูกค้า'); return }
     setSaving(true)
+    setError('')
     const plan = getMembershipPlan('regular')
-    const startsAt = new Date().toISOString()
-    const expiresAt = nextMonthlyExpiry()
-    const { data, error } = await supabase.from('members').insert({
-      branch_id: branch.id,
-      name: name.trim(),
-      phone: phone || null,
-      plate_or_note: plate || note || null,
-      tier: 'regular',
-      membership_started_at: startsAt,
-      membership_expires_at: expiresAt,
-      membership_fee: plan.monthlyFee,
-    }).select().single()
-    setSaving(false)
-    if (error) { console.error(error); return }
-    await supabase.from('member_memberships').insert({
-      member_id: data.id, tier: plan.key, monthly_fee: plan.monthlyFee,
-      months: 1, total_paid: plan.monthlyFee, started_at: startsAt, expires_at: expiresAt,
+    const draft = {
+      memberData: { branch_id: branch.id, name: name.trim(), phone: phone.trim() || null, plate_or_note: plate.trim() || note.trim() || null, tier: 'regular' },
+    }
+    const request = pendingRequest || (() => {
+      const startsAt = new Date().toISOString()
+      return {
+        requestId: globalThis.crypto?.randomUUID?.() || 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => {
+          const random = Math.random() * 16 | 0
+          return (char === 'x' ? random : (random & 0x3 | 0x8)).toString(16)
+        }),
+        ...draft,
+        membershipData: { tier: plan.key, monthly_fee: plan.monthlyFee, months: 1, total_paid: plan.monthlyFee, started_at: new Date().toISOString(), expires_at: nextMonthlyExpiry() },
+      }
+    })()
+    if (pendingRequest && (JSON.stringify(request.memberData) !== JSON.stringify(draft.memberData))) {
+      setSaving(false)
+      setError('มีคำขอเดิมที่ยังยืนยันผลไม่ได้ กรุณาส่งคำขอเดิมซ้ำก่อนแก้ข้อมูล')
+      return
+    }
+    if (!pendingRequest) {
+      try { localStorage.setItem(requestKey, JSON.stringify(request)); setPendingRequest(request) }
+      catch { setSaving(false); setError('บันทึกคำขอสำรองไม่ได้ จึงยังไม่ส่งข้อมูล'); return }
+    }
+    const { data: memberId, error: saveError } = await supabase.rpc('save_member_with_membership_atomic', {
+      p_request_id: request.requestId,
+      p_member_id: null,
+      p_member_data: request.memberData,
+      p_membership_data: request.membershipData,
     })
+    if (saveError) { setSaving(false); setError(saveError.message || 'บันทึกสมาชิกไม่สำเร็จ'); return }
+    const { data, error: loadError } = await supabase.from('members').select('*').eq('id', memberId).single()
+    setSaving(false)
+    if (loadError) { setError(`บันทึกสำเร็จแล้ว แต่โหลดข้อมูลสมาชิกไม่สำเร็จ: ${loadError.message}`); return }
+    try { localStorage.removeItem(requestKey) } catch {}
     onCreated(data)
   }
 
@@ -600,9 +647,11 @@ function AddMemberModal({ branch, initialQuery, onClose, onCreated }) {
           <label style={{ fontSize: 11, color: 'var(--ghost-gray)', display: 'block', marginBottom: 6 }}>โน้ต</label>
           <input className="input" value={note} onChange={e => setNote(e.target.value)} />
         </div>
+        {error && <div role="alert" style={{ color: '#ff9d8b', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+        {pendingRequest && <div role="status" style={{ color: '#f0bd78', fontSize: 12, marginBottom: 12 }}>มีคำขอบันทึกที่รอการยืนยัน — กดบันทึกอีกครั้งเพื่อส่งคำขอเดิมอย่างปลอดภัย</div>}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <div onClick={onClose} className="btn btn-secondary">ยกเลิก</div>
-          <div onClick={save} className="btn btn-primary" style={{ opacity: saving ? 0.6 : 1 }}>{saving ? 'กำลังเพิ่ม...' : 'สมัคร Regular ¥30,000'}</div>
+          <button type="button" onClick={onClose} className="btn btn-secondary" disabled={saving}>ยกเลิก</button>
+          <button type="button" onClick={save} className="btn btn-primary" disabled={saving} aria-busy={saving}>{saving ? 'กำลังเพิ่ม...' : pendingRequest ? 'ตรวจสอบ / ส่งคำขอเดิมซ้ำ' : 'สมัคร Regular ¥30,000'}</button>
         </div>
       </div>
     </div>
@@ -741,32 +790,66 @@ function ServicesTab({ branch }) {
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState(null)
   const [materialCounts, setMaterialCounts] = useState({}) // { serviceId: count }
+  const [actionError, setActionError] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [removingId, setRemovingId] = useState(null)
 
-  useEffect(() => { load() }, [branch])
+  useEffect(() => { load() }, [branch.id])
 
   async function load() {
     setLoading(true)
-    const { data, error } = await supabase.from('services').select('*').eq('branch_id', branch.id).eq('active', true).order('category')
-    if (error) console.error(error)
-    setServices(data || [])
-    setLoading(false)
+    setActionError('')
+    setServices([])
+    setMaterialCounts({})
+    let data
+    try {
+      const result = await supabase.from('services').select('*').eq('branch_id', branch.id).eq('active', true).order('category')
+      if (result.error) throw result.error
+      data = result.data || []
+      setServices(data)
+    } catch (error) {
+      console.error(error)
+      setActionError('โหลดแคตตาล็อกบริการไม่สำเร็จ ลองอีกครั้งก่อนแก้ไขรายการ')
+      setServices([])
+      setMaterialCounts({})
+      setLoading(false)
+      return
+    } finally {
+      setLoading(false)
+    }
 
-    if (data && data.length) {
-      const { data: counts } = await supabase
-        .from('service_materials').select('service_id')
-        .in('service_id', data.map(s => s.id))
-      const tally = {}
-      ;(counts || []).forEach(r => { tally[r.service_id] = (tally[r.service_id] || 0) + 1 })
-      setMaterialCounts(tally)
+    if (data.length) {
+      try {
+        const { data: counts, error: countError } = await supabase
+          .from('service_materials').select('service_id')
+          .in('service_id', data.map(s => s.id))
+        if (countError) throw countError
+        const tally = {}
+        ;(counts || []).forEach(r => { tally[r.service_id] = (tally[r.service_id] || 0) + 1 })
+        setMaterialCounts(tally)
+      } catch (error) {
+        console.error(error)
+        setActionError('โหลดจำนวนวัสดุไม่สำเร็จ รายการบริการยังใช้งานได้ แต่การตั้งค่าวัสดุอาจไม่ครบ')
+      }
     }
   }
 
   async function addService() {
-    const { data, error } = await supabase.from('services').insert({
-      branch_id: branch.id, category: 'ทั่วไป', name: 'บริการใหม่', price: 0, active: true,
-    }).select().single()
-    if (error) { console.error(error); return }
-    setServices(s => [...s, data])
+    if (creating) return
+    setCreating(true)
+    setActionError('')
+    try {
+      const { data, error } = await supabase.from('services').insert({
+        branch_id: branch.id, category: 'ทั่วไป', name: 'บริการใหม่', price: 0, active: true,
+      }).select().single()
+      if (error) throw error
+      setServices(s => [...s, data])
+    } catch (error) {
+      console.error(error)
+      setActionError('เพิ่มบริการไม่สำเร็จ กรุณาตรวจสิทธิ์และลองอีกครั้ง')
+    } finally {
+      setCreating(false)
+    }
   }
 
   async function updateField(id, field, value) {
@@ -774,16 +857,37 @@ function ServicesTab({ branch }) {
   }
 
   async function saveField(id, field, value) {
-    const payload = field === 'price' ? { price: parseInt(value) || 0 } : { [field]: value }
-    const { error } = await supabase.from('services').update(payload).eq('id', id)
-    if (error) console.error(error)
+    setActionError('')
+    const payload = field === 'price'
+      ? { price: parseInt(value) || 0 }
+      : field === 'supercar_price'
+        ? { supercar_price: value === '' ? null : parseInt(value) || null }
+        : { [field]: value }
+    try {
+      const { error } = await supabase.from('services').update(payload).eq('id', id)
+      if (error) throw error
+    } catch (error) {
+      console.error(error)
+      await load()
+      setActionError('บันทึกบริการไม่สำเร็จ ค่าจริงจากระบบถูกโหลดกลับมาแล้ว')
+    }
   }
 
   async function removeService(id) {
     if (!confirm('ลบบริการนี้?')) return
-    const { error } = await supabase.from('services').delete().eq('id', id)
-    if (error) { console.error(error); return }
-    setServices(s => s.filter(x => x.id !== id))
+    if (removingId) return
+    setRemovingId(id)
+    setActionError('')
+    try {
+      const { error } = await supabase.from('services').delete().eq('id', id)
+      if (error) throw error
+      setServices(s => s.filter(x => x.id !== id))
+    } catch (error) {
+      console.error(error)
+      setActionError('ลบบริการไม่สำเร็จ รายการยังอยู่เหมือนเดิม')
+    } finally {
+      setRemovingId(null)
+    }
   }
 
   return (
@@ -793,13 +897,16 @@ function ServicesTab({ branch }) {
           <div className="font-display" style={{ fontSize: 16, fontWeight: 600, color: 'var(--blood)' }}>SERVICES CATALOG</div>
           <div style={{ fontSize: 12, color: 'var(--ghost-gray)' }}>{services.length} services available</div>
         </div>
-        <div onClick={addService} className="btn btn-primary">+ ADD SERVICE</div>
+        <button type="button" onClick={addService} disabled={creating || loading} className="btn btn-primary">{creating ? 'กำลังเพิ่ม...' : '+ ADD SERVICE'}</button>
       </div>
 
-      {loading ? <div style={{ color: 'var(--ghost-gray)', fontSize: 12 }}>กำลังโหลด...</div> : (
+      {actionError && <div role="alert" style={{ color: '#ff9a8c', fontSize: 12, marginBottom: 12 }}>{actionError}</div>}
+      {loading ? <div style={{ color: 'var(--ghost-gray)', fontSize: 12 }}>กำลังโหลด...</div> : actionError?.startsWith('โหลดแคตตาล็อกบริการ') ? (
+        <button type="button" className="btn" onClick={load}>ลองโหลดอีกครั้ง</button>
+      ) : (
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.3fr 1fr 1fr 1fr auto', gap: 10, padding: '0 0 10px', fontSize: 10, color: 'var(--ghost-gray)', textTransform: 'uppercase', letterSpacing: 1 }}>
-            <div>Name</div><div>Category</div><div>Price (¥)</div><div>Materials</div><div>MT Loyalty</div><div></div>
+            <div>Name</div><div>Category</div><div>Standard / Super Car (¥)</div><div>Materials</div><div>MT Loyalty</div><div></div>
           </div>
           {services.map(s => (
             <div key={s.id} style={{ borderBottom: '1px solid var(--line)' }}>
@@ -820,6 +927,19 @@ function ServicesTab({ branch }) {
                   onChange={e => updateField(s.id, 'price', e.target.value)}
                   onBlur={e => saveField(s.id, 'price', e.target.value)}
                 />
+                {branch.key === 'garage' && (
+                  <input
+                    aria-label={`ราคา Super Car ${s.name}`}
+                    className="input font-mono"
+                    inputMode="numeric"
+                    min="1"
+                    placeholder="กรอกราคา Super Car"
+                    type="number"
+                    value={s.supercar_price ?? ''}
+                    onChange={e => updateField(s.id, 'supercar_price', e.target.value)}
+                    onBlur={e => saveField(s.id, 'supercar_price', e.target.value)}
+                  />
+                )}
                 <div
                   onClick={() => setExpandedId(expandedId === s.id ? null : s.id)}
                   style={{ fontSize: 12, cursor: 'pointer', color: materialCounts[s.id] ? 'var(--blood)' : 'var(--ghost-gray)' }}
@@ -830,7 +950,7 @@ function ServicesTab({ branch }) {
                   <input type="checkbox" checked={Boolean(s.loyalty_eligible)} onChange={event => { updateField(s.id, 'loyalty_eligible', event.target.checked); saveField(s.id, 'loyalty_eligible', event.target.checked) }} />
                   นับซ่อม
                 </label>
-                <div onClick={() => removeService(s.id)} className="btn" style={{ color: 'var(--blood)', borderColor: 'rgba(196,30,42,0.4)', padding: '10px 14px' }}>🗑</div>
+                <button type="button" onClick={() => removeService(s.id)} disabled={removingId !== null} aria-label={`ลบบริการ ${s.name}`} className="btn" style={{ color: 'var(--blood)', borderColor: 'rgba(196,30,42,0.4)', padding: '10px 14px' }}>{removingId === s.id ? 'กำลังลบ...' : '🗑'}</button>
               </div>
 
               {expandedId === s.id && (
@@ -858,24 +978,38 @@ function MaterialsEditor({ branch, service, onSaved }) {
   const [stockItems, setStockItems] = useState([])
   const [qtys, setQtys] = useState({}) // { stock_item_id: qty }
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   useEffect(() => {
+    let active = true
     async function load() {
-      const [{ data: items, error: itemsErr }, { data: existing, error: existErr }] = await Promise.all([
-        supabase.from('stock_items').select('*').eq('branch_id', branch.id).order('name'),
-        supabase.from('service_materials').select('stock_item_id, qty_per_unit').eq('service_id', service.id),
-      ])
-      if (itemsErr) console.error(itemsErr)
-      if (existErr) console.error(existErr)
-      setStockItems(items || [])
-      const map = {}
-      ;(existing || []).forEach(r => { map[r.stock_item_id] = r.qty_per_unit })
-      setQtys(map)
-      setLoading(false)
+      setLoading(true)
+      setLoadError('')
+      try {
+        const [{ data: items, error: itemsErr }, { data: existing, error: existErr }] = await Promise.all([
+          supabase.from('stock_items').select('*').eq('branch_id', branch.id).order('name'),
+          supabase.from('service_materials').select('stock_item_id, qty_per_unit').eq('service_id', service.id),
+        ])
+        if (itemsErr) throw itemsErr
+        if (existErr) throw existErr
+        if (!active) return
+        setStockItems(items || [])
+        const map = {}
+        ;(existing || []).forEach(r => { map[r.stock_item_id] = r.qty_per_unit })
+        setQtys(map)
+      } catch (error) {
+        console.error(error)
+        if (active) setLoadError('โหลดข้อมูล Materials ไม่สำเร็จ จึงปิดการบันทึกไว้เพื่อป้องกันการล้างรายการเดิม')
+      } finally {
+        if (active) setLoading(false)
+      }
     }
     load()
-  }, [branch, service])
+    return () => { active = false }
+  }, [branch.id, service.id, reloadKey])
 
   function setQty(stockItemId, value) {
     const n = parseInt(value) || 0
@@ -883,19 +1017,29 @@ function MaterialsEditor({ branch, service, onSaved }) {
   }
 
   async function save() {
+    if (saving || loading || loadError) return
     setSaving(true)
-    // Simplest consistent approach: clear existing links for this service, then
-    // re-insert only the ones with qty > 0.
-    await supabase.from('service_materials').delete().eq('service_id', service.id)
+    setSaveError('')
     const toInsert = Object.entries(qtys)
       .filter(([, qty]) => qty > 0)
-      .map(([stock_item_id, qty_per_unit]) => ({ service_id: service.id, stock_item_id, qty_per_unit }))
-    if (toInsert.length) {
-      const { error } = await supabase.from('service_materials').insert(toInsert)
-      if (error) console.error(error)
+      .map(([stock_item_id, qty_per_unit]) => ({ stock_item_id, qty_per_unit }))
+    try {
+      const { error } = await supabase.rpc('replace_service_materials_atomic', {
+        p_service_id: service.id,
+        p_materials: toInsert,
+      })
+      if (error) {
+        console.error(error)
+        setSaveError(error.message || 'บันทึก Materials ไม่สำเร็จ รายการเดิมยังไม่ถูกเปลี่ยน')
+        return
+      }
+      onSaved(toInsert.length)
+    } catch (error) {
+      console.error(error)
+      setSaveError('เชื่อมต่อไม่สำเร็จ รายการเดิมยังไม่ถูกเปลี่ยน กรุณาลองอีกครั้ง')
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
-    onSaved(toInsert.length)
   }
 
   return (
@@ -905,6 +1049,12 @@ function MaterialsEditor({ branch, service, onSaved }) {
       </div>
 
       {loading ? <div style={{ color: 'var(--ghost-gray)', fontSize: 12 }}>กำลังโหลด...</div>
+        : loadError ? (
+          <div role="alert" style={{ color: '#ff9a8c', fontSize: 12 }}>
+            <p>{loadError}</p>
+            <button type="button" className="btn" onClick={() => setReloadKey(key => key + 1)}>ลองโหลดอีกครั้ง</button>
+          </div>
+        )
         : stockItems.length === 0 ? (
           <div style={{ color: 'var(--ghost-gray)', fontSize: 12 }}>
             ยังไม่มีวัตถุดิบในสาขานี้ — ไปเพิ่มที่หน้า "สต๊อก & เบิกจ่าย" ก่อน
@@ -925,9 +1075,10 @@ function MaterialsEditor({ branch, service, onSaved }) {
               </div>
             ))}
           </div>
-          <div onClick={save} className="btn btn-primary" style={{ opacity: saving ? 0.6 : 1 }}>
+          {saveError && <div role="alert" style={{ color: '#ff9a8c', fontSize: 12, marginBottom: 10 }}>{saveError}</div>}
+          <button type="button" onClick={save} disabled={saving || loading || Boolean(loadError)} className="btn btn-primary" style={{ opacity: saving ? 0.6 : 1 }}>
             {saving ? 'กำลังบันทึก...' : '💾 บันทึก Materials'}
-          </div>
+          </button>
         </>
       )}
     </div>

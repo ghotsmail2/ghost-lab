@@ -5,8 +5,10 @@ import vm from 'node:vm';
 import { transform } from 'esbuild';
 import * as pricing from '../recovered-production/assets/vehicle-pricing.js';
 import * as membership from '../recovered-production/assets/membership-BI3ZslQk.js';
+import { catalogPrices, catalogVersion } from '../recovered-production/assets/catalog-prices.js';
 
 const catalog = JSON.parse(await readFile(new URL('../data/parts-catalog.json', import.meta.url), 'utf8'));
+const customPricingMigration = await readFile(new URL('../supabase/migrations/20261013101500_add_supercar_gearbox_angle_kit_prices.sql', import.meta.url), 'utf8');
 const source = await readFile(new URL('../recovered-production/assets/POSPage-CxiIf3bD.js', import.meta.url), 'utf8');
 const { code } = await transform(source + '\nexport { Le, Be, ze, Ie };', { format: 'cjs', target: 'es2022' });
 const member = tier => ({ id: 'member-test', tier, membership_expires_at: '2099-01-01T00:00:00Z', total_spent: 0, visits: 0 });
@@ -93,6 +95,19 @@ test('all 48 explicit catalog prices resolve for both classes, using garage main
     }
   }
   assert.equal(catalog.counts.priced_items, 48);
+});
+test('Services can carry an editable explicit Super Car price, including gearbox and angle kit', () => {
+  for (const [name, standard, supercar] of [['gearbox', 1000000, 2000000], ['Angle kit', 37500, 75000]]) {
+    assert.equal(pricing.priceService({ name, price: standard, supercar_price: supercar }, 'standard').price, standard);
+    assert.equal(pricing.priceService({ name, price: standard, supercar_price: supercar }, 'supercar').price, supercar);
+  }
+  assert.equal(pricing.priceService({ name: 'Angle kit', price: 37500, supercar_price: 90000 }, 'supercar').price, 90000);
+  assert.equal(pricing.priceService({ name: 'Angle kit', price: 37500, supercar_price: '' }, 'supercar').price, null);
+  assert.equal(pricing.priceService({ name: 'Brake Fluid', price: 4000, supercar_price: '' }, 'supercar').price, 8000);
+  assert.match(customPricingMigration, /add column if not exists supercar_price integer/);
+  assert.match(customPricingMigration, /when 'gearbox' then 2000000[\s\S]*when 'angle kit' then 75000/);
+  assert.match(customPricingMigration, /service_row\.supercar_price/);
+  assert.match(customPricingMigration, /update public\.services s[\s\S]*b\.key::text = 'garage'/);
 });
 test('explicit legacy aliases and three packages are mapped; unrelated parts are not guessed', () => {
   assert.equal(pricing.priceService({ name: ' Sport : High-Flow Fuel Pump ', price: 1 }, 'supercar').price, 70000);

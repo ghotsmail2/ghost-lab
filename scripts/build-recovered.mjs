@@ -13,6 +13,8 @@ const kitchenAssetRoot = path.join(projectRoot, 'public', 'assets', 'sabinagisa'
 const sharedThemeCss = `
 /* Owner view: tighter spacing, same live data and all existing panels. */
 .page-enter>div:has(> .dashboard-widgets){gap:10px!important}.page-enter>div:has(> .dashboard-widgets)>*:not(.dashboard-widgets){margin-bottom:0!important}.page-enter>div:has(> .dashboard-widgets) .panel{padding:14px 16px!important}.page-enter>div:has(> .dashboard-widgets)>.dashboard-widgets{gap:10px!important;margin-bottom:0!important}.dashboard-widget__title{margin-bottom:10px!important}.dashboard-onwork__people{gap:7px!important}.dashboard-onwork__person{padding:8px 6px!important}.dashboard-donut{height:100px!important;width:100px!important}.dashboard-donut:after{height:66px!important;width:66px!important}.dashboard-hourly__chart{height:88px!important}
+/* Shared keyboard focus and motion preferences across every production route. */
+:root{--focus-ring-color:#ff8b68}html[data-theme="light"]{--focus-ring-color:#9b2b16}html[data-theme="dark"]{--focus-ring-color:#ff8b68}.btn:focus-visible,button:focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--focus-ring-color)!important;outline-offset:3px!important}.input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--focus-ring-color)!important;outline-offset:2px!important}.btn:disabled,button:disabled{cursor:not-allowed!important;opacity:.58!important}@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 /* Shared theme switch for all roles and routes. */
 html[data-theme="light"]{--void:#f5f0e8;--bone:#2d241d;--ghost-gray:#786f66;--static:#fffdfa;--static-raised:#fff;--line:rgba(92,68,46,.16);color-scheme:light}html[data-theme="light"] body{background:radial-gradient(ellipse 900px 480px at 12% -10%,rgba(233,87,45,.12),transparent 62%),#f5f0e8;color:var(--bone)}html[data-theme="light"] .sidebar{background:#eee6db!important;border-color:#dfd2c3!important;color:#33271e!important}html[data-theme="light"] .sidebar-brand,html[data-theme="light"] .sidebar-group{border-color:rgba(92,68,46,.14)!important}html[data-theme="light"] .sidebar-brand,html[data-theme="light"] .sidebar-brand *{color:#33271e!important}html[data-theme="light"] .sidebar-group__toggle,html[data-theme="light"] .sidebar-link{color:#65584b!important}html[data-theme="light"] .sidebar-link:hover{background:#dfd3c5!important;color:#30241a!important}html[data-theme="light"] .sidebar-link.is-active{background:linear-gradient(90deg,#e9572d25,#e9572d08)!important;color:#30241a!important}html[data-theme="light"] .app-header,html[data-theme="light"] .workspace-topline{color:#65584b}html[data-theme="light"] .panel{background:#fffdfa!important;border-color:#e8ddd1!important;color:#30251d!important;box-shadow:0 5px 17px rgba(68,42,23,.055)}html[data-theme="light"] .panel h1,html[data-theme="light"] .panel h2,html[data-theme="light"] .panel h3,html[data-theme="light"] .panel strong{color:#30251d}html[data-theme="light"] .btn,html[data-theme="light"] .input,html[data-theme="light"] select.input{background-color:#fffdfa;color:#30251d;border-color:#dfd2c3}html[data-theme="light"] .btn-primary{background:#cf3821!important;color:#fff!important;border-color:#cf3821!important}html[data-theme="light"] .table th{background:#f5efe7;color:#65584b}html[data-theme="light"] .table td{border-color:#eadfd3}html[data-theme="light"] .dashboard-onwork__person{background:#fff8f0;color:#30251d}html[data-theme="light"] .dashboard-donut:after{background:#fffdfa}html[data-theme="light"] .dashboard-live{background:linear-gradient(110deg,#fff5e9,#fffdfa)!important}html[data-theme="light"] .pos-hero{background:linear-gradient(100deg,rgba(12,8,6,.86),rgba(18,12,9,.52),rgba(18,12,9,.34)),url('./dashboard-sabinagisa-v1.png') center 46%/cover!important;border-color:rgba(255,255,255,.18)!important;color:#fffaf2!important}html[data-theme="light"] .pos-hero *:not(button){color:#fffaf2!important}html[data-theme="light"] .theme-toggle{background:#fffdfa;color:#6b4d31;border-color:#dfd2c3}
 html[data-theme="light"] .dashboard-hero{background:linear-gradient(100deg,rgba(12,8,6,.88),rgba(18,12,9,.52),rgba(18,12,9,.34)),url('./dashboard-sabinagisa-v1.png') center 46%/cover!important;border-color:rgba(255,255,255,.18)!important;color:#fffaf2!important}html[data-theme="light"] .dashboard-hero__copy,html[data-theme="light"] .dashboard-hero__copy h2,html[data-theme="light"] .dashboard-hero__copy p,html[data-theme="light"] .dashboard-hero__copy small{color:#fffaf2!important}html[data-theme="light"] .dashboard-hero__eyebrow{color:#ffc06a!important}
@@ -128,7 +130,7 @@ await cp(path.join(sourceRoot, 'assets'), path.join(outputRoot, 'assets'), { rec
 const assetFiles = (await listFiles(path.join(sourceRoot, 'assets'))).sort()
 const supabaseBrowserConfig = await readSupabaseBrowserConfig()
 const digest = createHash('sha256')
-digest.update('release-transform-20261013-dual-brand-login-1')
+  digest.update('release-transform-20261013-dual-brand-login-1-home-dark-consistency-2-sprint1-bom-atomic-sprint2-pos-keyboard-1-sprint3-weekly-preview-redaction-1-sprint4-dashboard-pagination-bangkok-hours-2-sprint4-cancelled-bill-exclusion-1-sprint5-shared-focus-reduced-motion-1-sprint1-pos-server-commission-1')
 for (const file of assetFiles) digest.update(path.relative(sourceRoot, file)).update(await readFile(file))
 for (const file of (await listFiles(kitchenAssetRoot)).sort()) digest.update(path.relative(projectRoot, file)).update(await readFile(file))
 const commissionPoolHelper = path.join(projectRoot, 'src', 'lib', 'commission-pool.js')
@@ -367,8 +369,29 @@ const kitchenMascotCss = `
 .sabinagisa-pos-inbox__list{gap:10px;grid-template-columns:minmax(0,1fr)!important;margin-top:12px}.sabinagisa-pos-inbox__order{align-items:start;column-gap:16px;display:grid;grid-template-areas:"top primary" "meta primary" "items secondary";grid-template-columns:minmax(0,1fr) minmax(180px,210px);padding:13px 15px;row-gap:4px}.sabinagisa-pos-inbox__order-top{grid-area:top}.sabinagisa-pos-inbox__order-top>b{font-size:14px}.sabinagisa-pos-inbox__order-top>span{font-size:10px;padding:4px 9px}.sabinagisa-pos-inbox__order>small{color:#c9beb3;grid-area:meta;font-size:11px}.sabinagisa-pos-inbox__items{grid-area:items;line-height:1.55;margin:3px 0 0}.sabinagisa-pos-inbox__item{font-size:14px;line-height:1.5}.sabinagisa-pos-inbox__item small{font-size:11px}.sabinagisa-pos-inbox__item>b{color:#ffc17e;font-weight:750}.sabinagisa-pos-inbox__action{align-self:stretch;display:flex;grid-area:primary;align-items:center;justify-content:center;font-size:13px;min-height:42px}.sabinagisa-pos-inbox__actions{grid-area:secondary;gap:6px;margin:0}.sabinagisa-pos-inbox__actions button{font-size:10px;min-height:32px;padding:6px 4px}
 @media(max-width:650px){.sabinagisa-pos-inbox__state-banner{column-gap:10px;grid-template-columns:76px minmax(0,1fr);min-height:92px;padding:10px 12px}.sabinagisa-pos-inbox__state-banner .sabinagisa-pos-inbox__state-mascot{height:74px;width:74px}.sabinagisa-pos-inbox__state-banner:before{height:118px;left:44px;width:118px}.sabinagisa-pos-inbox__order{grid-template-areas:"top" "meta" "items" "primary" "secondary";grid-template-columns:minmax(0,1fr);padding:12px;row-gap:5px}.sabinagisa-pos-inbox__order-top>b{font-size:13px}.sabinagisa-pos-inbox__item{font-size:13px}.sabinagisa-pos-inbox__action{min-height:40px}.sabinagisa-pos-inbox__actions{margin-top:2px}}
 `
+
+const homeDashboardThemeCss = `
+/* Keep the Home dashboard in the shared dark palette when dark mode is selected. */
+html[data-theme="dark"] body:has(.home-dashboard),html[data-theme="dark"] #root:has(.home-dashboard),html[data-theme="dark"] .app-shell:has(.home-dashboard){background:#111315!important;color:#f2eee7!important}
+html[data-theme="dark"] .app-main:has(.home-dashboard){background:radial-gradient(ellipse at 80% 0,rgba(196,30,42,.08),transparent 42%),#111315!important;color:#f2eee7!important}
+html[data-theme="dark"] .app-main:has(.home-dashboard) .app-header{background:linear-gradient(110deg,#23201f,#1c1d1e)!important;border:1px solid rgba(242,238,231,.12)!important;border-radius:14px!important;box-shadow:0 10px 28px #0004!important;margin:0 0 18px!important;padding:18px 22px!important}
+html[data-theme="dark"] .app-main:has(.home-dashboard) .app-title,html[data-theme="dark"] .app-main:has(.home-dashboard) .font-display,html[data-theme="dark"] .app-main:has(.home-dashboard) .app-clock{color:#f2eee7!important}
+html[data-theme="dark"] .app-main:has(.home-dashboard) .app-subtitle{color:#c0a28d!important}
+html[data-theme="dark"] .home-dashboard{--bone:#f2eee7;--ghost-gray:#aaa39b;--blood:#e9572d;--line:rgba(242,238,231,.13);color:#f2eee7!important}
+html[data-theme="dark"] .home-dashboard .panel,html[data-theme="dark"] .home-dashboard>.panel:first-of-type,html[data-theme="dark"] .home-dashboard>.panel:last-child{background:linear-gradient(145deg,#292b2e,#202224)!important;border-color:rgba(242,238,231,.13)!important;box-shadow:0 10px 28px #0004!important;color:#f2eee7!important}
+html[data-theme="dark"] .home-dashboard .panel strong,html[data-theme="dark"] .home-dashboard .panel h1,html[data-theme="dark"] .home-dashboard .panel h2,html[data-theme="dark"] .home-dashboard .panel h3,html[data-theme="dark"] .home-dashboard .panel p,html[data-theme="dark"] .home-dashboard .panel small,html[data-theme="dark"] .home-dashboard .panel .font-mono,html[data-theme="dark"] .home-dashboard [style*="var(--bone)"],html[data-theme="dark"] .home-dashboard [style*="var(--ghost-gray)"]{color:#f2eee7!important}
+html[data-theme="dark"] .home-dashboard>div[style*="flexWrap"]{background:#202224!important;border-color:rgba(242,238,231,.13)!important}
+html[data-theme="dark"] .home-dashboard .btn:not(.btn-primary),html[data-theme="dark"] .home-dashboard .input{background:#292b2e!important;border-color:#48494a!important;color:#f2eee7!important}
+html[data-theme="dark"] .home-dashboard .btn-primary{background:linear-gradient(135deg,#e9572d,#c43c20)!important;border-color:#e9572d!important;color:#fff!important}
+html[data-theme="dark"] .home-dashboard>.panel:last-child>div:not(.font-display){border-bottom-color:rgba(242,238,231,.12)!important}
+html[data-theme="dark"] .home-dashboard>.panel:last-child>div:not(.font-display):hover{background:#303133!important}
+html[data-theme="dark"] .home-onwork{background:linear-gradient(145deg,#292b2e,#202224)!important;border-color:rgba(242,238,231,.13)!important;color:#f2eee7!important}
+html[data-theme="dark"] .home-onwork__person strong{color:#f2eee7!important}
+html[data-theme="dark"] .home-onwork__person small,html[data-theme="dark"] .home-onwork__empty{color:#aaa39b!important}
+`
 let liveDashboardWidgets = `function DashboardWidgets({bills,staff,garageTotal,chillTotal,periodLabel,onViewStaff}){const total=garageTotal+chillTotal,garagePct=total?Math.round(garageTotal/total*100):0,peakRows=bills.filter(b=>{const h=new Date(b.created_at).getHours();return h>=18||h<6}),peakTotal=peakRows.reduce((sum,b)=>sum+Number(b.total||0),0),hourly=Array.from({length:24},(_,hour)=>({hour,total:bills.filter(b=>new Date(b.created_at).getHours()===hour).reduce((sum,b)=>sum+Number(b.total||0),0)})),maxHour=Math.max(1,...hourly.map(item=>item.total));return e.jsxs("div",{className:"dashboard-widgets",children:[e.jsxs("section",{className:"panel dashboard-widget",children:[e.jsxs("div",{className:"dashboard-widget__title",children:[e.jsx("i",{}),e.jsx("h3",{children:"พนักงานที่ On Work อยู่ตอนนี้"}),e.jsxs("small",{children:[staff.length," คน"]}),e.jsx("button",{type:"button",className:"btn",onClick:onViewStaff,children:"ดูทั้งหมด →"})]}),staff.length?e.jsx("div",{className:"dashboard-onwork__people",children:staff.slice(0,8).map(member=>e.jsxs("div",{className:"dashboard-onwork__person",children:[e.jsx("span",{className:"dashboard-onwork__avatar",children:(member.name_en||"GL").slice(0,2).toUpperCase()}),e.jsx("strong",{children:member.name_en}),e.jsx("small",{children:member.branch_name||"Ghost Group"}),e.jsx("em",{})]},member.branch_id+member.id))}):e.jsx("div",{className:"dashboard-widget__empty",children:"ยังไม่มีพนักงานเข้างานในตอนนี้"})]}),e.jsxs("section",{className:"panel dashboard-widget dashboard-composition",children:[e.jsxs("div",{className:"dashboard-widget__title",style:{gridColumn:"1/-1",marginBottom:0},children:[e.jsx("i",{}),e.jsx("h3",{children:"สัดส่วนยอดขายตามสาขา"}),e.jsx("small",{children:periodLabel})]}),e.jsx("div",{className:"dashboard-donut",style:{"--garage-pct":garagePct+"%"},children:e.jsxs("div",{className:"dashboard-donut__center",children:[e.jsxs("strong",{children:["¥",total.toLocaleString()]}),e.jsx("span",{children:"ยอดรวม"})]})}),e.jsxs("div",{className:"dashboard-legend",children:[e.jsxs("div",{className:"dashboard-legend__row",children:[e.jsx("i",{className:"dashboard-legend__dot",style:{background:"#e9572d"}}),e.jsx("span",{children:"Ghost Lab Garage"}),e.jsxs("strong",{children:[garagePct,"%"]})]}),e.jsxs("div",{className:"dashboard-legend__row",children:[e.jsx("i",{className:"dashboard-legend__dot",style:{background:"#e9ad53"}}),e.jsx("span",{children:"SABINAGISA"}),e.jsxs("strong",{children:[100-garagePct,"%"]})]})]})]}),e.jsxs("section",{className:"panel dashboard-widget dashboard-hourly",children:[e.jsxs("div",{className:"dashboard-widget__title",children:[e.jsx("i",{}),e.jsx("h3",{children:"ยอดขายรายชั่วโมง"}),e.jsx("small",{children:periodLabel})]}),e.jsx("div",{className:"dashboard-hourly__chart",children:hourly.map(item=>e.jsxs("div",{className:"dashboard-hourly__bar"+(item.hour>=18||item.hour<6?" is-peak":""),style:{height:Math.max(3,item.total/maxHour*100)+"%"},title:String(item.hour).padStart(2,"0")+":00 · ¥"+item.total.toLocaleString(),children:[item.hour%3===0&&e.jsx("label",{children:String(item.hour).padStart(2,"0")})]},item.hour))}),e.jsx("div",{className:"dashboard-hourly__meta",children:"ยอดรวมตามเวลาเปิดบิล · สีเข้มคือช่วง Peak 18:00–05:59"})]}),e.jsxs("section",{className:"panel dashboard-widget dashboard-live",children:[e.jsxs("div",{className:"dashboard-widget__title",children:[e.jsx("i",{}),e.jsx("h3",{children:"LIVE INSIGHT"}),e.jsx("small",{children:"คำนวณจากข้อมูลช่วงที่เลือก"})]}),e.jsxs("div",{className:"dashboard-live__body",children:[e.jsxs("div",{className:"dashboard-live__peak",children:["ช่วง Peak 18:00–05:59 · ",e.jsx("strong",{children:"¥"+peakTotal.toLocaleString()})," · ",peakRows.length," บิล"]}),e.jsxs("div",{className:"dashboard-live__text",children:["แสดงยอดจาก ",bills.length," บิล · พนักงานกำลังทำงาน ",staff.length," คน · ทุกยอดอัปเดตตามตัวกรองสาขาและวันที่"]})]})]})]})}`
 liveDashboardWidgets = liveDashboardWidgets.replace(',e.jsxs("div",{className:"dashboard-live__text",children:["แสดงยอดจาก ",bills.length," บิล · พนักงานกำลังทำงาน ",staff.length," คน · ทุกยอดอัปเดตตามตัวกรองสาขาและวันที่"]})', '')
+liveDashboardWidgets = 'const dashboardHourFormatter=new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Bangkok",hour:"2-digit",hourCycle:"h23"});function dashboardBangkokHour(value){return Number(dashboardHourFormatter.format(new Date(value)))}async function fetchDashboardRows(query){const rows=[];for(let from=0;;from+=500){const{data,error}=await query.range(from,from+499);if(error)throw error;if(!data||!data.length)return rows;rows.push(...data);if(data.length<500)return rows}}' + liveDashboardWidgets.replaceAll('new Date(b.created_at).getHours()', 'dashboardBangkokHour(b.created_at)')
 const versionedRoot = path.join(outputRoot, 'assets', release)
 await cp(path.join(sourceRoot, 'assets'), versionedRoot, { recursive: true })
 await cp(path.join(projectRoot, 'src', 'assets', 'dashboard-sabinagisa-v1.png'), path.join(versionedRoot, 'dashboard-sabinagisa-v1.png'))
@@ -379,7 +402,7 @@ await cp(commissionPoolHelper, path.join(versionedRoot, 'commission-pool.js'))
 for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/.test(file))) {
   let content = await readFile(file, 'utf8')
   if (file.endsWith('index-C51IvSgf.css')) {
-    content += premiumHospitalityCss + sharedThemeCss + await readFile(path.join(projectRoot, 'src', 'pages', 'Expenses.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'Stock.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'DailySummary.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'CommissionPayouts.css'), 'utf8') + fullWidthWorkspaceCss + kitchenMascotCss + await readFile(loginStylesheet, 'utf8') + loginHeroSeamlessCss
+    content += premiumHospitalityCss + sharedThemeCss + await readFile(path.join(projectRoot, 'src', 'pages', 'Expenses.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'Stock.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'DailySummary.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'CommissionPayouts.css'), 'utf8') + fullWidthWorkspaceCss + kitchenMascotCss + await readFile(loginStylesheet, 'utf8') + loginHeroSeamlessCss + homeDashboardThemeCss
     content = content.replace(/\.sabinagisa-pos-inbox__chef-art\{[^}]*\}/g, '.sabinagisa-pos-inbox__chef-art{display:none!important;background-image:none!important}')
   }
   if (file.endsWith('.js')) {
@@ -390,7 +413,51 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       .replaceAll('__SUPABASE_URL__', supabaseBrowserConfig.url)
       .replaceAll('__SUPABASE_ANON_KEY__', supabaseBrowserConfig.anonKey)
 
+    if (file.endsWith('index-vaWnYKxf.js')) {
+      const oldPublicStaffDirectory = 'Ne.from("staff").select("id, name_en, phone, avatar_url, role, primary_branch, branches:primary_branch(key, name)").eq("active",!0).order("name_en")'
+      const safeLoginDirectory = 'Ne.from("login_profiles").select("id, name_en, name_th, role, primary_branch, branches").order("name_en")'
+      if (!content.includes('from("login_profiles")')) {
+        if (!content.includes(oldPublicStaffDirectory)) throw new Error('Recovered public login directory changed; refusing to expose staff records to anon.')
+        content = content.replace(oldPublicStaffDirectory, safeLoginDirectory)
+      }
+      content = content.replace('ค้นหาชื่อ IC หรือเบอร์ IC...', 'ค้นหาชื่อพนักงาน...')
+      if (!content.includes('from("login_profiles")') || content.includes('from("staff").select("id, name_en, phone, avatar_url, role, primary_branch')) throw new Error('Safe login directory is missing from production bundle.')
+    }
+
     if (file.endsWith('Home-a48wstN-.js')) {
+      const oldHomeAttendance = 'async function R(){if(!(n!=null&&n.id)||j)return;if(!d&&!n.primary_branch)return alert("ยังไม่ได้กำหนดสาขาหลักให้พนักงานคนนี้");_(!0);const{data:t,error:a}=d?await u.from("attendance").update({clock_out:new Date().toISOString()}).eq("id",d.id):await u.from("attendance").insert({staff_id:n.id,branch_id:n.primary_branch}).select().single();if(a){console.error(a),alert(`บันทึกเวลาไม่สำเร็จ: ${a.message}`),_(!1);return}d?(S(null),f(l=>Math.max(0,l-1))):(S(t),f(l=>l+1)),_(!1)}'
+      const atomicHomeAttendance = 'async function R(){if(!(n!=null&&n.id)||j)return;if(!d&&!n.primary_branch)return alert("ยังไม่ได้กำหนดสาขาหลักให้พนักงานคนนี้");_(!0);const{data:t,error:a}=await u.rpc("clock_staff_attendance",{p_action:d?"clock_out":"clock_in"});if(a){console.error(a),alert(`บันทึกเวลาไม่สำเร็จ: ${a.message}`),_(!1);return}d?(S(null),f(l=>Math.max(0,l-1))):(S(t),f(l=>l+1)),_(!1)}'
+      if (!content.includes('clock_staff_attendance')) {
+        if (!content.includes(oldHomeAttendance)) throw new Error('Recovered Home attendance handler changed; refusing to leave non-atomic clock writes.')
+        content = content.replace(oldHomeAttendance, atomicHomeAttendance)
+      }
+    }
+    if (file.endsWith('Attendance-BQxNR9ze.js')) {
+      const oldAttendanceClockIn = 'async function B(){await c.from("attendance").insert({staff_id:n.id,branch_id:n.primary_branch}),p()}'
+      const atomicAttendanceClockIn = 'async function B(){const{error:s}=await c.rpc("clock_staff_attendance",{p_action:"clock_in"});if(s)return m(s.message);p()}'
+      if (!content.includes('clock_staff_attendance')) {
+        if (!content.includes(oldAttendanceClockIn)) throw new Error('Recovered Attendance clock-in handler changed; refusing to leave non-atomic clock writes.')
+        content = content.replace(oldAttendanceClockIn, atomicAttendanceClockIn)
+      }
+      content = content.replace('e.jsx("div",{onClick:l?()=>f(!0):B,className:"btn btn-primary",children:l?"⏱ ปิดกะ & Clock Out":"⏱ Clock In"})', 'e.jsx("button",{type:"button",onClick:l?()=>f(!0):B,className:"btn btn-primary",children:l?"⏱ ปิดกะ & Clock Out":"⏱ Clock In"})')
+    }
+    if (file.endsWith('Profile-Crf9iFsU.js')) {
+      const oldProfileClock = 'async function E(){await i.from("attendance").insert({staff_id:a.id,branch_id:a.primary_branch}),m()}async function A(){o&&(await i.from("attendance").update({clock_out:new Date().toISOString()}).eq("id",o.id),m())}'
+      const atomicProfileClock = 'async function E(){const{error:s}=await i.rpc("clock_staff_attendance",{p_action:"clock_in"});if(s)return alert(`ลงเวลาไม่สำเร็จ: ${s.message}`);m()}async function A(){if(!o)return;const{error:s}=await i.rpc("clock_staff_attendance",{p_action:"clock_out"});if(s)return alert(`ลงเวลาไม่สำเร็จ: ${s.message}`);m()}'
+      if (!content.includes('clock_staff_attendance')) {
+        if (!content.includes(oldProfileClock)) throw new Error('Recovered Profile clock handler changed; refusing to leave non-atomic clock writes.')
+        content = content.replace(oldProfileClock, atomicProfileClock)
+      }
+      content = content.replace('e.jsx("div",{onClick:o?A:E,className:"btn btn-primary",children:o?"⏱ Clock Out":"⏱ Clock In"})', 'e.jsx("button",{type:"button",onClick:o?A:E,className:"btn btn-primary",children:o?"⏱ Clock Out":"⏱ Clock In"})')
+    }
+
+    if (file.endsWith('Home-a48wstN-.js')) {
+      const cappedHomeQuery = '.order("created_at",{ascending:!1}).limit(1e3)'
+      const cappedHomeLoad = 'l.then(({data:y,error:w})=>{w||g(y||[])})'
+      if (!content.includes(cappedHomeQuery) || !content.includes(cappedHomeLoad)) throw new Error('Recovered Home bill query changed; refusing to ship a silently capped dashboard.')
+      content = content
+        .replace(cappedHomeQuery, '.order("created_at",{ascending:!1}).order("id",{ascending:!0})')
+        .replace(cappedHomeLoad, 'fetchDashboardRows(l).then(y=>g(y.filter(t=>t.status!=="rejected"&&t.status!=="cancelled"))).catch(w=>console.error("[Ghost Lab] Dashboard bills failed to load:",w))')
       const moduleEnd = content.indexOf(';')
       if (moduleEnd < 0) throw new Error('Recovered Home module imports changed unexpectedly.')
       content = content.slice(0, moduleEnd + 1) + liveDashboardWidgets + content.slice(moduleEnd + 1)
@@ -420,11 +487,21 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
     // the same retry/cache behavior to the deployed bundle so transient RLS or
     // network failures cannot make a valid staff account look deleted.
     const oldStaffLoader = 'async function a(f){const{data:v,error:y}=await Ne.from("staff").select("*, branches:primary_branch(*)").eq("auth_user_id",f).single();y&&console.error("[Ghost Lab] Failed to load staff row:",y),s(v||null),o(!1)}'
-    const newStaffLoader = 'async function a(f){let v=null,y=null;for(let g=0;g<3;g++){({data:v,error:y}=await Ne.from("staff").select("*, branches:primary_branch(*)").eq("auth_user_id",f).maybeSingle());if(!y)break;await new Promise(q=>setTimeout(q,250*(g+1)))}if(v){try{await Ne.rpc("auto_clock_out_current_staff",{p_source:"stale_timeout",p_max_age_hours:2})}catch{}clearInterval(window.__ghostAttendanceHeartbeat);const beat=()=>Ne.rpc("heartbeat_current_staff_attendance").then(({error})=>error&&console.warn("[Ghost Lab] Attendance heartbeat failed:",error));beat();window.__ghostAttendanceHeartbeat=setInterval(beat,30000);s(v);try{sessionStorage.setItem("ghostlab-staff-session",JSON.stringify(v))}catch{}}else if(y){console.error("[Ghost Lab] Failed to load staff row:",y);try{const g=JSON.parse(sessionStorage.getItem("ghostlab-staff-session")||"null");g?.auth_user_id===f&&s(g)}catch{}}else s(null);o(!1)}'
+    const newStaffLoader = 'async function a(f){let v=null,y=null;for(let g=0;g<3;g++){({data:v,error:y}=await Ne.from("current_staff_profile").select("*").eq("auth_user_id",f).maybeSingle());if(!y)break;await new Promise(q=>setTimeout(q,250*(g+1)))}if(v){try{await Ne.rpc("auto_clock_out_current_staff",{p_source:"stale_timeout",p_max_age_hours:2})}catch{}clearInterval(window.__ghostAttendanceHeartbeat);const beat=()=>Ne.rpc("heartbeat_current_staff_attendance").then(({error})=>error&&console.warn("[Ghost Lab] Attendance heartbeat failed:",error));beat();window.__ghostAttendanceHeartbeat=setInterval(beat,30000);s(v);try{sessionStorage.setItem("ghostlab-staff-session",JSON.stringify(v))}catch{}}else if(y){console.error("[Ghost Lab] Failed to load staff row:",y);try{const g=JSON.parse(sessionStorage.getItem("ghostlab-staff-session")||"null");g?.auth_user_id===f&&s(g)}catch{}}else s(null);o(!1)}'
     if (file.endsWith('index-vaWnYKxf.js') && !content.includes(oldStaffLoader)) {
       throw new Error('Recovered auth loader changed unexpectedly; refusing to build without account-stability patch.')
     }
     content = content.replace(oldStaffLoader, newStaffLoader)
+
+    if (file.endsWith('AdminStaff-BC-d2vNl.js')) {
+      const oldAdminDirectory = 'd.from("staff").select("*").eq("active",!0).order("name_en")'
+      const safeAdminDirectory = 'd.from("staff_admin_directory").select("id,name_en,name_th,role,primary_branch,active,phone,permissions").order("name_en")'
+      if (!content.includes(safeAdminDirectory)) {
+        if (!content.includes(oldAdminDirectory)) throw new Error('Recovered staff-admin directory changed; refusing to query private staff rows directly.')
+        content = content.replace(oldAdminDirectory, safeAdminDirectory)
+      }
+      if (content.includes('from("staff").select("*")')) throw new Error('Staff-admin bundle still reads every staff column directly.')
+    }
 
     // The recovered production bundle also needs to ignore Supabase's silent
     // token-refresh event. Otherwise every background-tab return toggles the
@@ -621,7 +698,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       )
       content = content.replace(
         '    Z = Y || de,\n    O = M || de ? 0 : N.total,\n    pe = M ? 0 : n.commission_flat;',
-        '    Z = Y || de,\n    safeManualDiscountPct = Math.min(100, Math.max(0, Number(manualDiscountPct) || 0)),\n    manualDiscountAmount = Math.min(N.total, Math.round(N.total * safeManualDiscountPct / 100)),\n    O = M || de ? 0 : Math.max(0, N.total - manualDiscountAmount),\n    discountPctForBill = M ? 0 : de ? 100 : W > 0 ? Number((100 - O / W * 100).toFixed(2)) : 0,\n    pe = M ? 0 : n.commission_flat;',
+        '    Z = Y || de,\n    safeManualDiscountPct = Math.min(100, Math.max(0, Number(manualDiscountPct) || 0)),\n    manualDiscountAmount = Math.min(N.total, Math.round(N.total * safeManualDiscountPct / 100)),\n    O = M || de ? 0 : Math.max(0, N.total - manualDiscountAmount),\n    discountPctForBill = W > 0 ? Number((100 - O / W * 100).toFixed(2)) : 0,\n    pe = M || p.commission_eligible === false ? 0 : n.commission_flat;',
       )
       content = content.replace(
         'discount_pct: M ? 0 : de ? 100 : N.percentage,',
@@ -650,7 +727,8 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       const attendanceDialog = 'showAttendanceConfirm&&e.jsx("div",{role:"presentation",onClick:t=>{t.target===t.currentTarget&&setShowAttendanceConfirm(!1)},style:{position:"fixed",inset:0,zIndex:120,display:"grid",placeItems:"center",padding:16,background:"rgba(0,0,0,.72)"},children:e.jsxs("section",{role:"alertdialog","aria-modal":!0,"aria-labelledby":"attendance-warning-title",className:"panel",style:{width:"min(100%,440px)",padding:24,borderColor:"rgba(230,143,56,.65)"},children:[e.jsx("div",{style:{alignItems:"center",background:"rgba(230,143,56,.14)",border:"1px solid rgba(230,143,56,.3)",borderRadius:12,color:"#f2b45f",display:"flex",fontSize:24,height:48,justifyContent:"center",marginBottom:12,width:48},children:"!"}),e.jsx("div",{style:{color:"#d98332",fontSize:10,letterSpacing:1.2,fontWeight:800},children:"SABINAGISA · แจ้งเตือนการเข้างาน"}),e.jsx("h2",{id:"attendance-warning-title",style:{margin:"7px 0 9px",fontSize:21},children:"ยังไม่ได้เข้างานนะ"}),e.jsx("p",{style:{color:"var(--bone)",fontSize:14,lineHeight:1.75,margin:"0 0 8px"},children:"ถ้าบันทึกบิลตอนนี้ คุณจะไม่ได้รับค่าคอม Pool จากบิลนี้"}),e.jsx("p",{style:{color:"var(--ghost-gray)",fontSize:12,lineHeight:1.65,margin:"0 0 18px"},children:u.length?"ถ้ากำลังทำงานอยู่ ให้ไปเข้างานก่อนเพื่อรับสิทธิ์ค่าคอม หรือยืนยันบันทึกบิลต่อโดยไม่รับค่าคอม":"เพิ่มรายการในบิลก่อน แล้วค่อยกลับมากดยืนยันบันทึกต่อ"}),e.jsxs("div",{style:{display:"flex",justifyContent:"flex-end",flexWrap:"wrap",gap:8},children:[e.jsx(Ce,{to:"/attendance",className:"btn btn-secondary",children:"ไปหน้าเข้างาน"}),u.length?e.jsx("button",{type:"button",className:"btn btn-primary",onClick:()=>Se(!0),children:"ยืนยันบิล · ไม่มีค่าคอม"}):e.jsx("button",{type:"button",className:"btn btn-primary",onClick:()=>setShowAttendanceConfirm(!1),children:"เข้าใจแล้ว"})]})]})})'
       const attendanceDialogAnchor = '}), R && e.jsx("div", {\n      style: {\n        position: "fixed",\n        bottom: 24,'
       if (!content.includes(attendanceDialogAnchor)) throw new Error('Recovered POS toast anchor changed; cannot install unclocked bill confirmation.')
-      content = content.replace(attendanceDialogAnchor, `}), ${attendanceDialog}, R && e.jsx("div", {\n      style: {\n        position: "fixed",\n        bottom: 24,`)
+      const checkoutDialog = 'pendingCheckout&&e.jsx("div",{role:"presentation",onKeyDown:event=>{if(event.key==="Tab"){event.preventDefault();event.currentTarget.querySelector("button")?.focus()}},style:{position:"fixed",inset:0,zIndex:150,display:"grid",placeItems:"center",padding:20,background:"rgba(5,6,7,.84)",backdropFilter:"blur(8px)"},children:e.jsxs("section",{role:"alertdialog","aria-modal":!0,"aria-labelledby":"checkout-retry-title",className:"panel",style:{width:"min(100%,460px)",padding:24,borderColor:"rgba(214,66,39,.7)",boxShadow:"0 24px 80px rgba(0,0,0,.5)"},children:[e.jsx("span",{style:{color:"var(--blood)",fontSize:10,fontWeight:800,letterSpacing:1.2},children:"CHECKOUT · VERIFYING"}),e.jsx("h2",{id:"checkout-retry-title",style:{margin:"8px 0",fontSize:21},children:"กำลังตรวจสอบผลบิลเดิม"}),e.jsx("p",{style:{color:"var(--ghost-gray)",fontSize:13,lineHeight:1.7,marginBottom:16},children:"ระบบอาจบันทึกบิลสำเร็จแล้วแต่การตอบกลับขาดหาย เราจะส่งคำขอเดิมซ้ำด้วยรหัสเดิมเพื่อไม่ให้เกิดบิลซ้ำ กรุณาอย่าเริ่มบิลใหม่จนกว่าจะยืนยันผลได้"}),e.jsx("button",{type:"button",autoFocus:!0,className:"btn btn-primary",disabled:f,onClick:()=>Se(!0),children:f?"กำลังตรวจสอบ…":"ตรวจสอบ / ลองส่งคำขอเดิมซ้ำ"})]})})'
+      content = content.replace(attendanceDialogAnchor, `}), ${attendanceDialog}, ${checkoutDialog}, R && e.jsx("div", {\n      style: {\n        position: "fixed",\n        bottom: 24,`)
       const discountMarker = `        }), e.jsxs("div", {\n          className: "font-mono",\n          style: {\n            display: "flex",\n            justifyContent: "space-between",\n            fontSize: 13,\n            color: "var(--ghost-gray)",\n            marginBottom: 6\n          },\n          children: [e.jsx("span", {\n            children: "COMMISSION (FLAT)"`
       const discountField = `        }), !M && e.jsxs("label", {style: {display: "grid", gap: 6, marginBottom: 12}, children: [e.jsx("span", {style: {color: "var(--ghost-gray)", fontSize: 10, letterSpacing: .8}, children: "ส่วนลด (%)"}), e.jsx("input", {className: "input", type: "number", min: 0, max: 100, step: "0.01", inputMode: "decimal", placeholder: "เช่น 10", value: safeManualDiscountPct || "", onChange: t => setManualDiscountPct(Math.min(100, Math.max(0, Number(t.target.value) || 0)))}), manualDiscountAmount > 0 && e.jsxs("span", {className: "font-mono", style: {color: "#84d6a8", fontSize: 11}, children: ["−¥", manualDiscountAmount.toLocaleString(), " จากยอดหลังส่วนลดสมาชิก"]})]}), e.jsxs("div", {\n          className: "font-mono",\n          style: {\n            display: "flex",\n            justifyContent: "space-between",\n            fontSize: 13,\n            color: "var(--ghost-gray)",\n            marginBottom: 6\n          },\n          children: [e.jsx("span", {\n            children: "COMMISSION (FLAT)"`
       content = content.replace(discountMarker, discountField)
@@ -663,6 +741,126 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       content = content.replace('children: ["\\xA5", pe.toLocaleString()]', 'children: ["\\xA5", (n.key === "chill" && !isOnShift ? 0 : pe).toLocaleString()]')
       content = content.replace('children: ["SERVICE BILL \\xB7 COMMISSION \\xA5", h.commission_flat.toLocaleString(), " ", "/ BILL \\xB7 ", m, " SERVICES"]', 'children: v ? ["SERVICE BILL · COMMISSION POOL / BILL · PEAK +25% 18:00–05:59 · ", m, " SERVICES"] : ["SERVICE BILL · COMMISSION ¥", h.commission_flat.toLocaleString(), " / BILL · ", m, " SERVICES"]')
       content = 'import{calculateSabinagisaCommissionPool}from"./commission-pool.js";\n' + content
+
+      const draftKeyAnchor = 'const draftStorageKey = `${POS_DRAFT_PREFIX}${n.key}:${(p == null ? void 0 : p.id) || "guest"}`;'
+      const checkoutState = `${draftKeyAnchor}\n  const checkoutStorageKey = \`ghostlab-pos-checkout:\${n.key}:\${(p == null ? void 0 : p.id) || "guest"}\`;\n  const pendingCheckout = (() => { try { return JSON.parse(localStorage.getItem(checkoutStorageKey) || "null"); } catch { return null; } })();`
+      if (!content.includes(draftKeyAnchor)) throw new Error('Recovered POS draft key changed; cannot add safe checkout retries.')
+      content = content.replace(draftKeyAnchor, checkoutState)
+
+      const submitStart = content.indexOf('async function Se(confirmedUnclocked = false) {')
+      const submitEnd = content.indexOf('\n  return e.jsxs("div", {', submitStart)
+      if (submitStart < 0 || submitEnd < 0) throw new Error('Recovered POS submit handler changed; cannot enforce atomic checkout.')
+      const atomicSubmit = `async function Se(confirmedUnclocked = false) {
+    if (!pendingCheckout && n.key === "chill" && !isOnShift && !confirmedUnclocked) { setShowAttendanceConfirm(true); return; }
+    setShowAttendanceConfirm(false);
+    if (!p || z.current) return;
+    if (!pendingCheckout && u.length === 0) return V("เพิ่มรายการอย่างน้อย 1 รายการก่อนบันทึกบิล");
+    if (!pendingCheckout && pricingBlocked) return V("มีรายการที่ยังไม่มีราคา กรุณาตรวจสอบตะกร้าก่อนบันทึก");
+    if (!pendingCheckout && E && !C) return V("กรุณาเลือก Member ก่อนบันทึกบิล");
+    z.current = true; w(true);
+    try {
+      const billNumber = \`\${n.key.slice(0, 3).toUpperCase()}-\${Date.now().toString().slice(-6)}\`;
+      const request = pendingCheckout || {
+        requestId: globalThis.crypto?.randomUUID?.() || "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, char => { const random = Math.random() * 16 | 0; return (char === "x" ? random : (random & 0x3 | 0x8)).toString(16); }),
+        billData: { bill_number: billNumber, branch_id: n.id, staff_id: p.id, member_id: (C == null ? void 0 : C.id) || null, plate: l || null, vehicle: s || null, notes: Be(c, u, n.key === "garage" ? vehicleClass : null), subtotal: W, discount_pct: discountPctForBill, commission: pe, commission_mode: n.key === "chill" ? "ON_WORK_ALL" : "INDIVIDUAL", total: O, status: "paid", order_type: v ? q : null, table_number: v && q === "dine_in" && H.trim() || null, kitchen_status: v ? "received" : null, payment_method: $, amount_received: $ === "cash" && I !== "" ? Number(I) : null, change_due: $ === "cash" && I !== "" ? Math.max(0, Number(I) - O) : 0 },
+        items: u.map(item => ({ service_id: item.id, name_snapshot: item.name, price_snapshot: item.price, item_note: item.item_note || null })),
+        rewardId: de && U[0] ? U[0].id : null
+      };
+      if (!pendingCheckout) localStorage.setItem(checkoutStorageKey, JSON.stringify(request));
+      const { error } = await x.rpc("create_bill_with_items_atomic", { p_request_id: request.requestId, p_bill_data: request.billData, p_items: request.items, p_reward_id: request.rewardId });
+      if (error) throw error;
+      localStorage.removeItem(checkoutStorageKey);
+      setVehicleClass("standard"); m([]); o(""); r(""); S(""); P(null); te(false); ne(false); J(false); ie(""); oe(""); V("บันทึกบิลสำเร็จ ✓ " + request.billData.bill_number);
+    } catch (error) {
+      console.error(error);
+      V(\`ยังยืนยันผลบิลไม่ได้ — เก็บคำขอเดิมไว้แล้ว กดลองตรวจสอบ/ส่งซ้ำอีกครั้ง (\${error.message || "เครือข่ายขัดข้อง"})\`);
+    } finally { z.current = false; w(false); }
+  }`
+      content = content.slice(0, submitStart) + atomicSubmit + content.slice(submitEnd)
+
+      // Keep POS member signup in the production bundle on the same atomic,
+      // retry-safe membership path used by the Members screen.
+      const memberModalStart = content.indexOf('function Te({\n  branch: n,\n  initialQuery: a,\n  onClose: p,\n  onCreated: v\n}) {')
+      const memberModalReturn = content.indexOf('  return e.jsx("div", {', memberModalStart)
+      if (memberModalStart < 0 || memberModalReturn < 0) throw new Error('Recovered POS member modal changed; refusing to leave split signup writes.')
+      const safePosMemberModal = `function Te({
+  branch: n,
+  initialQuery: a,
+  onClose: p,
+  onCreated: v
+}) {
+  const requestKey = "ghostlab-pos-member-request:" + n.id;
+  const [pendingRequest, setPendingRequest] = i.useState(() => { try { return JSON.parse(localStorage.getItem(requestKey) || "null"); } catch { return null; } });
+  const [g, h] = i.useState(() => (pendingRequest == null ? void 0 : pendingRequest.memberData.name) || a || "");
+  const [b, y] = i.useState(() => (pendingRequest == null ? void 0 : pendingRequest.memberData.phone) || "");
+  const [j, k] = i.useState(() => (pendingRequest == null ? void 0 : pendingRequest.memberData.plate_or_note) || "");
+  const [u, m] = i.useState("");
+  const [l, o] = i.useState(false);
+  const s = ke("regular", n.key);
+  async function r() {
+    if (l) return;
+    if (!g.trim()) { window.alert("กรุณากรอกชื่อลูกค้า"); return; }
+    o(true);
+    const memberData = {branch_id:n.id,name:g.trim(),phone:b.trim()||null,plate_or_note:j.trim()||u.trim()||null,tier:"regular"};
+    let request = pendingRequest;
+    if (request && JSON.stringify(request.memberData) !== JSON.stringify(memberData)) { o(false); window.alert("มีคำขอเดิมที่ยังยืนยันผลไม่ได้ กรุณาส่งคำขอเดิมซ้ำก่อนแก้ข้อมูล"); return; }
+    if (!request) {
+      const startedAt = (/* @__PURE__ */ new Date()).toISOString();
+      request = {requestId:globalThis.crypto?.randomUUID?.()||"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,char=>{const random=Math.random()*16|0;return(char==="x"?random:(random&3|8)).toString(16)}),memberData,membershipData:{tier:s.key,monthly_fee:s.monthlyFee,months:1,total_paid:s.monthlyFee,started_at:startedAt,expires_at:Ne()}};
+      try { localStorage.setItem(requestKey, JSON.stringify(request)); setPendingRequest(request); }
+      catch { o(false); window.alert("บันทึกคำขอสำรองไม่ได้ จึงยังไม่ส่งข้อมูลสมาชิก"); return; }
+    }
+    const {data:memberId,error} = await x.rpc("save_member_with_membership_atomic",{p_request_id:request.requestId,p_member_id:null,p_member_data:request.memberData,p_membership_data:request.membershipData});
+    if (error) { o(false); console.error(error); window.alert("ยังยืนยันผลสมัครสมาชิกไม่ได้ — เก็บคำขอเดิมไว้แล้ว กรุณากดส่งซ้ำอีกครั้ง"); return; }
+    const {data:member, error:loadError} = await x.from("members").select("*").eq("id",memberId).single();
+    if (loadError) { o(false); window.alert("บันทึกสมาชิกสำเร็จแล้ว แต่ยังโหลดข้อมูลไม่สำเร็จ กรุณากดส่งคำขอเดิมซ้ำ"); return; }
+    try { localStorage.removeItem(requestKey); } catch {}
+    o(false); v(member);
+  }
+`
+      content = content.slice(0, memberModalStart) + safePosMemberModal + content.slice(memberModalReturn)
+      content = content.replace('children: l ? "\\u0E01\\u0E33\\u0E25\\u0E31\\u0E07\\u0E40\\u0E1E\\u0E34\\u0E48\\u0E21..." : `\\u0E2A\\u0E21\\u0E31\\u0E04\\u0E23 ${s.label}', 'children: l ? "กำลังเพิ่ม..." : pendingRequest ? "ตรวจสอบ / ส่งคำขอเดิมซ้ำ" : `สมัคร ${s.label}')
+      content = content.replace('e.jsx("div", {\n          onClick: r,\n          className: "btn btn-primary",\n          style: {\n            opacity: l ? 0.6 : 1\n          },', 'e.jsx("button", {\n          type: "button",\n          onClick: r,\n          disabled: l,\n          className: "btn btn-primary",\n          style: {\n            opacity: l ? 0.6 : 1\n          },')
+      if (!content.includes('ghostlab-pos-member-request:') || !content.includes('save_member_with_membership_atomic')) throw new Error('Atomic POS member signup was not installed into the production bundle.')
+      if (!content.includes('type: "button",\n          onClick: r,\n          disabled: l')) throw new Error('POS member signup is not keyboard-accessible or does not block duplicate clicks.')
+
+      // Keep the source branch permissions aligned with the RLS policies:
+      // CEOs may manage only their assigned branch; Owner/GOD are global.
+      const oldServiceManagerCheck = 'o = ["owner", "god", "ceo"].includes(g == null ? void 0 : g.role);'
+      const newServiceManagerCheck = 'o = ["owner", "god"].includes(g == null ? void 0 : g.role) || (g?.role === "ceo" && g?.primary_branch === (h == null ? void 0 : h.id));'
+      if (!content.includes(oldServiceManagerCheck) && !content.includes(newServiceManagerCheck)) throw new Error('POS service manager role check changed; refusing to build with unverified branch permissions.')
+      content = content.replace(oldServiceManagerCheck, newServiceManagerCheck)
+
+      // Replace the legacy delete-then-insert BOM editor with a single atomic
+      // RPC and fail closed if either the existing BOM or stock list cannot load.
+      const materialsStart = content.indexOf('function Ae({')
+      const materialsEnd = content.indexOf('\nexport { $e as P };', materialsStart)
+      if (materialsStart < 0 || materialsEnd < 0) throw new Error('Recovered Materials editor changed; refusing to build without atomic BOM protection.')
+      const atomicMaterialsEditor = `function Ae({branch:n,service:a,onSaved:p}) {
+  const [items,g]=i.useState([]),[qtys,b]=i.useState({}),[loading,j]=i.useState(true),[loadError,setLoadError]=i.useState(""),[reload,setReload]=i.useState(0),[saving,u]=i.useState(false),[saveError,setSaveError]=i.useState("");
+  i.useEffect(()=>{let active=true;async function load(){j(true);setLoadError("");try{const [stockResult,bomResult]=await Promise.all([x.from("stock_items").select("*").eq("branch_id",n.id).order("name"),x.from("service_materials").select("stock_item_id,qty_per_unit").eq("service_id",a.id)]);if(stockResult.error)throw stockResult.error;if(bomResult.error)throw bomResult.error;if(!active)return;g(stockResult.data||[]);const next={};(bomResult.data||[]).forEach(row=>{next[row.stock_item_id]=row.qty_per_unit});b(next)}catch(error){console.error(error);if(active)setLoadError("โหลด Materials ไม่สำเร็จ ปิดการบันทึกไว้เพื่อป้องกันรายการเดิมหาย")}finally{if(active)j(false)}}load();return()=>{active=false}},[n.id,a.id,reload]);
+  function setQty(id,value){b(current=>({...current,[id]:parseInt(value)||0}))}
+  async function save(){if(saving||loading||loadError)return;u(true);setSaveError("");const materials=Object.entries(qtys).filter(([,qty])=>qty>0).map(([stock_item_id,qty_per_unit])=>({stock_item_id,qty_per_unit}));try{const {error}=await x.rpc("replace_service_materials_atomic",{p_service_id:a.id,p_materials:materials});if(error)throw error;p(materials.length)}catch(error){console.error(error);setSaveError(error?.message||"บันทึก Materials ไม่สำเร็จ รายการเดิมยังไม่ถูกเปลี่ยน")}finally{u(false)}}
+  return e.jsxs("div",{style:{background:"rgba(255,255,255,0.02)",borderRadius:8,padding:16,margin:"4px 0 14px"},children:[e.jsx("div",{style:{fontSize:11,color:"var(--ghost-gray)",marginBottom:12},children:"MATERIALS / PARTS USED — ใส่จำนวนที่ใช้ต่อ 1 งาน · จะหักจาก Stock อัตโนมัติเมื่อรับงาน"}),loading?e.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:12},children:"กำลังโหลด..."}):loadError?e.jsxs("div",{role:"alert",style:{color:"#ff9a8c",fontSize:12},children:[e.jsx("p",{children:loadError}),e.jsx("button",{type:"button",className:"btn",onClick:()=>setReload(value=>value+1),children:"ลองโหลดอีกครั้ง"})]}):items.length===0?e.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:12},children:"ยังไม่มีวัตถุดิบในสาขานี้ — ไปเพิ่มที่หน้า สต๊อก & เบิกจ่าย ก่อน"}):e.jsxs(e.Fragment,{children:[e.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:14},children:items.map(item=>e.jsxs("div",{children:[e.jsx("div",{style:{fontSize:11,fontWeight:600,marginBottom:6,textTransform:"uppercase"},children:item.name}),e.jsx("input",{className:"input",type:"number",min:0,value:qtys[item.id]||0,onChange:event=>setQty(item.id,event.target.value),style:{fontSize:12}}),e.jsxs("div",{style:{fontSize:10,color:"var(--ghost-gray)",marginTop:4},children:["เหลือ ",item.quantity," ",item.unit||"ชิ้น"]})]},item.id))}),saveError&&e.jsx("div",{role:"alert",style:{color:"#ff9a8c",fontSize:12,marginBottom:10},children:saveError}),e.jsx("button",{type:"button",onClick:save,disabled:saving,className:"btn btn-primary",style:{opacity:saving?0.6:1},children:saving?"กำลังบันทึก...":"บันทึก Materials"})]})]})
+}`
+      content = content.slice(0, materialsStart) + atomicMaterialsEditor + content.slice(materialsEnd)
+      if (!content.includes('replace_service_materials_atomic') || !content.includes('g?.primary_branch === (h == null ? void 0 : h.id)')) throw new Error('Atomic BOM save or assigned-branch CEO access is missing from the production POS bundle.')
+
+      const tabStart = content.indexOf('function K({')
+      const tabEnd = content.indexOf('\nfunction Le(', tabStart)
+      if (tabStart < 0 || tabEnd < 0) throw new Error('POS tab button component changed; refusing to build mouse-only navigation.')
+      let tabButton = content.slice(tabStart, tabEnd)
+      tabButton = tabButton.replace('return e.jsx("div", {', 'return e.jsx("button", {\n    type: "button",\n    "aria-pressed": n,')
+      tabButton = tabButton.replace('fontSize: 12,', 'fontSize: 12,\n        fontFamily: "inherit",')
+      if (!tabButton.includes('e.jsx("button"') || !tabButton.includes('aria-pressed')) throw new Error('POS tabs are not keyboard-operable in the production bundle.')
+      content = content.slice(0, tabStart) + tabButton + content.slice(tabEnd)
+
+      const supercarPriceLabel = 'children: `Super Car: ${priceLabel(priceService(s, "supercar"))}`'
+      const supercarPriceField = 'children: e.jsx("input", {className: "input font-mono", type: "number", min: 1, step: 1, inputMode: "numeric", "aria-label": `ราคา Super Car ${s.name}`, placeholder: "กรอกราคา Super Car", value: s.supercar_price ?? catalogEntry(s)?.supercar ?? "", onChange: r => m(s.id, "supercar_price", r.target.value), onBlur: r => l(s.id, "supercar_price", r.target.value), style: {fontSize: 12, marginTop: 4}})'
+      if (!content.includes(supercarPriceLabel) && !content.includes(supercarPriceField)) throw new Error('Super Car catalog price field anchor changed; refusing to build.')
+      content = content.replace(supercarPriceLabel, supercarPriceField)
+      content = content.replace('const S = r === "price" ? {\n        price: parseInt(c) || 0\n      } : {', 'const S = r === "price" ? {\n        price: parseInt(c) || 0\n      } : r === "supercar_price" ? {\n        supercar_price: c === "" ? null : parseInt(c) || null\n      } : {')
+      if (!content.includes('aria-label": `ราคา Super Car ${s.name}`') || !content.includes('supercar_price: c === "" ? null')) throw new Error('Super Car price field is not wired to persistent service updates.')
     }
 
     // Kitchen tickets should be scannable at a glance. Merge identical menu
@@ -741,7 +939,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       const oldKitchenRoute = 'w.jsx(ge,{path:"/chill/kitchen",element:w.jsx(Oe,{branchKey:"chill",allow:[I.OWNER,I.CEO,I.CHILL_MANAGER,I.CHILL_STAFF],permission:"chill_access",children:w.jsx(Ae,{title:"SABINAGISA Kitchen",sub:"Kitchen Display System",children:w.jsx(S_,{})})})}),'
       if (!content.includes(oldKitchenNav) || !content.includes(oldKitchenRoute)) throw new Error('Recovered Kitchen Board route changed; refusing to remove the separate kitchen page.')
       content = content.replace(oldKitchenNav, '').replace(oldKitchenRoute, '')
-      content += ';document.addEventListener("wheel",event=>{const list=event.target.closest?.(".login-card--profiles .staff-picker");if(!list||list.scrollHeight<=list.clientHeight)return;const unit=event.deltaMode===1?16:event.deltaMode===2?list.clientHeight:1;event.preventDefault();list.scrollTop+=event.deltaY*unit},{capture:true,passive:false});'
+      content += ';document.addEventListener("wheel",event=>{const list=event.target.closest?.(".login-card--profiles .staff-groups");if(!list||list.scrollHeight<=list.clientHeight)return;const unit=event.deltaMode===1?16:event.deltaMode===2?list.clientHeight:1;event.preventDefault();list.scrollTop+=event.deltaY*unit},{capture:true,passive:false});'
     }
 
     // Legacy order alerts now lead to the restaurant POS, where Kitchen Mini
@@ -855,7 +1053,7 @@ if (!manualDiscountContent.includes('manualDiscountPct')) {
   manualDiscountContent = manualDiscountContent.replace('}, [cartSelection, l, s, c, M, E, q, H, $, I, draftStorageKey]);', '}, [cartSelection, l, s, c, M, E, manualDiscountPct, q, H, $, I, draftStorageKey]);')
   manualDiscountContent = manualDiscountContent.replace(
     '    Z = Y || de,\n    O = M || de ? 0 : N.total,\n    pe = M ? 0 : n.commission_flat;',
-    '    Z = Y || de,\n    safeManualDiscountPct = Math.min(100, Math.max(0, Number(manualDiscountPct) || 0)),\n    manualDiscountAmount = Math.min(N.total, Math.round(N.total * safeManualDiscountPct / 100)),\n    O = M || de ? 0 : Math.max(0, N.total - manualDiscountAmount),\n    discountPctForBill = M ? 0 : de ? 100 : W > 0 ? Number((100 - O / W * 100).toFixed(2)) : 0,\n    pe = M ? 0 : n.commission_flat;',
+    '    Z = Y || de,\n    safeManualDiscountPct = Math.min(100, Math.max(0, Number(manualDiscountPct) || 0)),\n    manualDiscountAmount = Math.min(N.total, Math.round(N.total * safeManualDiscountPct / 100)),\n    O = M || de ? 0 : Math.max(0, N.total - manualDiscountAmount),\n    discountPctForBill = W > 0 ? Number((100 - O / W * 100).toFixed(2)) : 0,\n    pe = M || p.commission_eligible === false ? 0 : n.commission_flat;',
   )
   manualDiscountContent = manualDiscountContent.replace('discount_pct: M ? 0 : de ? 100 : N.percentage,', 'discount_pct: discountPctForBill,')
   const commissionMarker = '        }), e.jsxs("div", {\n          className: "font-mono",\n          style: {\n            display: "flex",\n            justifyContent: "space-between",\n            fontSize: 13,\n            color: "var(--ghost-gray)",\n            marginBottom: 6\n          },\n          children: [e.jsx("span", {\n            children: "COMMISSION (FLAT)"'
@@ -875,8 +1073,8 @@ if (!personalCommissionPos.includes('preview_my_bill_commission') && !personalCo
     '    [vehicleClass, setVehicleClass] = i.useState("standard"),\n    [commissionPreview, setCommissionPreview] = i.useState(null);',
   )
   personalCommissionPos = personalCommissionPos.replace(
-    /    pe = M \? 0 : n\.commission_flat;\r?\n  function me\(t\) \{/,
-    '    pe = M ? 0 : n.commission_flat;\n  i.useEffect(() => {\n    let active = true;\n    if (M || O <= 0) { setCommissionPreview({myAmount: 0, finalPool: 0, activeCount: 0, isPeak: false, mode: n.key === "chill" ? "ON_WORK_ALL" : "INDIVIDUAL"}); return () => { active = false; }; }\n    const timer = setTimeout(() => { x.rpc("preview_my_bill_commission", {p_branch_id: n.id, p_order_total: O}).then(({data, error}) => { if (!active) return; error ? console.error("[Ghost Lab] Failed to preview personal commission:", error) : setCommissionPreview(data); }); }, 180);\n    return () => { active = false; clearTimeout(timer); };\n  }, [n.id, n.key, O, M, p == null ? void 0 : p.id]);\n  const displayedPersonalCommission = M ? 0 : Number((commissionPreview == null ? void 0 : commissionPreview.myAmount) ?? (n.key === "chill" ? 0 : pe));\n  function me(t) {',
+    /    pe = M \|\| p\.commission_eligible === false \? 0 : n\.commission_flat;\r?\n  function me\(t\) \{/,
+    '    pe = M || p.commission_eligible === false ? 0 : n.commission_flat;\n  i.useEffect(() => {\n    let active = true;\n    if (M || O <= 0) { setCommissionPreview({myAmount: 0, finalPool: 0, activeCount: 0, isPeak: false, mode: n.key === "chill" ? "ON_WORK_ALL" : "INDIVIDUAL"}); return () => { active = false; }; }\n    const timer = setTimeout(() => { x.rpc("preview_my_bill_commission", {p_branch_id: n.id, p_order_total: O}).then(({data, error}) => { if (!active) return; error ? console.error("[Ghost Lab] Failed to preview personal commission:", error) : setCommissionPreview(data); }); }, 180);\n    return () => { active = false; clearTimeout(timer); };\n  }, [n.id, n.key, O, M, p == null ? void 0 : p.id]);\n  const displayedPersonalCommission = M ? 0 : Number((commissionPreview == null ? void 0 : commissionPreview.myAmount) ?? (n.key === "chill" ? 0 : pe));\n  function me(t) {',
   )
   personalCommissionPos = personalCommissionPos.replace(
     '          children: ["SERVICE BILL \\xB7 COMMISSION \\xA5", h.commission_flat.toLocaleString(), " ", "/ BILL \\xB7 ", m, " SERVICES"]',
@@ -964,12 +1162,18 @@ if (!dailySummaryContent.includes('ghostlab-summary-date-range-calendar')) {
   const newDailyAggregate = 'const summaryLocalDay=e=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Bangkok",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(e)),formatSummaryDate=e=>{if(!e)return"";const[n,c,l]=e.split("-");return l+"/"+c+"/"+n},dayKeys=d.start&&d.end?(()=>{const e=[],n=new Date(d.start+"T00:00:00"),c=new Date(d.end+"T00:00:00");for(;n<=c;)e.push(dateKey(n)),n.setDate(n.getDate()+1);return e.reverse()})():d.start?[d.start]:[...new Set([...u.filter(e=>e.status!=="rejected"),...f.filter(e=>e.status==="paid")].map(e=>summaryLocalDay(e.created_at)))].sort().reverse(),S=dayKeys.map(e=>{const n=u.filter(n=>n.status!=="rejected"&&summaryLocalDay(n.created_at)===e),c=f.filter(n=>n.status==="paid"&&summaryLocalDay(n.created_at)===e),l=[...new Set([...n,...c].map(e=>{var n;return(n=e.branches)==null?void 0:n.key}).filter(Boolean))].map(l=>{var h,m;const s=n.filter(e=>{var n;return((n=e.branches)==null?void 0:n.key)===l}),a=c.filter(e=>{var n;return((n=e.branches)==null?void 0:n.key)===l}),B=s.reduce((e,n)=>e+Number(n.total||0),0),I=a.reduce((e,n)=>e+Number(n.amount||0),0);return{key:l,name:((m=(h=s[0]||a[0])==null?void 0:h.branches)==null?void 0:m.name)||l,count:s.length,sales:B,cash:s.filter(e=>e.payment_method!=="transfer").reduce((e,n)=>e+Number(n.total||0),0),transfer:s.filter(e=>e.payment_method==="transfer").reduce((e,n)=>e+Number(n.total||0),0),cost:I,net:B-I}});return{date:e,summaries:l}}),periodTotals=[...new Set(S.flatMap(e=>e.summaries.map(e=>e.key)))].map(e=>{const n=S.flatMap(n=>n.summaries.filter(n=>n.key===e));return{key:e,name:n[0]?.name||e,count:n.reduce((e,n)=>e+n.count,0),sales:n.reduce((e,n)=>e+n.sales,0),cash:n.reduce((e,n)=>e+n.cash,0),transfer:n.reduce((e,n)=>e+n.transfer,0),cost:n.reduce((e,n)=>e+n.cost,0),net:n.reduce((e,n)=>e+n.net,0)}}),summaryRangeLabel=d.start?(formatSummaryDate(d.start)+" - "+formatSummaryDate(d.end||d.start)):"ทุกช่วงเวลา";'
   const oldDailyCards = 't.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:12},children:S.map(e=>t.jsxs("section",{className:"panel",children:[t.jsx("strong",{children:e.name}),t.jsxs("div",{className:"font-mono",style:{fontSize:27,margin:"10px 0"},children:["¥",e.sales.toLocaleString()]}),t.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr auto",gap:6,fontSize:12},children:[t.jsx("span",{children:"จำนวนบิล"}),t.jsx("b",{children:e.count}),t.jsx("span",{children:"เงินสด"}),t.jsxs("b",{children:["¥",e.cash.toLocaleString()]}),t.jsx("span",{children:"เงินโอน"}),t.jsxs("b",{children:["¥",e.transfer.toLocaleString()]}),t.jsx("span",{children:"ค่าใช้จ่าย"}),t.jsxs("b",{style:{color:"#f18b92"},children:["-¥",e.cost.toLocaleString()]}),t.jsx("span",{children:"สุทธิ"}),t.jsxs("b",{style:{color:e.net>=0?"#84d6a8":"#f18b92"},children:["¥",e.net.toLocaleString()]})]})]},e.key))})'
   const newDailyCards = 't.jsxs("div",{children:[t.jsxs("section",{children:[t.jsxs("div",{style:{alignItems:"end",display:"flex",justifyContent:"space-between",margin:"0 2px 8px"},children:[t.jsxs("div",{children:[t.jsx("strong",{style:{fontSize:14},children:"ผลรวมช่วงวันที่"}),t.jsx("div",{className:"font-mono",style:{color:"var(--ghost-gray)",fontSize:11,marginTop:3},children:summaryRangeLabel})]}),t.jsxs("small",{style:{color:"var(--ghost-gray)"},children:[periodTotals.reduce((e,n)=>e+n.count,0)," บิล"]})]}),periodTotals.length===0?t.jsx("div",{className:"panel",style:{color:"var(--ghost-gray)",fontSize:12,padding:18,textAlign:"center"},children:"ไม่มีบิลที่ใช้งานหรือค่าใช้จ่ายที่ชำระแล้วในช่วงนี้"}):t.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:12},children:periodTotals.map(e=>t.jsxs("section",{className:"panel",children:[t.jsx("strong",{children:e.name}),t.jsxs("div",{className:"font-mono",style:{fontSize:27,margin:"10px 0"},children:["¥",e.sales.toLocaleString()]}),t.jsxs("div",{style:{display:"grid",gridTemplateColumns:"1fr auto",gap:6,fontSize:12},children:[t.jsx("span",{children:"จำนวนบิล"}),t.jsx("b",{children:e.count}),t.jsx("span",{children:"เงินสด"}),t.jsxs("b",{children:["¥",e.cash.toLocaleString()]}),t.jsx("span",{children:"เงินโอน"}),t.jsxs("b",{children:["¥",e.transfer.toLocaleString()]}),t.jsx("span",{children:"ค่าใช้จ่าย"}),t.jsxs("b",{style:{color:"#f18b92"},children:["-¥",e.cost.toLocaleString()]}),t.jsx("span",{children:"สุทธิ"}),t.jsxs("b",{style:{color:e.net>=0?"#84d6a8":"#f18b92"},children:["¥",e.net.toLocaleString()]})]})]},e.key))})]}),t.jsxs("section",{className:"panel",style:{marginTop:14,padding:"14px 18px"},children:[t.jsxs("div",{style:{alignItems:"center",display:"flex",justifyContent:"space-between",paddingBottom:8},children:[t.jsx("strong",{children:"รายละเอียดรายวัน"}),t.jsxs("small",{style:{color:"var(--ghost-gray)"},children:[S.length," วัน"]})]}),S.flatMap(e=>e.summaries.length?e.summaries.map(n=>t.jsxs("div",{style:{alignItems:"center",borderTop:"1px solid var(--line)",display:"flex",flexWrap:"wrap",gap:10,justifyContent:"space-between",padding:"10px 0"},children:[t.jsxs("div",{style:{minWidth:190},children:[t.jsx("strong",{style:{fontSize:12},children:new Date(e.date+"T00:00:00").toLocaleDateString("th-TH",{weekday:"short",day:"numeric",month:"short",year:"numeric"})}),t.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:10,marginTop:2},children:n.name})]}),t.jsxs("div",{style:{alignItems:"center",display:"flex",flexWrap:"wrap",gap:18,fontSize:11},children:[t.jsxs("span",{children:["บิล ",t.jsx("b",{children:n.count})]}),t.jsxs("span",{children:["ยอด ",t.jsxs("b",{className:"font-mono",children:["¥",n.sales.toLocaleString()]})]}),t.jsxs("span",{children:["ค่าใช้จ่าย ",t.jsxs("b",{className:"font-mono",style:{color:"#f18b92"},children:["-¥",n.cost.toLocaleString()]})]}),t.jsxs("span",{children:["สุทธิ ",t.jsxs("b",{className:"font-mono",style:{color:n.net>=0?"#84d6a8":"#f18b92"},children:["¥",n.net.toLocaleString()]})]})]})]},e.date+"-"+n.key)): [t.jsxs("div",{style:{borderTop:"1px solid var(--line)",color:"var(--ghost-gray)",display:"flex",fontSize:11,justifyContent:"space-between",padding:"10px 0"},children:[t.jsx("span",{children:new Date(e.date+"T00:00:00").toLocaleDateString("th-TH",{weekday:"short",day:"numeric",month:"short",year:"numeric"})}),t.jsx("span",{children:"ไม่มีรายการ"})]},e.date)])]})]})'
+  const redactedWeeklyClosingComponent = weeklyClosingComponent
+    .replace('["ค่าคอมค้างจ่าย",h?.commission_pending],["กองกลางคงเหลือ",h?.closing_cash_balance]]', '["ค่าคอมค้างจ่าย",h?.commission_pending],...[o?[["กองกลางคงเหลือ",h?.closing_cash_balance]]:[]]]')
+    .replace('t.jsxs("span",{style:{color:"var(--ghost-gray)",marginLeft:16},children:["กองกลางเปลี่ยนแปลง ",t.jsx("b",{children:P(h.expected_net_change)})]})', 'o?t.jsxs("span",{style:{color:"var(--ghost-gray)",marginLeft:16},children:["กองกลางเปลี่ยนแปลง ",t.jsx("b",{children:P(h.expected_net_change)})]}):t.jsx("span",{style:{color:"var(--ghost-gray)",marginLeft:16},children:"ข้อมูลกองกลางสำหรับ Owner/GOD เท่านั้น"})')
+  if (!redactedWeeklyClosingComponent.includes('...[o?[["กองกลางคงเหลือ"') || !redactedWeeklyClosingComponent.includes('ข้อมูลกองกลางสำหรับ Owner/GOD เท่านั้น')) {
+    throw new Error('Recovered Weekly Closing bundle changed unexpectedly; refusing to build with unredacted cash summary.')
+  }
   const dailyMarkers = [oldDailyStart, oldDailyState, oldDailyQuery, oldDailyInput, oldDailyAggregate, oldDailyCards]
   if (dailyMarkers.some(marker => !dailySummaryContent.includes(marker))) {
     throw new Error('Recovered Daily Summary bundle changed unexpectedly; refusing to build without complete date-range filtering.')
   }
   dailySummaryContent = dailySummaryContent
-    .replace(oldDailyStart, dailyRangeComponent + weeklyClosingComponent + oldDailyStart)
+    .replace(oldDailyStart, dailyRangeComponent + redactedWeeklyClosingComponent + oldDailyStart)
     .replace(oldDailyState, '[d,b]=i.useState(()=>{const e=dateKey();return{start:e,end:e}}),[rangeOpen,setRangeOpen]=i.useState(!1),[u,y]')
     .replace(oldDailyQuery, newDailyQuery)
     .replace(oldDailyInput, newDailyInput)
@@ -1114,6 +1318,13 @@ if (!memberDraftContent.includes('ghostlab-member-new-draft')) {
   memberDraftContent = memberDraftContent.replace('onMouseDown:t=>t.target===t.currentTarget&&o()', 'onMouseDown:t=>t.target===t.currentTarget&&closeAndClear()')
   memberDraftContent = memberDraftContent.replace('onClick:o,"aria-label":"ปิด"', 'onClick:closeAndClear,"aria-label":"ปิด"')
   memberDraftContent = memberDraftContent.replace('onClick:o,children:"ยกเลิก"', 'onClick:closeAndClear,children:"ยกเลิก"')
+  const oldMemberSave = 'const U=c?await f.from("members").insert(M).select().single():await f.from("members").update(M).eq("id",a.id).select().single();if(U.error)return S(!1),s(U.error.message);if(h&&!$){const A=await f.from("member_memberships").insert({member_id:U.data.id,tier:n.key,monthly_fee:n.monthlyFee,months:u,total_paid:z,started_at:Y,expires_at:V});if(A.error)return S(!1),s(A.error.message)}'
+  const atomicMemberSave = 'const K="ghostlab-member-save:"+(a.id||"new");let R;try{R=JSON.parse(localStorage.getItem(K)||"null");if(!R){R={requestId:globalThis.crypto?.randomUUID?.()||"xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,char=>{const random=Math.random()*16|0;return(char==="x"?random:(random&3|8)).toString(16)}),memberId:c?null:a.id,memberData:M,membershipData:h&&!$?{tier:n.key,monthly_fee:n.monthlyFee,months:u,total_paid:z,started_at:Y,expires_at:V}:null};localStorage.setItem(K,JSON.stringify(R))}}catch{return S(!1),s("บันทึกคำขอสำรองไม่ได้ จึงยังไม่ส่งข้อมูลสมาชิก")}let U;try{U=await f.rpc("save_member_with_membership_atomic",{p_request_id:R.requestId,p_member_id:R.memberId,p_member_data:R.memberData,p_membership_data:R.membershipData})}catch(E){console.error("[Ghost Lab] Member save failed:",E);return S(!1),s(E?.message||"บันทึกข้อมูลไม่สำเร็จ กรุณาลองอีกครั้ง")}if(U.error)return S(!1),s(U.error.message);try{localStorage.removeItem(K)}catch{}'
+  if (memberDraftContent.includes(oldMemberSave)) {
+    memberDraftContent = memberDraftContent.replace(oldMemberSave, atomicMemberSave)
+  } else if (!memberDraftContent.includes('save_member_with_membership_atomic')) {
+    throw new Error('Recovered Member save flow changed; refusing to leave split member/membership writes.')
+  }
 }
 await writeFile(memberDraftAsset, memberDraftContent)
 
