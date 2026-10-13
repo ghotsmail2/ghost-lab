@@ -1092,7 +1092,14 @@ if (!personalCommissionPos.includes('preview_my_bill_commission')) {
     '            children: ["\\xA5", pe.toLocaleString()]',
     '            children: ["¥", displayedPersonalCommission.toLocaleString()]',
   )
-  if (!personalCommissionPos.includes('preview_my_bill_commission') || !personalCommissionPos.includes('displayedPersonalCommission')) {
+  // The earlier POS patch already wraps the pool amount with the shift check;
+  // replace that transformed expression too, otherwise the UI still shows the
+  // full restaurant pool even though the per-staff preview RPC was injected.
+  personalCommissionPos = personalCommissionPos.replace(
+    '            children: ["\\xA5", (n.key === "chill" && !isOnShift ? 0 : pe).toLocaleString()]',
+    '            children: ["\\xA5", displayedPersonalCommission.toLocaleString()]',
+  )
+  if (!personalCommissionPos.includes('preview_my_bill_commission') || !personalCommissionPos.includes('displayedPersonalCommission') || personalCommissionPos.includes('(n.key === "chill" && !isOnShift ? 0 : pe).toLocaleString()')) {
     throw new Error('Failed to inject the personal commission preview into the POS bundle.')
   }
 }
