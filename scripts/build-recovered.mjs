@@ -135,8 +135,10 @@ const commissionPoolHelper = path.join(projectRoot, 'src', 'lib', 'commission-po
 digest.update('commission-pool-helper').update(await readFile(commissionPoolHelper))
 const loginStylesheet = path.join(projectRoot, 'src', 'pages', 'Login.css')
 const loginArtwork = path.join(projectRoot, 'src', 'assets', 'login-courtyard-v1.png')
+const garageArtwork = path.join(projectRoot, 'src', 'assets', 'dashboard-garage-v1.png')
 digest.update('login-stylesheet').update(await readFile(loginStylesheet))
 digest.update('login-artwork').update(await readFile(loginArtwork))
+digest.update('garage-artwork').update(await readFile(garageArtwork))
 const release = digest.digest('hex').slice(0, 16)
 // A visual layer deliberately lives in the build transform instead of the
 // recovered bundle.  That lets us modernize the presentation without touching
@@ -261,6 +263,10 @@ const fullWidthWorkspaceCss = `
 .workspace-topline,.app-header,.page-enter{box-sizing:border-box;max-width:none!important;width:100%!important}
 .workspace-topline,.app-header{margin-left:0!important;margin-right:0!important}
 .page-enter{margin:0!important}
+/* POS identity is branch-specific: workshop imagery for Garage, dining scene for SABINAGISA. */
+.page-enter .pos-hero.pos-hero--garage{background:linear-gradient(100deg,rgba(8,7,7,.9),rgba(18,12,9,.57),rgba(18,12,9,.34)),url('./dashboard-garage-v1.png') center 52%/cover!important;border-color:rgba(255,255,255,.16)!important;color:#fffaf2!important}
+.page-enter .pos-hero.pos-hero--sabinagisa{background:linear-gradient(100deg,rgba(8,7,7,.9),rgba(18,12,9,.55),rgba(18,12,9,.35)),url('./dashboard-sabinagisa-v1.png') center 46%/cover!important;border-color:rgba(255,255,255,.16)!important;color:#fffaf2!important}
+.page-enter .pos-hero.pos-hero--garage *:not(button),.page-enter .pos-hero.pos-hero--sabinagisa *:not(button){color:#fffaf2!important}
 /* Give page titles a clear reading order instead of floating in the middle of the header. */
 .app-header{display:grid!important;grid-template-columns:40px minmax(0,1fr) auto!important;column-gap:18px!important}
 .app-header__menu-toggle{grid-column:1;grid-row:1;margin-right:0!important}
@@ -328,6 +334,7 @@ liveDashboardWidgets = liveDashboardWidgets.replace(',e.jsxs("div",{className:"d
 const versionedRoot = path.join(outputRoot, 'assets', release)
 await cp(path.join(sourceRoot, 'assets'), versionedRoot, { recursive: true })
 await cp(path.join(projectRoot, 'src', 'assets', 'dashboard-sabinagisa-v1.png'), path.join(versionedRoot, 'dashboard-sabinagisa-v1.png'))
+await cp(garageArtwork, path.join(versionedRoot, 'dashboard-garage-v1.png'))
 await cp(kitchenAssetRoot, path.join(versionedRoot, 'sabinagisa'), { recursive: true })
 await cp(loginArtwork, path.join(versionedRoot, 'login-courtyard-v1.png'))
 await cp(commissionPoolHelper, path.join(versionedRoot, 'commission-pool.js'))
@@ -549,6 +556,11 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
     // before the cancel_bill_safely RPC can run. Use a safe default audit reason.
     if (file.endsWith('POSPage-CxiIf3bD.js')) {
       content = content.replace(/\r\n/g, '\n')
+      const posHeroMarker = 'className: "panel pos-hero",'
+      const compactPosHeroMarker = 'className:"panel pos-hero",'
+      if (content.includes(posHeroMarker)) content = content.replace(posHeroMarker, 'className: "panel pos-hero " + (n === "garage" ? "pos-hero--garage" : "pos-hero--sabinagisa"),')
+      else if (content.includes(compactPosHeroMarker)) content = content.replace(compactPosHeroMarker, 'className:"panel pos-hero "+(n==="garage"?"pos-hero--garage":"pos-hero--sabinagisa"),')
+      else throw new Error('Recovered POS hero markup changed; refusing to map branch-specific artwork.')
       content = content.replace(
         /const o = window\.prompt\([\s\S]*?\);\s*if \(!\(o != null && o\.trim\(\)\)\) return;/,
         'const o = "ยกเลิกโดยผู้ดูแลระบบ";'

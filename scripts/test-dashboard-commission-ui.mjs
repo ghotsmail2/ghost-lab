@@ -150,6 +150,14 @@ test('workspace pages use full desktop width and scale key dashboard content for
   assert.match(builder, /fullWidthWorkspaceCss/)
 })
 
+test('Garage and SABINAGISA POS heroes use separate branch-specific artwork', () => {
+  assert.match(builder, /pos-hero--garage/)
+  assert.match(builder, /pos-hero--sabinagisa/)
+  assert.match(builder, /dashboard-garage-v1\.png/)
+  assert.match(builder, /dashboard-sabinagisa-v1\.png/)
+  assert.match(builder, /cp\(garageArtwork, path\.join\(versionedRoot, 'dashboard-garage-v1\.png'\)\)/)
+})
+
 test('Kitchen Mini uses the supplied SABINAGISA mascot for each live order state', async () => {
   for (const asset of ['kitchen-idle.webp', 'kitchen-new.webp', 'kitchen-cooking.webp', 'kitchen-ready.webp', 'kitchen-avatar.webp']) {
     await readFile(new URL(`../public/assets/sabinagisa/${asset}`, import.meta.url))
