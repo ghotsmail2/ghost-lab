@@ -42,6 +42,8 @@ test('Login profile selection uses the editorial brand copy, cinematic glass pan
   assert.match(loginCss, /login-scene-drift/)
   assert.match(loginCss, /prefers-reduced-motion: reduce/)
   assert.match(builder, /login-courtyard-v1\.png/)
+  assert.match(builder, /loginHeroSeamlessCss/)
+  assert.match(builder, /\.login-brand\{background:transparent!important\}/)
   assert.match(builder, /Cormorant\+Garamond/)
 })
 

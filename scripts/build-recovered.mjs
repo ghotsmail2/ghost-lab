@@ -128,7 +128,7 @@ await cp(path.join(sourceRoot, 'assets'), path.join(outputRoot, 'assets'), { rec
 const assetFiles = (await listFiles(path.join(sourceRoot, 'assets'))).sort()
 const supabaseBrowserConfig = await readSupabaseBrowserConfig()
 const digest = createHash('sha256')
-digest.update('release-transform-20261013-kitchen-mascot-state-2')
+digest.update('release-transform-20261013-login-hero-seamless-1')
 for (const file of assetFiles) digest.update(path.relative(sourceRoot, file)).update(await readFile(file))
 for (const file of (await listFiles(kitchenAssetRoot)).sort()) digest.update(path.relative(projectRoot, file)).update(await readFile(file))
 const commissionPoolHelper = path.join(projectRoot, 'src', 'lib', 'commission-pool.js')
@@ -248,6 +248,13 @@ thead{background:#f6f0e8!important}th{color:#827468!important;font-size:10px!imp
 @media(min-width:761px){.login-card__header{margin-bottom:15px!important}.login-card__header h1{margin-top:0!important}.login-card--profiles .staff-groups{max-height:calc(100vh - 360px)!important}}.login-footer{background:rgba(12,9,7,.58);border:1px solid rgba(255,240,220,.2);border-radius:10px;bottom:22px;color:#fff3e4!important;left:28px;padding:9px 13px;position:fixed!important;text-shadow:0 1px 8px #000;z-index:10}.login-footer a,.login-footer .link{color:#fff!important;font-weight:700;text-decoration:underline;text-underline-offset:3px}.login-footer a:hover,.login-footer .link:hover{color:#ffd18c!important}@media(max-width:760px){.login-card--profiles .staff-groups{max-height:none!important}.login-footer{bottom:10px;left:12px}}
 `
 
+const loginHeroSeamlessCss = `
+/* Keep the hero as one continuous scene. A second copy of the same photo on
+   the text column creates a visible rectangular crop against the page image. */
+.login-brand{background:transparent!important}
+@media(max-width:760px){.login-brand{background:transparent!important}}
+`
+
 const fullWidthWorkspaceCss = `
 /* Use the available desktop canvas instead of pinning every page to 1440px. */
 .app-main{min-width:0;padding:clamp(18px,2vw,36px) clamp(18px,2.2vw,42px) 52px!important}
@@ -327,7 +334,7 @@ await cp(commissionPoolHelper, path.join(versionedRoot, 'commission-pool.js'))
 for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/.test(file))) {
   let content = await readFile(file, 'utf8')
   if (file.endsWith('index-C51IvSgf.css')) {
-    content += premiumHospitalityCss + sharedThemeCss + await readFile(path.join(projectRoot, 'src', 'pages', 'Expenses.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'Stock.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'DailySummary.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'CommissionPayouts.css'), 'utf8') + fullWidthWorkspaceCss + kitchenMascotCss + await readFile(loginStylesheet, 'utf8')
+    content += premiumHospitalityCss + sharedThemeCss + await readFile(path.join(projectRoot, 'src', 'pages', 'Expenses.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'Stock.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'DailySummary.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'CommissionPayouts.css'), 'utf8') + fullWidthWorkspaceCss + kitchenMascotCss + await readFile(loginStylesheet, 'utf8') + loginHeroSeamlessCss
     content = content.replace(/\.sabinagisa-pos-inbox__chef-art\{[^}]*\}/g, '.sabinagisa-pos-inbox__chef-art{display:none!important;background-image:none!important}')
   }
   if (file.endsWith('.js')) {
