@@ -124,6 +124,13 @@ await rm(outputRoot, { recursive: true, force: true })
 await mkdir(outputRoot, { recursive: true })
 await cp(path.join(sourceRoot, 'index.html'), path.join(outputRoot, 'index.html'))
 await cp(path.join(sourceRoot, 'assets'), path.join(outputRoot, 'assets'), { recursive: true })
+// Keep Garage service prices editable by using each row's Standard and
+// supercar_price fields instead of overriding them with bundled catalog rates.
+const editableGaragePricing = await readFile(path.join(projectRoot, 'src', 'lib', 'garage-vehicle-pricing.js'), 'utf8')
+await writeFile(
+  path.join(outputRoot, 'assets', 'vehicle-pricing.js'),
+  editableGaragePricing.replace("'../../recovered-production/assets/catalog-prices.js'", "'./catalog-prices.js'"),
+)
 
 // A versioned asset directory prevents browsers from mixing restored bundles
 // with changed files that still have the original recovered hash filenames.
@@ -135,6 +142,8 @@ for (const file of assetFiles) digest.update(path.relative(sourceRoot, file)).up
 for (const file of (await listFiles(kitchenAssetRoot)).sort()) digest.update(path.relative(projectRoot, file)).update(await readFile(file))
 const commissionPoolHelper = path.join(projectRoot, 'src', 'lib', 'commission-pool.js')
 digest.update('commission-pool-helper').update(await readFile(commissionPoolHelper))
+const garageVehiclePricingHelper = path.join(projectRoot, 'src', 'lib', 'garage-vehicle-pricing.js')
+digest.update('garage-vehicle-pricing-helper').update(await readFile(garageVehiclePricingHelper))
 const loginStylesheet = path.join(projectRoot, 'src', 'pages', 'Login.css')
 const loginArtwork = path.join(projectRoot, 'src', 'assets', 'login-courtyard-v1.png')
 const garageArtwork = path.join(projectRoot, 'src', 'assets', 'dashboard-garage-v1.png')
