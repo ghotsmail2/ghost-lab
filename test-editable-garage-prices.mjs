@@ -39,3 +39,9 @@ test('Garage price save uses a branch-scoped RPC with role validation', async ()
   assert.match(migration, /actor\.role::text = 'ceo' and actor\.primary_branch = target_service\.branch_id/)
   assert.match(migration, /grant execute on function public\.update_garage_service_price\(uuid, text, integer\) to authenticated/)
 })
+
+test('POS refreshes service prices without a page reload', async () => {
+  const build = await readFile(new URL('./scripts/build-recovered.mjs', import.meta.url), 'utf8')
+  assert.match(build, /setInterval\(refreshServices, 5000\)/)
+  assert.match(build, /refusing to leave prices stale after catalog edits/)
+})

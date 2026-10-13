@@ -906,6 +906,29 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
   }`
       if (serviceSaveStart < 0 || serviceSaveEnd < 0) throw new Error('Service catalog save handler changed; refusing to build without verified update feedback.')
       content = content.slice(0, serviceSaveStart) + verifiedServiceSave + '\n' + content.slice(serviceSaveEnd)
+      const stalePosServicesLoad = [
+        '  i.useEffect(() => {',
+        '    x.from("services").select("*").eq("branch_id", n.id).eq("active", true).then(({',
+        '      data: t,',
+        '      error: d',
+        '    }) => {',
+        '      d && console.error(d), h((t || []).filter(service => visibleService(service, n.key)));',
+        '    });',
+        '  }, [n]),',
+      ].join('\n')
+      const livePosServicesLoad = `  i.useEffect(() => {
+    let active = true;
+    const refreshServices = () => x.from("services").select("*").eq("branch_id", n.id).eq("active", true).then(({data,error}) => {
+      if (error) { console.error(error); return; }
+      if (active) h((data || []).filter(service => visibleService(service, n.key)));
+    });
+    refreshServices();
+    const timer = setInterval(refreshServices, 5000);
+    return () => { active = false; clearInterval(timer); };
+  }, [n]),`
+      if (content.includes(stalePosServicesLoad)) content = content.replace(stalePosServicesLoad, livePosServicesLoad)
+      else if (!content.includes('setInterval(refreshServices, 5000)')) throw new Error('POS service-price refresh anchor changed; refusing to leave prices stale after catalog edits.')
+      if (!content.includes('setInterval(refreshServices, 5000)')) throw new Error('POS is missing live Garage service-price refresh.')
       const standardPriceField = 'className: "input font-mono",\n            value: s.price'
       if (content.includes(standardPriceField)) content = content.replace(standardPriceField, 'className: "input font-mono",\n            type: "number",\n            min: 0,\n            step: 1,\n            inputMode: "numeric",\n            "aria-label": `ราคา Standard ${s.name}`,\n            value: s.price')
       // Catalog-priced Garage rows were still rendered read-only and displayed
