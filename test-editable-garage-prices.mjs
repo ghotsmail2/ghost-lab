@@ -9,6 +9,16 @@ test('Garage Standard price uses the editable service row, even when catalog has
   assert.equal(result.pricingSource, 'service')
 })
 
+test('Production POS imports the editable pricing helper from its versioned asset directory', async () => {
+  const build = await readFile(new URL('./scripts/build-recovered.mjs', import.meta.url), 'utf8')
+  const versionedCopy = build.indexOf("await cp(path.join(sourceRoot, 'assets'), versionedRoot, { recursive: true })")
+  const helperWrite = build.indexOf("path.join(versionedRoot, 'vehicle-pricing.js')", versionedCopy)
+  assert.ok(versionedCopy >= 0, 'production assets are copied into their versioned directory')
+  assert.ok(helperWrite > versionedCopy, 'editable helper replaces the copied legacy helper after the copy')
+  assert.match(build.slice(versionedCopy, helperWrite), /garage-vehicle-pricing\.js/)
+  assert.doesNotMatch(build.slice(0, versionedCopy), /path\.join\(outputRoot, 'assets', 'vehicle-pricing\.js'\)/)
+})
+
 test('Garage Super Car price is independently controlled by supercar_price', () => {
   const result = priceService({ name: 'Sport: Turbo Spec Cams', price: 9100, supercar_price: 19300 }, 'supercar')
   assert.equal(result.price, 19300)

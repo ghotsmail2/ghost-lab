@@ -124,14 +124,6 @@ await rm(outputRoot, { recursive: true, force: true })
 await mkdir(outputRoot, { recursive: true })
 await cp(path.join(sourceRoot, 'index.html'), path.join(outputRoot, 'index.html'))
 await cp(path.join(sourceRoot, 'assets'), path.join(outputRoot, 'assets'), { recursive: true })
-// Keep Garage service prices editable by using each row's Standard and
-// supercar_price fields instead of overriding them with bundled catalog rates.
-const editableGaragePricing = await readFile(path.join(projectRoot, 'src', 'lib', 'garage-vehicle-pricing.js'), 'utf8')
-await writeFile(
-  path.join(outputRoot, 'assets', 'vehicle-pricing.js'),
-  editableGaragePricing.replace("'../../recovered-production/assets/catalog-prices.js'", "'./catalog-prices.js'"),
-)
-
 // A versioned asset directory prevents browsers from mixing restored bundles
 // with changed files that still have the original recovered hash filenames.
 const assetFiles = (await listFiles(path.join(sourceRoot, 'assets'))).sort()
@@ -405,6 +397,16 @@ liveDashboardWidgets = liveDashboardWidgets.replace(',e.jsxs("div",{className:"d
 liveDashboardWidgets = 'const dashboardHourFormatter=new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Bangkok",hour:"2-digit",hourCycle:"h23"});function dashboardBangkokHour(value){return Number(dashboardHourFormatter.format(new Date(value)))}async function fetchDashboardRows(query){const rows=[];for(let from=0;;from+=500){const{data,error}=await query.range(from,from+499);if(error)throw error;if(!data||!data.length)return rows;rows.push(...data);if(data.length<500)return rows}}' + liveDashboardWidgets.replaceAll('new Date(b.created_at).getHours()', 'dashboardBangkokHour(b.created_at)')
 const versionedRoot = path.join(outputRoot, 'assets', release)
 await cp(path.join(sourceRoot, 'assets'), versionedRoot, { recursive: true })
+// POSPage-CxiIf3bD.js imports ./vehicle-pricing.js from this versioned
+// directory. Replacing only /assets/vehicle-pricing.js leaves the imported
+// legacy helper in place, which makes catalog rows (such as the N/A package)
+// keep showing their hard-coded catalog price after the service row is edited.
+// Keep Garage Standard and Super Car prices authoritative from services rows.
+const editableGaragePricing = await readFile(path.join(projectRoot, 'src', 'lib', 'garage-vehicle-pricing.js'), 'utf8')
+await writeFile(
+  path.join(versionedRoot, 'vehicle-pricing.js'),
+  editableGaragePricing.replace("'../../recovered-production/assets/catalog-prices.js'", "'./catalog-prices.js'"),
+)
 await cp(path.join(projectRoot, 'src', 'assets', 'dashboard-sabinagisa-v1.png'), path.join(versionedRoot, 'dashboard-sabinagisa-v1.png'))
 await cp(garageArtwork, path.join(versionedRoot, 'dashboard-garage-v1.png'))
 await cp(kitchenAssetRoot, path.join(versionedRoot, 'sabinagisa'), { recursive: true })
