@@ -149,7 +149,7 @@ test('workspace pages use full desktop width and scale key dashboard content for
 test('Kitchen Mini uses the supplied SABINAGISA mascot for each live order state', async () => {
   for (const asset of ['kitchen-idle.webp', 'kitchen-new.webp', 'kitchen-cooking.webp', 'kitchen-ready.webp', 'kitchen-avatar.webp']) {
     await readFile(new URL(`../public/assets/sabinagisa/${asset}`, import.meta.url))
-    assert.ok(builder.includes(asset), `missing Kitchen Mini mascot asset ${asset}`)
+    if (asset !== 'kitchen-avatar.webp') assert.ok(builder.includes(asset), `missing Kitchen Mini mascot asset ${asset}`)
   }
   for (const copy of ['ยังไม่มีออเดอร์เข้าครัว', 'มีออเดอร์ใหม่เข้าครัว', 'กำลังทำอาหาร', 'ออเดอร์พร้อมเสิร์ฟ', 'กรุณานำออเดอร์ไปเสิร์ฟ']) {
     assert.ok(builder.includes(copy), `missing Kitchen Mini state copy: ${copy}`)
@@ -161,6 +161,9 @@ test('Kitchen Mini uses the supplied SABINAGISA mascot for each live order state
   assert.match(builder, /@media\(max-width:650px\).*sabinagisa-pos-inbox__state-mascot/s)
   assert.match(builder, /prefers-reduced-motion:reduce/)
   assert.match(builder, /sabinagisa-pos-inbox__avatar/)
+  assert.match(builder, /sabinagisa-pos-inbox__avatar\{height:86px/)
+  assert.match(builder, /src:"\/assets\/sabinagisa\/kitchen-idle\.webp",alt:"",className:"sabinagisa-pos-inbox__avatar"/)
+  assert.match(builder, /aria-label":"Kitchen Mini · "/)
   assert.match(builder, /stateAwareKitchenMini\.includes\('♨ Kitchen Mini'\)/)
   assert.match(builder, /display:none!important;background-image:none!important/)
 })
