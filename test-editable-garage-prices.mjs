@@ -27,4 +27,5 @@ test('Garage Standard price commits automatically after typing and on Enter/blur
   assert.match(build, /window\.__garagePriceSaveTimers\[s\.id\] = setTimeout\(\(\) => l\(s\.id, "price", value\), 650\)/)
   assert.match(build, /onBlur: r => \{ clearTimeout\(window\.__garagePriceSaveTimers\?\.\[s\.id\]\); l\(s\.id, "price", r\.target\.value\); \}/)
   assert.match(build, /if \(r\.key === "Enter"\) r\.currentTarget\.blur\(\)/)
+  assert.match(build, /alert\("บันทึกราคาไม่สำเร็จ: "\+reason\)/)
 })

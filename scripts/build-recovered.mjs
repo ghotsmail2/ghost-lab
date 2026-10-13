@@ -899,7 +899,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
         [r]: c
       };
     const {data,error}=await x.from("services").update(S).eq("id",s).select("id").maybeSingle();
-    if(error||!data){console.error(error||new Error("No service row updated"));await k();alert("บันทึกราคาไม่สำเร็จ กรุณาตรวจสอบสิทธิ์ฐานข้อมูลแล้วลองใหม่");}
+    if(error||!data){const reason=error?.message||"ไม่พบแถวบริการที่บัญชีนี้มีสิทธิ์แก้ไข";console.error(error||new Error(reason));await k();alert("บันทึกราคาไม่สำเร็จ: "+reason);}
   }`
       if (serviceSaveStart < 0 || serviceSaveEnd < 0) throw new Error('Service catalog save handler changed; refusing to build without verified update feedback.')
       content = content.slice(0, serviceSaveStart) + verifiedServiceSave + '\n' + content.slice(serviceSaveEnd)
