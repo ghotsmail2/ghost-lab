@@ -11,6 +11,8 @@ const stock = await readFile(new URL('../src/pages/Stock.jsx', import.meta.url),
 const stockCss = await readFile(new URL('../src/pages/Stock.css', import.meta.url), 'utf8')
 const commission = await readFile(new URL('../src/pages/CommissionPayouts.jsx', import.meta.url), 'utf8')
 const commissionCss = await readFile(new URL('../src/pages/CommissionPayouts.css', import.meta.url), 'utf8')
+const login = await readFile(new URL('../src/pages/Login.jsx', import.meta.url), 'utf8')
+const loginCss = await readFile(new URL('../src/pages/Login.css', import.meta.url), 'utf8')
 const builder = await readFile(new URL('./build-recovered.mjs', import.meta.url), 'utf8')
 
 test('restaurant POS shows personal commission only while the current staff member is clocked in', () => {
@@ -29,6 +31,18 @@ test('Home dashboard hero uses the requested GHOST GROUP brand copy', () => {
   for (const phrase of ['GHOST GROUP · TWO SOULS, ONE GARAGE', '技 · 味 · 心', 'งานช่าง · รสชาติ · การบริการ', 'GHOST LAB × SABINAGISA']) {
     assert.ok(builder.includes(phrase), `missing home hero text: ${phrase}`)
   }
+})
+
+test('Login profile selection uses the editorial brand copy, cinematic glass panel and reduced-motion-safe details', () => {
+  for (const phrase of ['GHOST·LAB × SABINAGISA', 'TWO SOULS, ONE GARAGE', '技 · 味 · 心', 'わざ · あじ · こころ', 'งานช่าง · บริการ · อาหาร · ประสบการณ์', '二つの世界、ひとつの美学。', 'สองธุรกิจ หนึ่งมาตรฐาน']) {
+    assert.ok(login.includes(phrase) || builder.includes(phrase), `missing login brand text: ${phrase}`)
+  }
+  assert.match(login, /staff-picker--groups/)
+  assert.match(loginCss, /backdrop-filter: blur\(24px\)/)
+  assert.match(loginCss, /login-scene-drift/)
+  assert.match(loginCss, /prefers-reduced-motion: reduce/)
+  assert.match(builder, /login-courtyard-v1\.png/)
+  assert.match(builder, /Cormorant\+Garamond/)
 })
 
 test('recovered Stock, Expenses, Daily Summary and Commission pages use React classic JSX factory', () => {

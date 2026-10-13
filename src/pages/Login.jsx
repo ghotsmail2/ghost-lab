@@ -94,14 +94,21 @@ export default function Login() {
     <main className="login-page">
       <section className="login-shell" aria-label="เข้าสู่ระบบ Ghost Lab">
         <div className="login-brand">
-          <div className="font-display login-brand__name">GHOST<span className="login-brand__dot">·</span>LAB</div>
-          <div className="login-brand__subtitle">ゴースト ラボ</div>
+          <div className="login-brand__wordmark">GHOST·LAB × SABINAGISA</div>
+          <div className="login-brand__kicker">TWO SOULS, ONE GARAGE</div>
+          <div className="login-brand__kanji">技 · 味 · 心</div>
+          <div className="login-brand__reading">わざ · あじ · こころ</div>
+          <div className="login-brand__services">งานช่าง · บริการ · อาหาร · ประสบการณ์</div>
+          <div className="login-brand__manifesto">
+            <span>二つの世界、ひとつの美学。</span>
+            <span>สองธุรกิจ หนึ่งมาตรฐาน</span>
+          </div>
         </div>
 
         {step === 'profile' ? (
           <div className="login-card login-card--profiles">
             <div className="login-card__header">
-              <span className="login-card__eyebrow">STEP 01 · PROFILE</span>
+              <span className="login-card__eyebrow">GHOST·LAB × SABINAGISA · TEAM ACCESS</span>
               <h1>เลือกโปรไฟล์ของคุณ</h1>
               <p>เลือกชื่อก่อน แล้วจึงใส่ PIN เพื่อเข้าสู่ระบบ</p>
             </div>
@@ -113,7 +120,7 @@ export default function Login() {
               </div>
               <span>{visibleStaff.length}/{staffList.length} คน</span>
             </div>
-            <div className="staff-picker" role="list" aria-label="รายชื่อพนักงาน">
+            <div className="staff-picker staff-picker--groups" role="list" aria-label="รายชื่อพนักงาน">
               {staffGroups.map(group => (
                 <section key={group.key} className={`staff-picker__group staff-picker__group--${group.key}`}>
                   <div className="staff-picker__group-head"><span aria-hidden="true">{group.icon}</span><div><strong>{group.label}</strong><small>{group.subtitle}</small></div><b>{group.members.length} คน</b></div>

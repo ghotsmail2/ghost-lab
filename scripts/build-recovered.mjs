@@ -120,10 +120,14 @@ await cp(path.join(sourceRoot, 'assets'), path.join(outputRoot, 'assets'), { rec
 const assetFiles = (await listFiles(path.join(sourceRoot, 'assets'))).sort()
 const supabaseBrowserConfig = await readSupabaseBrowserConfig()
 const digest = createHash('sha256')
-digest.update('release-transform-20261013-daily-closing-console-2')
+digest.update('release-transform-20261013-login-editorial-1')
 for (const file of assetFiles) digest.update(path.relative(sourceRoot, file)).update(await readFile(file))
 const commissionPoolHelper = path.join(projectRoot, 'src', 'lib', 'commission-pool.js')
 digest.update('commission-pool-helper').update(await readFile(commissionPoolHelper))
+const loginStylesheet = path.join(projectRoot, 'src', 'pages', 'Login.css')
+const loginArtwork = path.join(projectRoot, 'src', 'assets', 'login-courtyard-v1.png')
+digest.update('login-stylesheet').update(await readFile(loginStylesheet))
+digest.update('login-artwork').update(await readFile(loginArtwork))
 const release = digest.digest('hex').slice(0, 16)
 // A visual layer deliberately lives in the build transform instead of the
 // recovered bundle.  That lets us modernize the presentation without touching
@@ -287,11 +291,12 @@ liveDashboardWidgets = liveDashboardWidgets.replace(',e.jsxs("div",{className:"d
 const versionedRoot = path.join(outputRoot, 'assets', release)
 await cp(path.join(sourceRoot, 'assets'), versionedRoot, { recursive: true })
 await cp(path.join(projectRoot, 'src', 'assets', 'dashboard-sabinagisa-v1.png'), path.join(versionedRoot, 'dashboard-sabinagisa-v1.png'))
+await cp(loginArtwork, path.join(versionedRoot, 'login-courtyard-v1.png'))
 await cp(commissionPoolHelper, path.join(versionedRoot, 'commission-pool.js'))
 for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/.test(file))) {
   let content = await readFile(file, 'utf8')
   if (file.endsWith('index-C51IvSgf.css')) {
-    content += premiumHospitalityCss + sharedThemeCss + await readFile(path.join(projectRoot, 'src', 'pages', 'Expenses.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'Stock.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'DailySummary.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'CommissionPayouts.css'), 'utf8') + fullWidthWorkspaceCss
+    content += premiumHospitalityCss + sharedThemeCss + await readFile(path.join(projectRoot, 'src', 'pages', 'Expenses.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'Stock.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'DailySummary.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'CommissionPayouts.css'), 'utf8') + fullWidthWorkspaceCss + await readFile(loginStylesheet, 'utf8')
   }
   if (file.endsWith('.js')) {
     content = content
@@ -606,9 +611,9 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
     if (file.endsWith('index-vaWnYKxf.js')) {
       const profileStepEyebrow = 'w.jsx("span",{className:"login-card__eyebrow",children:"STEP 01 · PROFILE"}),'
       if (!content.includes(profileStepEyebrow)) throw new Error('Login profile step label changed; refusing to remove unexpected markup.')
-      content = content.replace(profileStepEyebrow, '')
+      content = content.replace(profileStepEyebrow, 'w.jsx("span",{className:"login-card__eyebrow",children:"GHOST·LAB × SABINAGISA · TEAM ACCESS"}),')
       const oldLoginBrand = 'w.jsxs("div",{className:"login-brand",children:[w.jsxs("div",{className:"font-display login-brand__name",children:["GHOST",w.jsx("span",{className:"login-brand__dot",children:"·"}),"LAB"]}),w.jsx("div",{className:"login-brand__subtitle",children:"ゴースト ラボ"})]})'
-      const newLoginBrand = 'w.jsxs("div",{className:"login-brand",children:[w.jsx("div",{className:"font-display login-brand__name",children:"GHOST·LAB&SABINAGISA"}),w.jsx("div",{className:"login-brand__subtitle",children:"ゴースト ラボ& サビナギサ"})]})'
+      const newLoginBrand = 'w.jsxs("div",{className:"login-brand",children:[w.jsx("div",{className:"login-brand__wordmark",children:"GHOST·LAB × SABINAGISA"}),w.jsx("div",{className:"login-brand__kicker",children:"TWO SOULS, ONE GARAGE"}),w.jsx("div",{className:"login-brand__kanji",children:"技 · 味 · 心"}),w.jsx("div",{className:"login-brand__reading",children:"わざ · あじ · こころ"}),w.jsx("div",{className:"login-brand__services",children:"งานช่าง · บริการ · อาหาร · ประสบการณ์"}),w.jsxs("div",{className:"login-brand__manifesto",children:[w.jsx("span",{children:"二つの世界、ひとつの美学。"}),w.jsx("span",{children:"สองธุรกิจ หนึ่งมาตรฐาน"})]})]})'
       if (!content.includes(oldLoginBrand)) throw new Error('Login brand markup changed; refusing to replace the bilingual brand text.')
       content = content.replace(oldLoginBrand, newLoginBrand)
       const oldKitchenNav = '{key:"chill-kitchen",permission:"chill_access",label:"Kitchen Board",path:"/chill/kitchen",allow:[I.OWNER,I.CEO,I.CHILL_MANAGER,I.CHILL_STAFF]},'
@@ -676,7 +681,8 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
 }
 const index = await readFile(path.join(outputRoot, 'index.html'), 'utf8')
 const themeControls = `<script>(()=>{const saved=localStorage.getItem('ghostlab-theme')||'dark';document.documentElement.dataset.theme=saved;const paint=()=>{document.querySelectorAll('[data-theme-toggle]').forEach(button=>{const light=document.documentElement.dataset.theme==='light';button.textContent=light?'☾ มืด':'☀ สว่าง';button.setAttribute('aria-label',light?'เปลี่ยนเป็นโหมดมืด':'เปลี่ยนเป็นโหมดสว่าง')})};document.addEventListener('DOMContentLoaded',paint);document.addEventListener('click',event=>{const button=event.target.closest('[data-theme-toggle]');if(!button)return;const next=document.documentElement.dataset.theme==='light'?'dark':'light';document.documentElement.dataset.theme=next;localStorage.setItem('ghostlab-theme',next);paint()})})()</script>`
-const themedIndex = index.replaceAll('/assets/', `/assets/${release}/`).replace('</head>', `${themeControls}</head>`)
+const loginFontLinks = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&amp;family=Inter:wght@400;500;600;700&amp;family=Noto+Sans+Thai:wght@400;500;600;700&amp;family=Noto+Serif+JP:wght@400;500;600&amp;display=swap" rel="stylesheet">`
+const themedIndex = index.replaceAll('/assets/', `/assets/${release}/`).replace('</head>', `${loginFontLinks}${themeControls}</head>`)
 await writeFile(path.join(outputRoot, 'index.html'), themedIndex)
 await verifyAssetReferences(outputRoot)
 
