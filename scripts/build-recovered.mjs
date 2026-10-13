@@ -584,12 +584,12 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       const newHomeEffectBoundary = '},[s,v,c,n==null?void 0:n.primary_branch]),i.useEffect(()=>{const t=()=>setPeakNow(isCommissionPeakNow());t();const a=setInterval(t,3e4);return()=>clearInterval(a)},[]),i.useEffect(()=>{if(c||!n?.id){setPersonalCommission(0),setPersonalCommissionBills(0);return}const t=new Date;let a=null;if(s==="today"&&t.setHours(0,0,0,0),s==="week"&&(t.setDate(t.getDate()-6),t.setHours(0,0,0,0)),s==="month"&&(t.setDate(1),t.setHours(0,0,0,0)),s==="date"){const[y,w,P]=v.split("-").map(Number);t.setFullYear(y,w-1,P),t.setHours(0,0,0,0),a=new Date(t),a.setDate(a.getDate()+1)}let l=u.from("commission_distributions").select("amount,created_at").eq("user_id",n.id).is("reversed_at",null);s!=="all"&&(l=l.gte("created_at",t.toISOString())),a&&(l=l.lt("created_at",a.toISOString())),l.then(({data:y,error:w})=>{w?console.error("[Ghost Lab] Failed to load personal commission:",w):(setPersonalCommission((y||[]).reduce((t,a)=>t+Number(a.amount||0),0)),setPersonalCommissionBills((y||[]).length))})},[c,n==null?void 0:n.id,s,v]),i.useEffect(()=>{u.rpc("list_on_shift_staff",{p_branch_id:c?null:n?.primary_branch||null}).then(({data:t,error:a})=>{a?console.error("[Ghost Lab] Failed to load on-shift staff:",a):setOnShiftStaff(t||[])})},[c,n==null?void 0:n.primary_branch]),i.useEffect(()=>{n!=null&&n.id&&u.from("attendance")'
       content = content.replace(oldHomeEffectBoundary, newHomeEffectBoundary)
       const oldLiveStaffLoader = 'i.useEffect(()=>{u.rpc("list_on_shift_staff",{p_branch_id:c?null:n?.primary_branch||null}).then(({data:t,error:a})=>{a?console.error("[Ghost Lab] Failed to load on-shift staff:",a):setOnShiftStaff(t||[])})},[c,n==null?void 0:n.primary_branch])'
-      const newLiveStaffLoader = 'i.useEffect(()=>{let active=!0;async function refresh(){const{data:t,error:a}=await u.rpc("list_on_shift_staff",{p_branch_id:c?null:n?.primary_branch||null});if(!active)return;if(a){console.error("[Ghost Lab] Failed to load on-shift staff:",a);return}const rows=t||[];setOnShiftStaff(rows),f(rows.length)}refresh();const timer=setInterval(refresh,30000);return()=>{active=!1,clearInterval(timer)}},[c,n==null?void 0:n.primary_branch])'
+      const newLiveStaffLoader = 'i.useEffect(()=>{let active=!0;async function refresh(){const{data:t,error:a}=await u.rpc("list_on_shift_staff",{p_branch_id:c?null:n?.primary_branch||null});if(!active)return;if(a){console.error("[Ghost Lab] Failed to load on-shift staff:",a);return}const rows=t||[];setOnShiftStaff(rows),f(rows.length)}refresh();const channel=u.channel("home-attendance").on("postgres_changes",{event:"*",schema:"public",table:"attendance"},refresh).subscribe();const timer=setInterval(refresh,10000);return()=>{active=!1,clearInterval(timer),u.removeChannel(channel)}},[c,n==null?void 0:n.primary_branch])'
       content = content.replace(oldLiveStaffLoader, newLiveStaffLoader)
 
       content = content.replace(
         'children:[e.jsx("span",{style:{color:d?"#7ee2a5":"var(--ghost-gray)",fontSize:11,fontWeight:600,letterSpacing:.7},children:d?"● ออนไลน์ · เข้างานแล้ว":"○ ออฟไลน์ · ยังไม่เข้างาน"}),e.jsx("button",{type:"button",onClick:R',
-        'children:[e.jsx("span",{style:{background:peakNow?"rgba(53,217,230,.14)":"rgba(255,255,255,.04)",border:`1px solid ${peakNow?"rgba(53,217,230,.68)":"var(--line)"}`,borderRadius:999,color:peakNow?"#35d9e6":"var(--ghost-gray)",fontSize:10,fontWeight:700,letterSpacing:1,padding:"5px 9px"},children:peakNow?"⚡ PEAK TIME · +25% (18:00–05:59)":"◌ ช่วงปกติ · Peak 18:00–05:59"}),e.jsx("span",{style:{color:d?"#7ee2a5":"var(--ghost-gray)",fontSize:11,fontWeight:600,letterSpacing:.7},children:d?"● ออนไลน์ · เข้างานแล้ว":"○ ออฟไลน์ · ยังไม่เข้างาน"}),e.jsx("button",{type:"button",onClick:R',
+        'children:[e.jsxs("span",{style:{background:peakNow?"rgba(53,217,230,.14)":"rgba(255,255,255,.04)",border:`1px solid ${peakNow?"rgba(53,217,230,.68)":"var(--line)"}`,borderRadius:10,color:peakNow?"#35d9e6":"var(--ghost-gray)",display:"flex",flexDirection:"column",fontSize:9,fontWeight:700,gap:3,letterSpacing:.4,padding:"5px 9px"},children:[e.jsx("span",{children:peakNow?"SABINAGISA · PEAK":"SABINAGISA · NORMAL"}),e.jsx("span",{children:"18:00–05:59"}),e.jsx("span",{style:{borderTop:"1px solid var(--line)",paddingTop:3},children:"ช่าง Garage · PEAK 18:00–00:00"})]}),e.jsx("span",{style:{color:d?"#7ee2a5":"var(--ghost-gray)",fontSize:11,fontWeight:600,letterSpacing:.7},children:d?"● ออนไลน์ · เข้างานแล้ว":"○ ออฟไลน์ · ยังไม่เข้างาน"}),e.jsx("button",{type:"button",onClick:R',
       )
 
       const oldOnShiftCard = 'e.jsx(p,{label:"พนักงานเข้างาน",value:`${o} คน`})'
@@ -1414,7 +1414,7 @@ await writeFile(expenseAsset, `${expenseBindings}${expenseOutputFiles[0].text}`)
 const commissionAsset = path.join(outputRoot, 'assets', release, 'CommissionPayouts-C8fCkOtW.js')
 const commissionSourcePath = path.join(projectRoot, 'src', 'pages', 'CommissionPayouts.jsx')
 const commissionSource = (await readFile(commissionSourcePath, 'utf8'))
-  .replace(/^import \{ useCallback, useEffect, useMemo, useState \} from ['"]react['"];?\r?\n/m, '')
+  .replace(/^import\s+\{[^}]+\}\s+from\s+['"]react['"];?\r?\n/m, '')
   .replace(/^import \{ supabase \} from ['"]\.\.\/lib\/supabase['"];?\r?\n/m, '')
   .replace(/^import \{ useAuth \} from ['"]\.\.\/context\/AuthContext['"];?\r?\n/m, '')
   .replace(/^import ['"]\.\/CommissionPayouts\.css['"];?\r?\n/m, '')
@@ -1426,7 +1426,7 @@ const { outputFiles: commissionOutputFiles } = await buildJsx({
     build.onResolve({ filter: /^react$/ }, () => ({ path: './expenses-react-runtime.js', external: true }))
   } }],
 })
-const commissionBindings = 'import{u as useAuth,r as React,s as supabase}from"./index-vaWnYKxf.js";const{useCallback,useEffect,useMemo,useState}=React;'
+const commissionBindings = 'import{u as useAuth,r as React,s as supabase}from"./index-vaWnYKxf.js";const{useCallback,useEffect,useMemo,useRef,useState}=React;'
 await writeFile(commissionAsset, `${commissionBindings}${commissionOutputFiles[0].text}`)
 
 // Replace the legacy daily summary route with the maintained Daily Closing
