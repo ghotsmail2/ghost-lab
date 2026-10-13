@@ -576,17 +576,6 @@ function NewBillTab({ branch, title, staff }) {
         />
       )}
 
-      {pendingCheckout && (
-        <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 150, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(5, 6, 7, .82)', backdropFilter: 'blur(8px)' }}>
-          <section role="alertdialog" aria-modal="true" aria-labelledby="checkout-retry-title" className="panel" style={{ width: 'min(100%, 460px)', padding: 24, borderColor: 'rgba(214, 66, 39, .7)', boxShadow: '0 24px 80px rgba(0,0,0,.5)' }}>
-            <span style={{ color: 'var(--blood)', fontSize: 10, fontWeight: 800, letterSpacing: 1.2 }}>CHECKOUT · VERIFYING</span>
-            <h2 id="checkout-retry-title" style={{ margin: '8px 0', fontSize: 21 }}>กำลังตรวจสอบผลบิลเดิม</h2>
-            <p style={{ color: 'var(--ghost-gray)', fontSize: 13, lineHeight: 1.7, marginBottom: 16 }}>ระบบอาจบันทึกบิลสำเร็จแล้วแต่การตอบกลับขาดหาย เราจะส่งคำขอเดิมซ้ำด้วยรหัสเดิมเพื่อไม่ให้เกิดบิลซ้ำ กรุณาอย่าเริ่มบิลใหม่จนกว่าจะยืนยันผลได้</p>
-            {toast && <p role="status" style={{ color: '#f0bd78', fontSize: 12, lineHeight: 1.6 }}>{toast}</p>}
-            <button type="button" className="btn btn-primary" disabled={submitting} onClick={() => submitBill(true)}>{submitting ? 'กำลังตรวจสอบ…' : 'ตรวจสอบ / ลองส่งคำขอเดิมซ้ำ'}</button>
-          </section>
-        </div>
-      )}
     </div>
   )
 }
