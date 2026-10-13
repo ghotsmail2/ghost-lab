@@ -905,6 +905,19 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       content = content.slice(0, serviceSaveStart) + verifiedServiceSave + '\n' + content.slice(serviceSaveEnd)
       const standardPriceField = 'className: "input font-mono",\n            value: s.price'
       if (content.includes(standardPriceField)) content = content.replace(standardPriceField, 'className: "input font-mono",\n            type: "number",\n            min: 0,\n            step: 1,\n            inputMode: "numeric",\n            "aria-label": `ราคา Standard ${s.name}`,\n            value: s.price')
+      // Catalog-priced Garage rows were still rendered read-only and displayed
+      // the bundled catalog value instead of the editable services.price row.
+      // Clear that legacy lock for every service, including package rows.
+      content = content
+        .replace('readOnly: n.key === "garage" && catalogEntry(s)?.status === "priced",', '')
+        .replace('title: n.key === "garage" && catalogEntry(s)?.status === "priced" ? "ราคาจาก catalog_lite.html" : "ราคาเดิมของบริการ",', '')
+        .replace('            value: n.key === "garage" && catalogEntry(s)?.status === "priced" ? priceService(s).price : s.price,', '            value: s.price,')
+        .replace('            onBlur: r => { if (!(n.key === "garage" && catalogEntry(s)?.status === "priced")) l(s.id, "price", r.target.value); }', '            onBlur: r => l(s.id, "price", r.target.value)')
+      if (content.includes('readOnly: n.key === "garage" && catalogEntry(s)?.status === "priced"')
+          || content.includes('value: n.key === "garage" && catalogEntry(s)?.status === "priced" ? priceService(s).price : s.price')
+          || content.includes('if (!(n.key === "garage" && catalogEntry(s)?.status === "priced"))')) {
+        throw new Error('Garage catalog price lock remains in the Services editor.')
+      }
       if (!content.includes('"aria-label": `ราคา Standard ${s.name}`')) throw new Error('Standard service price field is not validated as numeric in production.')
     }
 
