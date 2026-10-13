@@ -19,6 +19,7 @@ export default function CommissionPayouts() {
   const [branches, setBranches] = useState([])
   const [staffDirectory, setStaffDirectory] = useState([])
   const [distributions, setDistributions] = useState([])
+  const [hourlyCommissions, setHourlyCommissions] = useState([])
   const [payouts, setPayouts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -51,18 +52,25 @@ export default function CommissionPayouts() {
       .select('*,staff:staff_id(id,name_en,avatar_url),branches:branch_id(id,key,name),payer:paid_by(name_en)')
       .gte('paid_at', bounds.start).lte('paid_at', bounds.end)
       .order('paid_at', { ascending: false }).order('id', { ascending: true })
+    const hourlyQuery = supabase.from('garage_technician_hourly_commissions')
+      .select('id,staff_id,branch_id,amount,period_start,period_end,paid_at,payout_id,staff:staff_id(id,name_en,avatar_url),branches:branch_id(id,key,name)')
+      .gte('period_end', bounds.start).lte('period_end', bounds.end)
+      .order('period_end', { ascending: false })
     const branchQuery = supabase.from('branches').select('id,key,name').order('name')
     try {
-      const [distributionResult, payoutResult, branchResult, directoryResult] = await Promise.all([
+      const [distributionResult, payoutResult, branchResult, directoryResult, hourlyResult] = await Promise.all([
         fetchAllPages(isOwner ? distributionQuery : distributionQuery.eq('user_id', staff.id)),
         fetchAllPages(isOwner ? payoutQuery : payoutQuery.eq('staff_id', staff.id)),
         branchQuery,
         isOwner ? supabase.from('staff_admin_directory').select('id,phone,avatar_url') : Promise.resolve({ data: [], error: null }),
+        fetchAllPages(isOwner ? hourlyQuery : hourlyQuery.eq('staff_id', staff.id)),
       ])
       if (requestNumber !== latestLoad.current) return
       if (branchResult.error) throw branchResult.error
       if (directoryResult.error) throw directoryResult.error
+      if (hourlyResult?.error) throw hourlyResult.error
       setDistributions(distributionResult.filter(row => row.bill?.status !== 'rejected' && row.bill?.status !== 'cancelled'))
+      setHourlyCommissions(hourlyResult || [])
       setPayouts(payoutResult)
       setBranches(branchResult.data || [])
       setStaffDirectory(directoryResult.data || [])
@@ -88,7 +96,7 @@ export default function CommissionPayouts() {
         staffId: row.user_id, name: employee.name_en || row.user_name_snapshot || 'ไม่ทราบชื่อ',
         phone: privateEmployee?.phone || '', avatar: privateEmployee?.avatar_url || employee.avatar_url || '', branchId: row.bill?.branch_id,
         branch: branch.name || 'ส่วนกลาง', branchKey: branch.key || 'shared', entries: [], total: 0,
-        outstanding: 0, paid: 0, sales: 0,
+        outstanding: 0, paid: 0, sales: 0, hourlyOutstanding: 0, hourlyEntries: [],
       })
       const group = map.get(groupKey)
       group.entries.push(row)
@@ -103,7 +111,30 @@ export default function CommissionPayouts() {
       status: group.outstanding > 0 && group.paid > 0 ? 'partial' : group.outstanding > 0 ? 'pending' : 'paid',
       unpaidEntries: group.entries.filter(row => !row.paid_at),
     }))
-  }, [distributions, staffDirectory, isOwner])
+    for (const entry of hourlyCommissions) {
+      const branch = entry.branches || {}
+      const groupKey = `${entry.staff_id}-${entry.branch_id}-hourly`
+      if (!map.has(groupKey)) map.set(groupKey, {
+        staffId: entry.staff_id, name: entry.staff?.name_en || 'ไม่ทราบชื่อ',
+        phone: '', avatar: entry.staff?.avatar_url || '', branchId: entry.branch_id,
+        branch: branch.name || 'Ghost Lab Garage', branchKey: branch.key || 'garage', entries: [], total: 0,
+        outstanding: 0, paid: 0, sales: 0, hourlyOutstanding: 0, hourlyEntries: [],
+      })
+      const group = map.get(groupKey)
+      group.hourlyEntries.push(entry)
+      group.total += Number(entry.amount || 0)
+      if (entry.paid_at) group.paid += Number(entry.amount || 0)
+      else { group.outstanding += Number(entry.amount || 0); group.hourlyOutstanding += Number(entry.amount || 0) }
+    }
+    return [...map.values()].map(group => ({
+      ...group,
+      hourlyOnly: group.entries.length === 0 && group.hourlyEntries.length > 0,
+      bills: group.entries.length,
+      status: group.outstanding > 0 && group.paid > 0 ? 'partial' : group.outstanding > 0 ? 'pending' : 'paid',
+      unpaidEntries: group.entries.filter(row => !row.paid_at),
+      unpaidHourlyEntries: group.hourlyEntries.filter(row => !row.paid_at),
+    }))
+  }, [distributions, hourlyCommissions, staffDirectory, isOwner])
 
   const matching = grouped.filter(group => {
     const branchMatch = branchFilter === 'all' || group.branchKey === branchFilter
@@ -134,16 +165,23 @@ export default function CommissionPayouts() {
   async function submitPayout() {
     if (!selected || saving) return
     const amount = Number(bonus || 0)
-    if (!Number.isInteger(amount) || amount < 0) return setError('กรุณากรอกโบนัสเป็นจำนวนเต็มตั้งแต่ 0 ขึ้นไป')
+    if (!selected.hourlyOnly && (!Number.isInteger(amount) || amount < 0)) return setError('กรุณากรอกโบนัสเป็นจำนวนเต็มตั้งแต่ 0 ขึ้นไป')
     setSaving(true)
     setError('')
-    const { error: payoutError } = await supabase.rpc('pay_staff_commission', {
-      p_staff_id: selected.staffId,
-      p_bill_ids: selected.unpaidEntries.map(row => row.bill_id),
-      p_reference: reference.trim() || null,
-      p_note: note.trim() || null,
-      p_bonus: amount,
-    })
+    const { error: payoutError } = selected.hourlyOnly
+      ? await supabase.rpc('pay_garage_hourly_commission', {
+        p_staff_id: selected.staffId,
+        p_hourly_commission_ids: selected.unpaidHourlyEntries.map(row => row.id),
+        p_reference: reference.trim() || null,
+        p_note: note.trim() || null,
+      })
+      : await supabase.rpc('pay_staff_commission', {
+        p_staff_id: selected.staffId,
+        p_bill_ids: selected.unpaidEntries.map(row => row.bill_id),
+        p_reference: reference.trim() || null,
+        p_note: note.trim() || null,
+        p_bonus: amount,
+      })
     setSaving(false)
     if (payoutError) { setError(payoutError.message); return }
     setSelected(null); setBonus(''); setReference(''); setNote('')
@@ -189,7 +227,7 @@ export default function CommissionPayouts() {
       <footer className="commission-console__notice-bar"><CircleDollarSign size={17} /><span>สำหรับทีมการเงิน: กรุณาตรวจสอบยอดบิลและค่าคอมก่อนดำเนินการจ่าย ระบบบันทึกการจ่ายจากรายการผู้รับที่อยู่ใน snapshot ของแต่ละบิล</span></footer>
     </>}
 
-    {!isOwner && <StaffCommissionView distributions={distributions} payouts={payouts} loading={loading} acknowledging={acknowledging} onAcknowledge={acknowledge} dateFrom={dateFrom} dateTo={dateTo} setDateFrom={setDateFrom} setDateTo={setDateTo} />}
+    {!isOwner && <StaffCommissionView distributions={distributions} hourlyCommissions={hourlyCommissions} payouts={payouts} loading={loading} acknowledging={acknowledging} onAcknowledge={acknowledge} dateFrom={dateFrom} dateTo={dateTo} setDateFrom={setDateFrom} setDateTo={setDateTo} />}
 
     {selected && <PayoutModal group={selected} bonus={bonus} setBonus={setBonus} reference={reference} setReference={setReference} note={note} setNote={setNote} saving={saving} error={error} onClose={() => { setSelected(null); setError('') }} onSubmit={submitPayout} />}
     {details && <DetailsModal group={details} onClose={() => setDetails(null)} />}
@@ -200,7 +238,7 @@ function Metric({ Icon, tone, label, value, detail }) { return <article classNam
 
 function BranchTable({ branch, rows, loading, onPay, onDetails, onCopy, copied }) {
   const totalPending = rows.reduce((sum, row) => sum + row.outstanding, 0)
-  return <section className={`commission-console__branch commission-console__branch--${branch.key}`}><header><span><Store size={19} /><span><strong>{branch.name}</strong><small>{branch.key === 'chill' ? 'SABINAGISA · RESTAURANT' : branch.key === 'garage' ? 'GHOST LAB GARAGE' : 'GHOST GROUP'}</small></span></span><div><small>ยอดรวมที่รอจ่ายสาขานี้</small><b>{money(totalPending)}</b></div></header><div className="commission-console__table-scroll"><table><thead><tr><th>#</th><th>พนักงาน</th><th>รหัส IC</th><th>จำนวนบิล</th><th>ยอดขาย (¥)</th><th>ค่าคอม (¥)</th><th>สถานะ</th><th>จัดการ</th></tr></thead><tbody>{rows.map((row,index) => <tr key={`${row.staffId}-${row.branchKey}`}><td>{index + 1}</td><td><span className="commission-console__employee"><Avatar name={row.name} src={row.avatar} /><strong>{row.name}</strong></span></td><td>{row.phone ? <button type="button" className="commission-console__ic" onClick={() => onCopy(row.phone)} title="คัดลอกรหัส IC">{copied === row.phone ? <><Check size={12} /> คัดลอกแล้ว</> : row.phone}</button> : <small className="commission-console__no-ic">ยังไม่มีเบอร์ IC</small>}</td><td>{row.bills.toLocaleString()}</td><td>{money(row.sales)}</td><td><strong className="commission-console__amount">{money(row.total)}</strong>{row.paid > 0 && row.outstanding > 0 && <small className="commission-console__outstanding">ค้าง {money(row.outstanding)}</small>}</td><td><StatusBadge status={row.status} /></td><td><span className="commission-console__actions">{row.outstanding > 0 && <button type="button" className="commission-console__pay-button" onClick={() => onPay(row)}><Wallet size={14} /> จ่ายคอม</button>}<button type="button" className="commission-console__details-button" onClick={() => onDetails(row)} title="ดูรายละเอียด"><Eye size={15} /><span>รายละเอียด</span></button></span></td></tr>)}</tbody></table>{loading && <div className="commission-console__loading">กำลังโหลดข้อมูลค่าคอม…</div>}</div></section>
+  return <section className={`commission-console__branch commission-console__branch--${branch.key}`}><header><span><Store size={19} /><span><strong>{branch.name}</strong><small>{branch.key === 'chill' ? 'SABINAGISA · RESTAURANT' : branch.key === 'garage' ? 'GHOST LAB GARAGE' : 'GHOST GROUP'}</small></span></span><div><small>ยอดรวมที่รอจ่ายสาขานี้</small><b>{money(totalPending)}</b></div></header><div className="commission-console__table-scroll"><table><thead><tr><th>#</th><th>พนักงาน</th><th>รหัส IC</th><th>บิล / ชั่วโมง</th><th>ยอดขาย (¥)</th><th>ค่าคอม (¥)</th><th>สถานะ</th><th>จัดการ</th></tr></thead><tbody>{rows.map((row,index) => <tr key={`${row.staffId}-${row.branchKey}-${row.hourlyOnly ? 'hours' : 'bills'}`}><td>{index + 1}</td><td><span className="commission-console__employee"><Avatar name={row.name} src={row.avatar} /><strong>{row.name}</strong></span></td><td>{row.phone ? <button type="button" className="commission-console__ic" onClick={() => onCopy(row.phone)} title="คัดลอกรหัส IC">{copied === row.phone ? <><Check size={12} /> คัดลอกแล้ว</> : row.phone}</button> : <small className="commission-console__no-ic">ยังไม่มีเบอร์ IC</small>}</td><td>{row.hourlyOnly ? `${row.hourlyEntries.length} ชม.` : <>{row.bills.toLocaleString()}{row.hourlyEntries.length > 0 && <small className="commission-console__outstanding">+ {row.hourlyEntries.length} ชม.</small>}</>}</td><td>{money(row.sales)}</td><td><strong className="commission-console__amount">{money(row.total)}</strong>{row.paid > 0 && row.outstanding > 0 && <small className="commission-console__outstanding">ค้าง {money(row.outstanding)}</small>}</td><td><StatusBadge status={row.status} /></td><td><span className="commission-console__actions">{row.outstanding > 0 && <button type="button" className="commission-console__pay-button" onClick={() => onPay(row)}><Wallet size={14} /> {row.hourlyOnly ? 'จ่ายค่าชั่วโมง' : 'จ่ายคอม'}</button>}<button type="button" className="commission-console__details-button" onClick={() => onDetails(row)} title="ดูรายละเอียด"><Eye size={15} /><span>รายละเอียด</span></button></span></td></tr>)}</tbody></table>{loading && <div className="commission-console__loading">กำลังโหลดข้อมูลค่าคอม…</div>}</div></section>
 }
 
 function StatusBadge({ status }) {
@@ -212,14 +250,15 @@ function StatusBadge({ status }) {
 function Avatar({ name, src }) { return <span className="commission-console__avatar">{src ? <img src={src} alt="" /> : (name || '?').trim().slice(0, 1).toUpperCase()}</span> }
 
 function PayoutModal({ group, bonus, setBonus, reference, setReference, note, setNote, saving, error, onClose, onSubmit }) {
-  return <div className="commission-console__overlay" role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}><section className="commission-console__modal" role="dialog" aria-modal="true" aria-labelledby="payout-title"><header><span><Wallet size={18} /> CONFIRM PAYOUT</span><button type="button" aria-label="ปิด" onClick={onClose}><X size={18} /></button></header><h2 id="payout-title">จ่ายค่าคอมให้ {group.name}</h2><p>{group.branch} · {group.unpaidEntries.length} บิลที่ยังไม่จ่าย</p><div className="commission-console__modal-total"><small>ยอดค่าคอมค้าง</small><strong>{money(group.outstanding + Number(bonus || 0))}</strong></div><label>โบนัส (ถ้ามี)<input type="number" min="0" step="1" value={bonus} onChange={event => setBonus(event.target.value)} placeholder="0" /></label><label>เลขอ้างอิงการโอน<input value={reference} onChange={event => setReference(event.target.value)} placeholder="ไม่บังคับ" /></label><label>หมายเหตุ<textarea value={note} onChange={event => setNote(event.target.value)} rows="2" placeholder="ไม่บังคับ" /></label>{error && <div className="commission-console__error">{error}</div>}<footer><button type="button" className="commission-console__details-button" onClick={onClose}>กลับ</button><button type="button" className="commission-console__pay-button" disabled={saving} onClick={onSubmit}>{saving ? 'กำลังบันทึก…' : <><CheckCircle2 size={16} /> ยืนยันว่าจ่ายแล้ว</>}</button></footer></section></div>
+  return <div className="commission-console__overlay" role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}><section className="commission-console__modal" role="dialog" aria-modal="true" aria-labelledby="payout-title"><header><span><Wallet size={18} /> CONFIRM PAYOUT</span><button type="button" aria-label="ปิด" onClick={onClose}><X size={18} /></button></header><h2 id="payout-title">จ่ายค่าคอมให้ {group.name}</h2><p>{group.branch} · {group.hourlyOnly ? `${group.unpaidHourlyEntries.length} ชั่วโมงที่ยังไม่จ่าย` : `${group.unpaidEntries.length} บิลที่ยังไม่จ่าย`}</p><div className="commission-console__modal-total"><small>ยอดค่าคอมค้าง</small><strong>{money(group.outstanding + (group.hourlyOnly ? 0 : Number(bonus || 0)))}</strong></div>{!group.hourlyOnly && <label>โบนัส (ถ้ามี)<input type="number" min="0" step="1" value={bonus} onChange={event => setBonus(event.target.value)} placeholder="0" /></label>}<label>เลขอ้างอิงการโอน<input value={reference} onChange={event => setReference(event.target.value)} placeholder="ไม่บังคับ" /></label><label>หมายเหตุ<textarea value={note} onChange={event => setNote(event.target.value)} rows="2" placeholder="ไม่บังคับ" /></label>{error && <div className="commission-console__error">{error}</div>}<footer><button type="button" className="commission-console__details-button" onClick={onClose}>กลับ</button><button type="button" className="commission-console__pay-button" disabled={saving} onClick={onSubmit}>{saving ? 'กำลังบันทึก…' : <><CheckCircle2 size={16} /> ยืนยันว่าจ่ายแล้ว</>}</button></footer></section></div>
 }
 
 function DetailsModal({ group, onClose }) {
-  return <div className="commission-console__overlay" role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}><section className="commission-console__modal commission-console__details-modal" role="dialog" aria-modal="true" aria-labelledby="commission-detail-title"><header><span><FileText size={18} /> PAYOUT DETAILS</span><button type="button" aria-label="ปิด" onClick={onClose}><X size={18} /></button></header><h2 id="commission-detail-title">{group.name}</h2><p>{group.branch} · {group.bills} บิล</p><div className="commission-console__detail-list">{group.entries.map(row => <div key={row.id}><span><strong>{row.bill?.bill_number || 'บิล'}</strong><small>{new Date(row.created_at).toLocaleString('th-TH')} · {row.commission_policy === 'garage_technician_clock_in' ? `Ghost Lab Garage · ${row.commission_period === 'peak' ? 'Peak' : row.commission_period === 'normal' ? 'Normal' : 'ไม่พบ Clock In snapshot'}` : row.commission_policy === 'sabinagisa_commission_pool' || row.commission_mode === 'ON_WORK_ALL' ? 'SABINAGISA · Restaurant Pool' : row.commission_mode === 'ON_WORK_ALL' ? 'แบ่งตามผู้เข้างาน' : 'ผู้ทำบิล'}</small></span><span><b>{money(row.amount)}</b><small className={row.paid_at ? 'is-paid' : 'is-pending'}>{row.paid_at ? 'จ่ายแล้ว' : 'รอจ่าย'}</small></span></div>)}</div><footer><span>รวมค่าคอม</span><strong>{money(group.total)}</strong></footer></section></div>
+  return <div className="commission-console__overlay" role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}><section className="commission-console__modal commission-console__details-modal" role="dialog" aria-modal="true" aria-labelledby="commission-detail-title"><header><span><FileText size={18} /> PAYOUT DETAILS</span><button type="button" aria-label="ปิด" onClick={onClose}><X size={18} /></button></header><h2 id="commission-detail-title">{group.name}</h2><p>{group.branch} · {group.hourlyOnly ? `${group.hourlyEntries.length} ชั่วโมง` : `${group.bills} บิล${group.hourlyEntries.length ? ` · ${group.hourlyEntries.length} ชั่วโมง` : ''}`}</p><div className="commission-console__detail-list">{group.entries.map(row => <div key={row.id}><span><strong>{row.bill?.bill_number || 'บิล'}</strong><small>{new Date(row.created_at).toLocaleString('th-TH')} · {row.commission_policy === 'garage_technician_clock_in' ? `Ghost Lab Garage · ${row.commission_period === 'peak' ? 'Peak' : row.commission_period === 'normal' ? 'Normal' : 'ไม่พบ Clock In snapshot'}` : row.commission_policy === 'sabinagisa_commission_pool' || row.commission_mode === 'ON_WORK_ALL' ? 'SABINAGISA · Restaurant Pool' : row.commission_mode === 'ON_WORK_ALL' ? 'แบ่งตามผู้เข้างาน' : 'ผู้ทำบิล'}</small></span><span><b>{money(row.amount)}</b><small className={row.paid_at ? 'is-paid' : 'is-pending'}>{row.paid_at ? 'จ่ายแล้ว' : 'รอจ่าย'}</small></span></div>)}{group.hourlyEntries.map(row => <div key={row.id}><span><strong>ชั่วโมงครบ · {new Date(row.period_end).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',hour12:false})}</strong><small>{new Date(row.period_start).toLocaleString('th-TH')} – {new Date(row.period_end).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',hour12:false})} · ค่าคอมช่างรายชั่วโมง</small></span><span><b>{money(row.amount)}</b><small className={row.paid_at ? 'is-paid' : 'is-pending'}>{row.paid_at ? 'จ่ายแล้ว' : 'รอจ่าย'}</small></span></div>)}</div><footer><span>รวมค่าคอม</span><strong>{money(group.total)}</strong></footer></section></div>
 }
 
-function StaffCommissionView({ distributions, payouts, loading, acknowledging, onAcknowledge, dateFrom, dateTo, setDateFrom, setDateTo }) {
+function StaffCommissionView({ distributions, hourlyCommissions, payouts, loading, acknowledging, onAcknowledge, dateFrom, dateTo, setDateFrom, setDateTo }) {
   const pending = distributions.filter(row => !row.paid_at)
-  return <><section className="commission-console__metrics"><Metric Icon={CircleDollarSign} tone="orange" label="ค่าคอมรอรับ" value={money(pending.reduce((sum,row) => sum + Number(row.amount || 0),0))} detail={`${pending.length} บิล`} /><Metric Icon={CheckCircle2} tone="green" label="ได้รับแล้วในช่วงนี้" value={money(payouts.reduce((sum,row) => sum + Number(row.total_amount || 0),0))} detail={`${payouts.length} รายการจ่าย`} /></section><div className="commission-console__staff-filter"><CalendarDays size={16} /><input type="date" value={dateFrom} onChange={event => setDateFrom(event.target.value)} /><span>—</span><input type="date" value={dateTo} onChange={event => setDateTo(event.target.value)} /></div><section className="commission-console__staff-list"><header><h2>ค่าคอมของฉัน</h2><span>{pending.length} บิลรอจ่าย</span></header>{loading ? <p className="commission-console__side-empty">กำลังโหลด…</p> : distributions.map(row => <div className="commission-console__staff-row" key={row.id}><span><strong>{row.bill?.bill_number || 'บิล'}</strong><small>{row.bill?.branches?.name || '—'} · {row.commission_policy === 'garage_technician_clock_in' ? `${row.commission_period === 'peak' ? 'Peak' : 'Normal'} · ตามเวลา Clock In` : row.commission_policy === 'sabinagisa_commission_pool' ? 'SABINAGISA · Pool เดิม' : new Date(row.created_at).toLocaleDateString('th-TH')}</small></span><b>{money(row.amount)}</b><StatusBadge status={row.paid_at ? 'paid' : 'pending'} /></div>)}<div className="commission-console__staff-history">{payouts.map(payout => <div key={payout.id}><span><strong>{money(payout.total_amount)}</strong><small>{payout.branches?.name || '—'} · {new Date(payout.paid_at).toLocaleDateString('th-TH')}</small></span>{!payout.acknowledged_at ? <button type="button" className="commission-console__pay-button" disabled={acknowledging === payout.id} onClick={() => onAcknowledge(payout.id)}><Check size={15} /> {acknowledging === payout.id ? 'กำลังบันทึก…' : 'ได้รับแล้ว'}</button> : <StatusBadge status="paid" />}</div>)}</div></section></>
+  const pendingHourly = hourlyCommissions.filter(row => !row.paid_at)
+  return <><section className="commission-console__metrics"><Metric Icon={CircleDollarSign} tone="orange" label="ค่าคอมรอรับ" value={money(pending.reduce((sum,row) => sum + Number(row.amount || 0),0)+pendingHourly.reduce((sum,row) => sum+Number(row.amount||0),0))} detail={`${pending.length} บิล · ${pendingHourly.length} ชั่วโมง`} /><Metric Icon={CheckCircle2} tone="green" label="ได้รับแล้วในช่วงนี้" value={money(payouts.reduce((sum,row) => sum + Number(row.total_amount || 0),0))} detail={`${payouts.length} รายการจ่าย`} /></section><div className="commission-console__staff-filter"><CalendarDays size={16} /><input type="date" value={dateFrom} onChange={event => setDateFrom(event.target.value)} /><span>—</span><input type="date" value={dateTo} onChange={event => setDateTo(event.target.value)} /></div><section className="commission-console__staff-list"><header><h2>ค่าคอมของฉัน</h2><span>{pending.length} บิล · {pendingHourly.length} ชั่วโมงรอจ่าย</span></header>{loading ? <p className="commission-console__side-empty">กำลังโหลด…</p> : <>{distributions.map(row => <div className="commission-console__staff-row" key={row.id}><span><strong>{row.bill?.bill_number || 'บิล'}</strong><small>{row.bill?.branches?.name || '—'} · {row.commission_policy === 'garage_technician_clock_in' ? 'Ghost Lab Garage · ค่าคอมต่อบิล' : row.commission_policy === 'sabinagisa_commission_pool' ? 'SABINAGISA · Pool เดิม' : new Date(row.created_at).toLocaleDateString('th-TH')}</small></span><b>{money(row.amount)}</b><StatusBadge status={row.paid_at ? 'paid' : 'pending'} /></div>)}{hourlyCommissions.map(row => <div className="commission-console__staff-row" key={row.id}><span><strong>ค่าคอมช่าง · ครบ 1 ชั่วโมง</strong><small>{new Date(row.period_start).toLocaleString('th-TH')} – {new Date(row.period_end).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',hour12:false})} · {row.amount===15000?'Peak':'ปกติ'}</small></span><b>{money(row.amount)}</b><StatusBadge status={row.paid_at ? 'paid' : 'pending'} /></div>)}</> }<div className="commission-console__staff-history">{payouts.map(payout => <div key={payout.id}><span><strong>{money(payout.total_amount)}</strong><small>{payout.branches?.name || '—'} · {new Date(payout.paid_at).toLocaleDateString('th-TH')}</small></span>{!payout.acknowledged_at ? <button type="button" className="commission-console__pay-button" disabled={acknowledging === payout.id} onClick={() => onAcknowledge(payout.id)}><Check size={15} /> {acknowledging === payout.id ? 'กำลังบันทึก…' : 'ได้รับแล้ว'}</button> : <StatusBadge status="paid" />}</div>)}</div></section></>
 }

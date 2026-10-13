@@ -4,9 +4,10 @@ import test from 'node:test'
 import { calculateSabinagisaCommissionPool, classifyGarageCommissionClockIn, commissionPolicyForEmployee } from '../src/lib/commission-pool.js'
 
 const migration = await readFile(new URL('../supabase/garage_technician_commission_policy.sql', import.meta.url), 'utf8')
+const hourlyMigration = await readFile(new URL('../supabase/migrations/20261014120000_garage_technician_hourly_commission.sql', import.meta.url), 'utf8')
 const attendance = await readFile(new URL('../src/pages/Attendance.jsx', import.meta.url), 'utf8')
 const commissionHistory = await readFile(new URL('../src/pages/CommissionPayouts.jsx', import.meta.url), 'utf8')
-const pos = await readFile(new URL('../src/pages/POSPage.jsx', import.meta.url), 'utf8')
+const productionBuilder = await readFile(new URL('./build-recovered.mjs', import.meta.url), 'utf8')
 
 test('Garage commission clock-in boundaries use Bangkok time and end Peak exactly at 23:00', () => {
   const at = time => classifyGarageCommissionClockIn(new Date(time))
@@ -42,11 +43,17 @@ test('database snapshots Garage policy only for Garage mechanics and preserves R
   assert.doesNotMatch(restaurantPreview, /garage_technician|garage_commission/)
 })
 
-test('attendance and commission history show immutable Normal/Peak snapshots', () => {
-  assert.match(attendance, /garage_commission_period/)
-  assert.match(attendance, /garage_commission_amount/)
-  assert.match(attendance, /staff\?\.branches\?\.key === 'garage'.*head_mechanic/s)
-  assert.match(commissionHistory, /commission_policy,commission_period,commission_attendance_id/)
-  assert.match(commissionHistory, /row\.commission_period === 'peak' \? 'Peak' : row\.commission_period === 'normal' \? 'Normal'/)
-  assert.match(pos, /NORMAL — ¥10,000 · PEAK — ¥15,000 · Garage Peak Time 18:00–23:00/)
+test('Garage keeps ¥3,000 per bill and records each full hour separately with idempotent Peak rates', () => {
+  assert.match(hourlyMigration, /amount integer not null check \(amount in \(10000,15000\)\)/)
+  assert.match(hourlyMigration, /unique \(attendance_id,hour_index\)/)
+  assert.match(hourlyMigration, /floor\(extract\(epoch from\(cutoff_value-a\.clock_in\)\)\/3600\)/)
+  assert.match(hourlyMigration, /period_hour>=18 and period_hour<23 then 15000 else 10000/)
+  assert.match(hourlyMigration, /on conflict\(attendance_id,hour_index\) do nothing/)
+  assert.match(hourlyMigration, /coalesce\(branch_row\.commission_flat, 3000\)::integer/)
+  assert.match(hourlyMigration, /pay_garage_hourly_commission/)
+  assert.match(hourlyMigration, /commission_pool_base/)
+  assert.match(attendance, /ค่าคอมรายชั่วโมง: ¥10,000\/ชม\. · Peak ¥15,000\/ชม\./)
+  assert.match(commissionHistory, /garage_technician_hourly_commissions/)
+  assert.match(commissionHistory, /pay_garage_hourly_commission/)
+  assert.match(productionBuilder, /BILL ¥3,000 · HOURLY ¥10,000 · PEAK ¥15,000/)
 })

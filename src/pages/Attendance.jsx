@@ -71,10 +71,7 @@ export default function Attendance() {
 
       {staff?.branches?.key === 'garage' && ['head_mechanic', 'mechanic', 'mechanic_trainee'].includes(staff.role) && (
         <div className="panel" role="status" style={{ marginBottom: 16, color: 'var(--ghost-gray)', fontSize: 12 }}>
-          NORMAL — ¥10,000 · PEAK — ¥15,000 · Garage Peak Time 18:00–23:00
-          {openEntry?.garage_commission_period && <strong style={{ color: 'var(--bone)', marginLeft: 10 }}>
-            กะนี้: {openEntry.garage_commission_period === 'peak' ? 'Peak' : 'Normal'} · ¥{Number(openEntry.garage_commission_amount || 0).toLocaleString()}
-          </strong>}
+          ค่าคอมรายชั่วโมง: ¥10,000/ชม. · Peak ¥15,000/ชม. (18:00–23:00) · ได้เมื่อครบแต่ละชั่วโมง
         </div>
       )}
 
@@ -84,7 +81,7 @@ export default function Attendance() {
           ? <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--ghost-gray)', fontSize: 11 }}>ยังไม่มีการลงเวลา</div>
           : todayLog.map(e => (
             <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 0', borderBottom: '1px solid var(--line)' }}>
-              <span>เข้า {new Date(e.clock_in).toLocaleTimeString('th-TH', { hour12: false })}{e.garage_commission_period && <small style={{ color: 'var(--ghost-gray)', display: 'block' }}>{e.garage_commission_period === 'peak' ? 'Peak' : 'Normal'} · ¥{Number(e.garage_commission_amount || 0).toLocaleString()}</small>}</span>
+              <span>เข้า {new Date(e.clock_in).toLocaleTimeString('th-TH', { hour12: false })}{staff?.branches?.key === 'garage' && ['head_mechanic', 'mechanic', 'mechanic_trainee'].includes(staff.role) && <small style={{ color: 'var(--ghost-gray)', display: 'block' }}>ชั่วโมงปกติ ¥10,000 · Peak ¥15,000</small>}</span>
               <span>{e.clock_out ? `ออก ${new Date(e.clock_out).toLocaleTimeString('th-TH', { hour12: false })}` : '—'}</span>
             </div>
           ))
