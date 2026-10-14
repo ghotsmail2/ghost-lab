@@ -31,7 +31,7 @@ begin
     'g'
   );
 
-  if position('then coalesce(branch_row.commission_flat, 3000)::integer' in patched_sql) = 0 then
+  if patched_sql !~ $required$expected_commission := case\s+when bill_input\.total > 0 and \(\s*\(branch_row\.key::text = 'garage' and actor\.role::text in \('head_mechanic','mechanic','mechanic_trainee'\)\)$required$ then
     raise exception 'Could not normalize Garage bill commission to the branch rate; no changes applied';
   end if;
 
