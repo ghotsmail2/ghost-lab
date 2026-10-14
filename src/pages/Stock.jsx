@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { Boxes, ChevronRight, ClipboardCheck, Coins, ListFilter, Minus, PackageOpen, PackageX, Plus, Search, TriangleAlert, X } from 'lucide-react'
+import { Boxes, ChevronRight, ClipboardCheck, Coins, ListFilter, Minus, PackageOpen, PackageX, Plus, Search, Trash2, TriangleAlert, X } from 'lucide-react'
 import './Stock.css'
 
 export default function Stock() {
@@ -19,6 +19,7 @@ export default function Stock() {
   const [pendingRequest, setPendingRequest] = useState(() => readStockRequest())
   const [savingChanges, setSavingChanges] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [deletingItemId, setDeletingItemId] = useState(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [movements, setMovements] = useState([])
@@ -128,6 +129,31 @@ export default function Stock() {
     }
   }
 
+  async function deleteUnusedItem(item) {
+    if (!['owner', 'god'].includes(staff?.role)) return
+    if (Number(item.quantity || 0) !== 0) {
+      setSaveError('ลบไม่ได้: ต้องปรับยอดคงเหลือให้เป็น 0 ก่อน')
+      return
+    }
+    if (pendingRequest || savingChanges || changes[item.id]) {
+      setSaveError('บันทึกหรือยกเลิกการปรับสต็อกที่ค้างอยู่ก่อนลบรายการนี้')
+      return
+    }
+    if (!window.confirm(`ลบวัตถุดิบ “${item.name}” ออกจากสาขา ${item.branches?.name || ''} ใช่ไหม?\n\nระบบจะลบได้เฉพาะรายการที่ไม่เคยถูกใช้ในสูตรหรือประวัติสต็อกเท่านั้น`)) return
+    setDeletingItemId(item.id)
+    setSaveError('')
+    try {
+      const { error } = await supabase.rpc('delete_unused_stock_item', { p_stock_item_id: item.id })
+      if (error) throw error
+      setRefreshKey(key => key + 1)
+    } catch (error) {
+      console.error('Unable to delete unused stock item:', error)
+      setSaveError(error.message || 'ลบวัตถุดิบไม่สำเร็จ')
+    } finally {
+      setDeletingItemId(null)
+    }
+  }
+
   return (
     <main className="stock-page">
       <section className="stock-heading panel"><MetricIcon className="stock-heading__icon" icon={PackageOpen} tone="orange" size={25} /><div className="stock-heading__title"><span>OPERATIONS WORKSPACE</span><h1>สต็อก & เบิกจ่าย</h1><p>Stock & Prepay Management</p></div><div className="stock-heading__actions"><button type="button" className="btn" onClick={saveAllChanges} disabled={(!pendingChanges.length && !pendingRequest) || savingChanges}>{savingChanges ? 'กำลังบันทึก…' : <><ClipboardCheck size={16} strokeWidth={2} /> {pendingRequest ? 'ตรวจสอบ / ลองบันทึกซ้ำ' : 'บันทึกการปรับสต็อก'}{pendingChanges.length ? ` (${pendingChanges.length})` : ''}</>}</button><button type="button" onClick={() => setShowAdd(true)} className="btn btn-primary"><Plus size={17} strokeWidth={2} /> เพิ่มวัตถุดิบ</button></div></section>
@@ -144,8 +170,8 @@ export default function Stock() {
         <section className="stock-main">
           <div className="stock-toolbar panel"><label className="stock-search"><Search size={17} strokeWidth={2} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="ค้นหาวัตถุดิบ เช่น ปลา Steel, Rice" /></label><div className="stock-status-filter"><span className="stock-filter-label"><ListFilter size={15} strokeWidth={2} /> ตัวกรอง</span>{[['all','ทั้งหมด'],['normal','ปกติ'],['low','ใกล้หมด'],['out','หมด']].map(([key,label]) => <button type="button" key={key} className={statusFilter === key ? 'is-active' : ''} onClick={() => setStatusFilter(key)}>{label}</button>)}</div></div>
           <section className="stock-table-panel panel"><div className="stock-table-title"><div><h2>วัตถุดิบ / รายการ</h2><p>{filtered.length} รายการ · ปรับจำนวนได้จากตารางและบันทึกพร้อมกัน</p></div><span>{pendingChanges.length ? `${pendingChanges.length} รายการรอบันทึก` : 'LIVE STOCK'}</span></div>
-            <div className="stock-table-scroll"><table className="stock-table"><thead><tr><th>รายการ</th><th>สาขา</th><th>คงเหลือ</th><th>ขั้นต่ำ</th><th>สถานะ</th><th>ปรับจำนวน</th><th>หน่วย</th><th>อัปเดตล่าสุด</th></tr></thead><tbody>
-              {loading ? <tr><td colSpan="8" className="stock-empty">กำลังโหลดสต็อก…</td></tr> : filtered.length === 0 ? <tr><td colSpan="8" className="stock-empty">ไม่พบรายการตามตัวกรองนี้</td></tr> : filtered.map(item => { const qty = Number(item.quantity || 0), threshold = Number(item.low_stock_threshold || 0), status = qty <= 0 ? 'out' : qty <= threshold ? 'low' : 'normal'; return <tr key={item.id}><td><strong>{item.name}</strong><small>{item.category || 'ไม่ระบุหมวดหมู่'}</small></td><td><span className={`stock-branch-pill ${item.branches?.key === 'chill' ? 'is-food' : ''}`}>{item.branches?.name || '—'}</span></td><td><strong className={`stock-qty ${qty <= 0 ? 'is-negative' : status === 'low' ? 'is-low' : ''}`}>{qty.toLocaleString()}</strong></td><td>{threshold.toLocaleString()}</td><td><span className={`stock-status is-${status}`}>{status === 'normal' ? 'ปกติ' : status === 'low' ? 'ใกล้หมด' : 'หมด'}</span></td><td><StockQuantityControl item={item} change={changes[item.id] || 0} onChange={setItemChange} disabled={Boolean(pendingRequest || savingChanges)} /></td><td>{item.unit || 'ชิ้น'}</td><td>{item.updated_at ? <><span>{new Date(item.updated_at).toLocaleDateString('th-TH')}</span><small>{new Date(item.updated_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</small></> : '—'}</td></tr> })}
+            <div className="stock-table-scroll"><table className="stock-table"><thead><tr><th>รายการ</th><th>สาขา</th><th>คงเหลือ</th><th>ขั้นต่ำ</th><th>สถานะ</th><th>ปรับจำนวน</th><th>หน่วย</th><th>อัปเดตล่าสุด</th>{['owner', 'god'].includes(staff?.role) && <th>ลบ</th>}</tr></thead><tbody>
+              {loading ? <tr><td colSpan={['owner', 'god'].includes(staff?.role) ? 9 : 8} className="stock-empty">กำลังโหลดสต็อก…</td></tr> : filtered.length === 0 ? <tr><td colSpan={['owner', 'god'].includes(staff?.role) ? 9 : 8} className="stock-empty">ไม่พบรายการตามตัวกรองนี้</td></tr> : filtered.map(item => { const qty = Number(item.quantity || 0), threshold = Number(item.low_stock_threshold || 0), status = qty <= 0 ? 'out' : qty <= threshold ? 'low' : 'normal'; return <tr key={item.id}><td><strong>{item.name}</strong><small>{item.category || 'ไม่ระบุหมวดหมู่'}</small></td><td><span className={`stock-branch-pill ${item.branches?.key === 'chill' ? 'is-food' : ''}`}>{item.branches?.name || '—'}</span></td><td><strong className={`stock-qty ${qty <= 0 ? 'is-negative' : status === 'low' ? 'is-low' : ''}`}>{qty.toLocaleString()}</strong></td><td>{threshold.toLocaleString()}</td><td><span className={`stock-status is-${status}`}>{status === 'normal' ? 'ปกติ' : status === 'low' ? 'ใกล้หมด' : 'หมด'}</span></td><td><StockQuantityControl item={item} change={changes[item.id] || 0} onChange={setItemChange} disabled={Boolean(pendingRequest || savingChanges || deletingItemId)} /></td><td>{item.unit || 'ชิ้น'}</td><td>{item.updated_at ? <><span>{new Date(item.updated_at).toLocaleDateString('th-TH')}</span><small>{new Date(item.updated_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</small></> : '—'}</td>{['owner', 'god'].includes(staff?.role) && <td><button type="button" disabled={deletingItemId !== null || Boolean(pendingRequest || savingChanges || changes[item.id]) || qty !== 0} onClick={() => deleteUnusedItem(item)} title={qty !== 0 ? 'ลบได้เมื่อยอดคงเหลือเป็น 0' : 'ลบวัตถุดิบที่ยังไม่เคยใช้งาน'} aria-label={`ลบวัตถุดิบ ${item.name}`} className="stock-delete-button">{deletingItemId === item.id ? '…' : <Trash2 size={15} />}</button></td>}</tr> })}
             </tbody></table></div>
           </section>
         </section>
