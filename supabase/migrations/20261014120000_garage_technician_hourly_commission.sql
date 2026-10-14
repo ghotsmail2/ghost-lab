@@ -47,7 +47,7 @@ begin
     if a.id is null then return 0; end if;
   end if;
   select key::text into branch_key_value from public.branches where id=a.branch_id;
-  if branch_key_value<>'garage' or not exists(select 1 from public.staff s where s.id=a.staff_id and s.role::text in ('head_mechanic','mechanic','mechanic_trainee')) then return 0; end if;
+  if branch_key_value<>'garage' or not exists(select 1 from public.staff s where s.id=a.staff_id and s.role::text in ('head_mechanic','mechanic','mechanic_trainee','ceo')) then return 0; end if;
   cutoff_value:=least(coalesce(a.clock_out,clock_timestamp()),clock_timestamp());
   completed_hours:=greatest(0,floor(extract(epoch from(cutoff_value-a.clock_in))/3600)::integer);
   for hour_number in 1..completed_hours loop
@@ -197,7 +197,7 @@ begin
   select * into recipient from public.staff where id=p_staff_id;
   if recipient.id is null then raise exception 'Staff not found'; end if;
   perform h.id from public.garage_technician_hourly_commissions h where h.id=any(p_hourly_commission_ids) and h.staff_id=p_staff_id and h.paid_at is null for update;
-  select coalesce(sum(h.amount),0),count(*),min(h.branch_id) into amount_value,entry_count,branch_id_value
+  select coalesce(sum(h.amount),0),count(*),(array_agg(distinct h.branch_id order by h.branch_id))[1] into amount_value,entry_count,branch_id_value
   from public.garage_technician_hourly_commissions h where h.id=any(p_hourly_commission_ids) and h.staff_id=p_staff_id and h.paid_at is null;
   if entry_count<>array_length(p_hourly_commission_ids,1) or amount_value<=0 or
     (select count(distinct h.branch_id) from public.garage_technician_hourly_commissions h where h.id=any(p_hourly_commission_ids))<>1 then raise exception 'Some hourly earnings were already paid or are invalid'; end if;
@@ -212,3 +212,28 @@ end;
 $$;
 revoke all on function public.pay_garage_hourly_commission(uuid,uuid[],text,text) from public,anon;
 grant execute on function public.pay_garage_hourly_commission(uuid,uuid[],text,text) to authenticated;
+
+-- CEOs assigned to the Garage earn the same completed-hour commission as
+-- Garage technicians. Backfill their completed hours since 13 Oct 2026.
+insert into public.garage_technician_hourly_commissions
+  (attendance_id, staff_id, branch_id, hour_index, period_start, period_end, amount)
+select
+  a.id,
+  a.staff_id,
+  a.branch_id,
+  h.hour_index,
+  a.clock_in + make_interval(hours => h.hour_index - 1),
+  a.clock_in + make_interval(hours => h.hour_index),
+  case
+    when extract(hour from ((a.clock_in + make_interval(hours => h.hour_index - 1)) at time zone 'Asia/Bangkok'))::integer between 18 and 22 then 15000
+    else 10000
+  end
+from public.attendance a
+join public.staff s on s.id = a.staff_id and s.role::text = 'ceo'
+join public.branches b on b.id = a.branch_id and b.key::text = 'garage'
+cross join lateral generate_series(
+  1,
+  greatest(0, floor(extract(epoch from (least(coalesce(a.clock_out, now()), now()) - a.clock_in)) / 3600)::integer)
+) as h(hour_index)
+where a.clock_in >= timestamptz '2026-10-13 00:00:00+07'
+on conflict (attendance_id, hour_index) do nothing;

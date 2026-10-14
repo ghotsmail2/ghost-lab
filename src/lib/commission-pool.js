@@ -7,6 +7,7 @@ const POOL_TIERS = [
 ]
 
 export const GARAGE_TECHNICIAN_ROLES = new Set(['head_mechanic', 'mechanic', 'mechanic_trainee'])
+export const GARAGE_HOURLY_COMMISSION_ROLES = new Set([...GARAGE_TECHNICIAN_ROLES, 'ceo'])
 
 export function classifyGarageCommissionClockIn(clockIn) {
   const at = clockIn instanceof Date ? clockIn : new Date(clockIn)
