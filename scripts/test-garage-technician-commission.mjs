@@ -5,6 +5,7 @@ import { calculateSabinagisaCommissionPool, classifyGarageCommissionClockIn, com
 
 const migration = await readFile(new URL('../supabase/garage_technician_commission_policy.sql', import.meta.url), 'utf8')
 const hourlyMigration = await readFile(new URL('../supabase/migrations/20261014120000_garage_technician_hourly_commission.sql', import.meta.url), 'utf8')
+const garageCheckoutHotfix = await readFile(new URL('../supabase/migrations/20261014150000_garage_pos_commission_mismatch_hotfix.sql', import.meta.url), 'utf8')
 const attendance = await readFile(new URL('../src/pages/Attendance.jsx', import.meta.url), 'utf8')
 const commissionHistory = await readFile(new URL('../src/pages/CommissionPayouts.jsx', import.meta.url), 'utf8')
 const productionBuilder = await readFile(new URL('./build-recovered.mjs', import.meta.url), 'utf8')
@@ -56,4 +57,12 @@ test('Garage keeps ¥3,000 per bill and records each full hour separately with i
   assert.match(commissionHistory, /garage_technician_hourly_commissions/)
   assert.match(commissionHistory, /pay_garage_hourly_commission/)
   assert.match(productionBuilder, /BILL ¥3,000 · HOURLY ¥10,000 · PEAK ¥15,000/)
+})
+
+test('Garage checkout uses the server rate for mechanics and does not classify a definite commission rejection as an unknown bill', () => {
+  assert.match(garageCheckoutHotfix, /branch_row\.key::text = 'garage'[\s\S]*actor\.role::text in \('head_mechanic','mechanic','mechanic_trainee'\)/)
+  assert.match(garageCheckoutHotfix, /bill_input\.commission := expected_commission/)
+  assert.match(garageCheckoutHotfix, /Individual commission differs from the active branch rate/)
+  assert.match(productionBuilder, /const commissionRejected = error\?\.code === "22023"/)
+  assert.match(productionBuilder, /localStorage\.removeItem\(checkoutStorageKey\);[\s\S]*บิลยังไม่ถูกบันทึก/)
 })

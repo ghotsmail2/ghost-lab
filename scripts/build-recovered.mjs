@@ -802,7 +802,17 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       setVehicleClass("standard"); m([]); o(""); r(""); S(""); P(null); te(false); ne(false); J(false); ie(""); oe(""); V("บันทึกบิลสำเร็จ ✓ " + request.billData.bill_number);
     } catch (error) {
       console.error(error);
-      V(\`ยังยืนยันผลบิลไม่ได้ — เก็บคำขอเดิมไว้แล้ว กดลองตรวจสอบ/ส่งซ้ำอีกครั้ง (\${error.message || "เครือข่ายขัดข้อง"})\`);
+      const commissionRejected = error?.code === "22023" && String(error?.message || "").includes("Individual commission differs from the active branch rate");
+      if (commissionRejected) {
+        // PostgreSQL returned a definite validation failure before commit; it
+        // is not an ambiguous network outcome and must not lock the mechanic
+        // into the duplicate-check/retry state.
+        localStorage.removeItem(checkoutStorageKey);
+        setPendingCheckout(null);
+        V("บิลยังไม่ถูกบันทึก: เรตค่าคอมไม่ตรงกับสาขา กรุณากดลองบันทึกใหม่");
+      } else {
+        V(\`ยังยืนยันผลบิลไม่ได้ — เก็บคำขอเดิมไว้แล้ว กดลองตรวจสอบ/ส่งซ้ำอีกครั้ง (\${error.message || "เครือข่ายขัดข้อง"})\`);
+      }
     } finally { z.current = false; w(false); }
   }`
       content = content.slice(0, submitStart) + atomicSubmit + content.slice(submitEnd)
