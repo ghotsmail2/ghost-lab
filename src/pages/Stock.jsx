@@ -4,26 +4,6 @@ import { useAuth } from '../context/AuthContext'
 import { Boxes, ChevronRight, ClipboardCheck, Coins, ListFilter, Minus, PackageOpen, PackageX, Plus, Search, TriangleAlert, X } from 'lucide-react'
 import './Stock.css'
 
-async function loadStockItemsWithAuthRetry() {
-  const load = () => supabase
-    .from('stock_items')
-    .select('*, branches:branch_id(key,name)')
-    .order('category')
-    .order('name')
-  let result = await load()
-  if (result.error?.code !== '42501') return result
-
-  // Long-open tabs can retain an expired access token while the UI still has
-  // the staff profile cached. Refresh the user's session once, then retry the
-  // exact read; never fall back to anon or broaden table access.
-  const refreshed = await supabase.auth.refreshSession()
-  if (refreshed.error || !refreshed.data.session) {
-    return { data: null, error: new Error('เซสชันหมดอายุ กรุณาออกจากระบบแล้วล็อกอินใหม่') }
-  }
-  result = await load()
-  return result
-}
-
 export default function Stock() {
   const { staff } = useAuth()
   const [items, setItems] = useState([])
@@ -67,27 +47,14 @@ export default function Stock() {
 
   useEffect(() => {
     let active = true
-    supabase.from('branches').select('*').then(({ data, error }) => {
-      if (!active) return
-      if (error) console.error('Unable to load stock branches:', error)
-      setBranches(data || [])
-    }).catch(error => console.error('Unable to load stock branches:', error))
-    return () => { active = false }
-  }, [])
-
-  useEffect(() => {
-    let active = true
     setLoading(true)
     setLoadError('')
-    Promise.all([
-      loadStockItemsWithAuthRetry(),
-      supabase.from('stock_movements').select('id,stock_item_id,staff_id,change,reason,created_at,staff:staff_id(name_en)').order('created_at', { ascending: false }).limit(30),
-    ]).then(([stockResult, movementResult]) => {
+    supabase.rpc('get_stock_workspace_for_current_staff').then(({ data, error }) => {
       if (!active) return
-      if (stockResult.error) throw stockResult.error
-      setItems(stockResult.data || [])
-      setMovements(movementResult.data || [])
-      if (movementResult.error) console.error('Unable to load stock movements:', movementResult.error)
+      if (error) throw error
+      setItems(data?.items || [])
+      setMovements(data?.movements || [])
+      setBranches(data?.branches || [])
     }).catch(error => {
       if (!active) return
       console.error('Unable to load stock:', error)
