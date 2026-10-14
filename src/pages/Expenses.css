@@ -53,7 +53,20 @@
 .expenses-metric__value { color: var(--bone); display: block; font-size: clamp(15px, 1.4vw, 21px); font-weight: 750; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .expenses-metric__meta { color: var(--ghost-gray); display: block; font-size: 10px; margin-top: 4px; }
 
-.expenses-fund { align-items: center; display: grid; gap: 16px; grid-template-columns: minmax(150px, .8fr) 3fr; padding: 13px 15px; }
+.expenses-fund { display: grid; gap: 12px; padding: 14px 15px; }
+.expenses-fund-heading { align-items: center; display: flex; justify-content: space-between; }
+.expenses-fund-heading > div { display: grid; gap: 3px; }
+.expenses-fund-heading strong { color: var(--bone); font-size: 13px; }
+.expenses-fund-heading small { color: var(--ghost-gray); font-size: 9px; }
+.expenses-fund-branches { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.expenses-branch-fund { background: rgba(255,255,255,.018); border: 1px solid var(--line); border-radius: 10px; min-width: 0; padding: 12px; }
+.expenses-branch-fund header { align-items: center; display: flex; flex-wrap: wrap; gap: 4px 9px; justify-content: space-between; }
+.expenses-branch-fund header strong { color: var(--bone); font-size: 12px; }
+.expenses-branch-fund header span { color: var(--ghost-gray); font-size: 9px; }
+.expenses-branch-fund__balance { color: var(--bone); display: block; font: 700 22px ui-monospace, monospace; margin: 5px 0 10px; }
+.expenses-fund-unassigned { background: rgba(230,157,59,.07); border: 1px solid rgba(230,157,59,.28); border-radius: 8px; display: grid; gap: 4px; padding: 10px 12px; }
+.expenses-fund-unassigned strong { color: #e8b65f; font-size: 11px; }
+.expenses-fund-unassigned span { color: var(--ghost-gray); font-size: 9px; }
 .expenses-fund__balance { display: grid; gap: 3px; }
 .expenses-fund__balance > span { color: var(--ghost-gray); font-size: 10px; }
 .expenses-fund__balance strong { font-size: 20px; }
@@ -77,6 +90,9 @@
 .expenses-export span { font-size: 10px; }
 .expenses-branch-tabs { display: flex; flex-wrap: wrap; gap: 7px; }
 .expenses-branch-tabs .btn { border-radius: 7px; font-size: 10px; min-height: 34px; padding: 7px 13px; }
+.expenses-feedback { align-items: center; border-radius: 9px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; padding: 10px 13px; }
+.expenses-feedback.is-error { background: rgba(196,30,42,.1); border: 1px solid rgba(196,30,42,.32); color: #ef9a9f; font-size: 12px; }
+.expenses-feedback .btn { min-height: 34px; }
 
 .expenses-insights { display: grid; gap: 12px; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr) minmax(250px, .76fr); }
 .expenses-chart { min-height: 203px; min-width: 0; padding: 14px 15px; }
@@ -190,7 +206,7 @@
   .expenses-hero { align-items: flex-start; flex-direction: column; min-height: 170px; padding: 18px; }
   .expenses-hero__actions { justify-content: flex-start; }
   .expenses-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .expenses-fund { grid-template-columns: 1fr; }
+  .expenses-fund-branches { grid-template-columns: 1fr; }
   .expenses-fund__flows { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .expenses-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .expenses-search, .expenses-date { grid-column: 1 / -1; }
