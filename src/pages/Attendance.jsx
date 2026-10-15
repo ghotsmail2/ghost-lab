@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { GARAGE_HOURLY_COMMISSION_ROLES } from '../lib/commission-pool'
 
 export default function Attendance() {
   const { staff } = useAuth()
@@ -69,7 +70,7 @@ export default function Attendance() {
         </button>
       </div>
 
-      {staff?.branches?.key === 'garage' && ['head_mechanic', 'mechanic', 'mechanic_trainee'].includes(staff.role) && (
+      {staff?.branches?.key === 'garage' && GARAGE_HOURLY_COMMISSION_ROLES.has(staff.role) && (
         <div className="panel" role="status" style={{ marginBottom: 16, color: 'var(--ghost-gray)', fontSize: 12 }}>
           ค่าคอมรายชั่วโมง: ¥10,000/ชม. · Peak ¥15,000/ชม. (18:00–23:00) · ได้เมื่อครบแต่ละชั่วโมง
         </div>
@@ -81,7 +82,7 @@ export default function Attendance() {
           ? <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--ghost-gray)', fontSize: 11 }}>ยังไม่มีการลงเวลา</div>
           : todayLog.map(e => (
             <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 0', borderBottom: '1px solid var(--line)' }}>
-              <span>เข้า {new Date(e.clock_in).toLocaleTimeString('th-TH', { hour12: false })}{staff?.branches?.key === 'garage' && ['head_mechanic', 'mechanic', 'mechanic_trainee'].includes(staff.role) && <small style={{ color: 'var(--ghost-gray)', display: 'block' }}>ชั่วโมงปกติ ¥10,000 · Peak ¥15,000</small>}</span>
+              <span>เข้า {new Date(e.clock_in).toLocaleTimeString('th-TH', { hour12: false })}{staff?.branches?.key === 'garage' && GARAGE_HOURLY_COMMISSION_ROLES.has(staff.role) && <small style={{ color: 'var(--ghost-gray)', display: 'block' }}>ชั่วโมงปกติ ¥10,000 · Peak ¥15,000</small>}</span>
               <span>{e.clock_out ? `ออก ${new Date(e.clock_out).toLocaleTimeString('th-TH', { hour12: false })}` : '—'}</span>
             </div>
           ))

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-import { calculateSabinagisaCommissionPool, classifyGarageCommissionClockIn, commissionPolicyForEmployee } from '../src/lib/commission-pool.js'
+import { calculateSabinagisaCommissionPool, classifyGarageCommissionClockIn, commissionPolicyForEmployee, GARAGE_HOURLY_COMMISSION_ROLES } from '../src/lib/commission-pool.js'
 
 const migration = await readFile(new URL('../supabase/garage_technician_commission_policy.sql', import.meta.url), 'utf8')
 const hourlyMigration = await readFile(new URL('../supabase/migrations/20261014120000_garage_technician_hourly_commission.sql', import.meta.url), 'utf8')
@@ -68,6 +68,16 @@ test('Garage keeps ¥3,000 per bill and records each full hour separately with i
   assert.match(commissionHistory, /จ่ายบิล/)
   assert.match(commissionHistory, /จ่ายชั่วโมง/)
   assert.match(productionBuilder, /BILL ¥3,000 · HOURLY ¥10,000 · PEAK ¥15,000/)
+})
+
+test('Garage CEOs are eligible for hourly commission while keeping bill policy unchanged', () => {
+  assert.equal(GARAGE_HOURLY_COMMISSION_ROLES.has('ceo'), true)
+  assert.equal(GARAGE_HOURLY_COMMISSION_ROLES.has('mechanic'), true)
+  assert.equal(commissionPolicyForEmployee('garage', 'ceo'), 'branch_individual')
+  assert.match(hourlyMigration, /'head_mechanic','mechanic','mechanic_trainee','ceo'/)
+  assert.match(hourlyMigration, /s\.role::text = 'ceo'/)
+  assert.match(hourlyMigration, /2026-10-13 00:00:00\+07/)
+  assert.match(hourlyMigration, /on conflict \(attendance_id, hour_index\) do nothing/)
 })
 
 test('Garage checkout uses the server rate for mechanics and does not classify a definite commission rejection as an unknown bill', () => {
