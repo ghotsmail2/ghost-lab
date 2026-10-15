@@ -62,7 +62,11 @@ test('Garage keeps ¥3,000 per bill and records each full hour separately with i
   assert.notEqual(finalGroupingReturn, -1, 'grouping must return only after hourly earnings are merged')
   assert.equal(commissionHistory.indexOf('return [...map.values()].map(group => ({'), finalGroupingReturn,
     'no early return may bypass hourly earnings')
-  assert.match(commissionHistory, /row\.hourlyOnly \? `\$\{row\.hourlyEntries\.length\} ชม\.`/)
+  assert.match(commissionHistory, /const groupKey = `\$\{entry\.staff_id\}-\$\{entry\.branch_id\}`/)
+  assert.match(commissionHistory, /onPay\(row, 'bills'\)/)
+  assert.match(commissionHistory, /onPay\(row, 'hourly'\)/)
+  assert.match(commissionHistory, /จ่ายบิล/)
+  assert.match(commissionHistory, /จ่ายชั่วโมง/)
   assert.match(productionBuilder, /BILL ¥3,000 · HOURLY ¥10,000 · PEAK ¥15,000/)
 })
 
