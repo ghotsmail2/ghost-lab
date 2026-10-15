@@ -105,12 +105,6 @@ export default function CommissionPayouts() {
       if (row.paid_at) group.paid += Number(row.amount || 0)
       else group.outstanding += Number(row.amount || 0)
     }
-    return [...map.values()].map(group => ({
-      ...group,
-      bills: group.entries.length,
-      status: group.outstanding > 0 && group.paid > 0 ? 'partial' : group.outstanding > 0 ? 'pending' : 'paid',
-      unpaidEntries: group.entries.filter(row => !row.paid_at),
-    }))
     for (const entry of hourlyCommissions) {
       const branch = entry.branches || {}
       const groupKey = `${entry.staff_id}-${entry.branch_id}-hourly`
