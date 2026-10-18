@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { calculateMemberDiscount, formatDate, getMembershipPlan, nextMonthlyExpiry } from '../lib/membership'
 import { calculateSabinagisaCommissionPool, commissionPolicyForEmployee } from '../lib/commission-pool'
+import { supabase } from '../lib/supabase'
+
+function createBillNumber(branchKey) {
+  const randomPart = globalThis.crypto?.randomUUID?.().replaceAll('-', '').slice(0, 8).toUpperCase()
+    || Math.random().toString(36).slice(2, 10).toUpperCase()
+  return `${branchKey.slice(0, 3).toUpperCase()}-${Date.now().toString(36).toUpperCase()}-${randomPart}`
+}
 
 const BILL_NOTE_SNAPSHOT_PREFIX = '[ghost-lab-bill]'
 const MEMBER_FREE_REPAIR_SERVICES = new Set(['engine repair kit', 'full repair kit'])
@@ -320,7 +326,7 @@ function NewBillTab({ branch, title, staff }) {
           return (char === 'x' ? random : (random & 0x3 | 0x8)).toString(16)
         }),
         billData: {
-          bill_number: `${branch.key.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`,
+          bill_number: createBillNumber(branch.key),
           branch_id: branch.id,
           staff_id: staff.id,
           member_id: selectedMember?.id || null,
@@ -342,13 +348,22 @@ function NewBillTab({ branch, title, staff }) {
         catch { throw new Error('บันทึกคำขอสำรองในเบราว์เซอร์ไม่ได้ กรุณาตรวจสอบพื้นที่จัดเก็บแล้วลองใหม่') }
         setPendingCheckout(request)
       }
-      const { error } = await supabase.rpc('create_bill_with_items_atomic', {
-        p_request_id: request.requestId,
-        p_bill_data: request.billData,
-        p_items: request.items,
-        p_reward_id: request.rewardId,
-      })
-      if (error) throw error
+      let result
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        result = await supabase.rpc('create_bill_with_items_atomic', {
+          p_request_id: request.requestId,
+          p_bill_data: request.billData,
+          p_items: request.items,
+          p_reward_id: request.rewardId,
+        })
+        if (!result.error) break
+        const billNumberCollision = result.error.code === '23505' && String(result.error.message || '').includes('bills_bill_number_key')
+        if (!billNumberCollision || attempt === 3) break
+        request.billData.bill_number = createBillNumber(branch.key)
+        localStorage.setItem(checkoutStorageKey, JSON.stringify(request))
+        setPendingCheckout(request)
+      }
+      if (result.error) throw result.error
       localStorage.removeItem(checkoutStorageKey)
       setPendingCheckout(null)
       setCart([]); setPlate(''); setVehicle(''); setNotes(''); setSelectedMember(null); setSelfService(false); setMemberEnabled(false); setUseFreeRepair(false)

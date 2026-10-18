@@ -792,16 +792,24 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
     if (!pendingCheckout && E && !C) return V("กรุณาเลือก Member ก่อนบันทึกบิล");
     z.current = true; w(true);
     try {
-      const billNumber = \`\${n.key.slice(0, 3).toUpperCase()}-\${Date.now().toString().slice(-6)}\`;
+      const makeBillNumber = () => { const randomPart = globalThis.crypto?.randomUUID?.().replaceAll("-", "").slice(0, 8).toUpperCase() || Math.random().toString(36).slice(2, 10).toUpperCase(); return \`\${n.key.slice(0, 3).toUpperCase()}-\${Date.now().toString(36).toUpperCase()}-\${randomPart}\`; };
       const request = pendingCheckout || {
         requestId: globalThis.crypto?.randomUUID?.() || "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, char => { const random = Math.random() * 16 | 0; return (char === "x" ? random : (random & 0x3 | 0x8)).toString(16); }),
-        billData: { bill_number: billNumber, branch_id: n.id, staff_id: p.id, member_id: (C == null ? void 0 : C.id) || null, plate: l || null, vehicle: s || null, notes: Be(c, u, n.key === "garage" ? vehicleClass : null), subtotal: W, discount_pct: discountPctForBill, commission: pe, commission_mode: n.key === "chill" ? "ON_WORK_ALL" : "INDIVIDUAL", total: O, status: "paid", order_type: v ? q : null, table_number: v && q === "dine_in" && H.trim() || null, kitchen_status: v ? "received" : null, payment_method: $, amount_received: $ === "cash" && I !== "" ? Number(I) : null, change_due: $ === "cash" && I !== "" ? Math.max(0, Number(I) - O) : 0 },
+        billData: { bill_number: makeBillNumber(), branch_id: n.id, staff_id: p.id, member_id: (C == null ? void 0 : C.id) || null, plate: l || null, vehicle: s || null, notes: Be(c, u, n.key === "garage" ? vehicleClass : null), subtotal: W, discount_pct: discountPctForBill, commission: pe, commission_mode: n.key === "chill" ? "ON_WORK_ALL" : "INDIVIDUAL", total: O, status: "paid", order_type: v ? q : null, table_number: v && q === "dine_in" && H.trim() || null, kitchen_status: v ? "received" : null, payment_method: $, amount_received: $ === "cash" && I !== "" ? Number(I) : null, change_due: $ === "cash" && I !== "" ? Math.max(0, Number(I) - O) : 0 },
         items: u.map(item => ({ service_id: item.id, name_snapshot: item.name, price_snapshot: item.price, item_note: item.item_note || null })),
         rewardId: de && U[0] ? U[0].id : null
       };
       if (!pendingCheckout) localStorage.setItem(checkoutStorageKey, JSON.stringify(request));
-      const { error } = await x.rpc("create_bill_with_items_atomic", { p_request_id: request.requestId, p_bill_data: request.billData, p_items: request.items, p_reward_id: request.rewardId });
-      if (error) throw error;
+      let result;
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        result = await x.rpc("create_bill_with_items_atomic", { p_request_id: request.requestId, p_bill_data: request.billData, p_items: request.items, p_reward_id: request.rewardId });
+        if (!result.error) break;
+        const billNumberCollision = result.error.code === "23505" && String(result.error.message || "").includes("bills_bill_number_key");
+        if (!billNumberCollision || attempt === 3) break;
+        request.billData.bill_number = makeBillNumber();
+        localStorage.setItem(checkoutStorageKey, JSON.stringify(request));
+      }
+      if (result.error) throw result.error;
       localStorage.removeItem(checkoutStorageKey);
       setVehicleClass("standard"); m([]); o(""); r(""); S(""); P(null); te(false); ne(false); J(false); ie(""); oe(""); V("บันทึกบิลสำเร็จ ✓ " + request.billData.bill_number);
     } catch (error) {
