@@ -606,7 +606,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
         'children:[e.jsxs("span",{style:{background:peakNow?"rgba(53,217,230,.14)":"rgba(255,255,255,.04)",border:`1px solid ${peakNow?"rgba(53,217,230,.68)":"var(--line)"}`,borderRadius:10,color:peakNow?"#35d9e6":"var(--ghost-gray)",display:"flex",flexDirection:"column",fontSize:9,fontWeight:700,gap:3,letterSpacing:.4,padding:"5px 9px"},children:[e.jsx("span",{children:peakNow?"SABINAGISA · PEAK":"SABINAGISA · NORMAL"}),e.jsx("span",{children:"18:00–05:59"}),e.jsx("span",{style:{borderTop:"1px solid var(--line)",paddingTop:3},children:"GHOST LAB · 18:00–23:00"})]}),e.jsx("span",{style:{color:d?"#7ee2a5":"var(--ghost-gray)",fontSize:11,fontWeight:600,letterSpacing:.7},children:d?"● ออนไลน์ · เข้างานแล้ว":"○ ออฟไลน์ · ยังไม่เข้างาน"}),e.jsx("button",{type:"button",onClick:R',
       )
       const oldHomePeakTime = 'e.jsxs("div",{children:[e.jsx("strong",{children:"PEAK"}),e.jsx("small",{children:"18:00–05:59"})]})'
-      const newHomePeakTime = 'e.jsxs("div",{children:[e.jsx("strong",{children:"PEAK TIME"}),e.jsx("small",{children:"SABINAGISA · 18:00–05:59"}),e.jsx("small",{children:"GHOST LAB · 18:00–23:00"})]})'
+      const newHomePeakTime = 'e.jsxs("div",{children:[e.jsx("strong",{children:"PEAK TIME"}),e.jsx("small",{children:"SABINAGISA · 18:00–05:59"}),e.jsx("small",{children:"GHOST LAB · 18:00–23:00"}),e.jsx("small",{children:"ปิดกะและหยุดสะสมชั่วโมง 00:00"})]})'
       if (!content.includes(oldHomePeakTime)) throw new Error('Recovered Home Peak label changed; refusing to ship ambiguous commission hours.')
       content = content.replace(oldHomePeakTime, newHomePeakTime)
 
