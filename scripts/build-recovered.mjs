@@ -483,6 +483,10 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       const recentOrdersMarker = 'e.jsxs("div",{className:"panel",children:[e.jsxs("div",{className:"font-display",style:{fontSize:14,fontWeight:600,marginBottom:14},children:["ออเดอร์ล่าสุด · ",h]})'
       if (!content.includes(recentOrdersMarker)) throw new Error('Recovered recent-orders panel changed; refusing to omit live dashboard widgets.')
       content = content.replace(recentOrdersMarker, 'e.jsx(DashboardWidgets,{bills:x,staff:onShiftStaff,garageTotal:x.filter(t=>t.branches?.key==="garage").reduce((sum,t)=>sum+t.total,0),chillTotal:x.filter(t=>t.branches?.key==="chill").reduce((sum,t)=>sum+t.total,0),periodLabel:h,onViewStaff:()=>setShowOnShiftStaff(!0)}),'+recentOrdersMarker)
+      const recentOrderTimeMarker = 'children:(a=t.branches)==null?void 0:a.name})]}),e.jsxs("div",{className:"font-mono",style:{fontSize:13,fontWeight:600},children:["¥",t.total.toLocaleString()]})'
+      const recentOrderTime = 'children:(a=t.branches)==null?void 0:a.name}),e.jsx("div",{style:{color:"var(--ghost-gray)",fontSize:10,marginTop:4},children:t.created_at?new Date(t.created_at).toLocaleString("th-TH",{timeZone:"Asia/Bangkok",day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"})+" น.":"—"})]}),e.jsxs("div",{className:"font-mono",style:{fontSize:13,fontWeight:600},children:["¥",t.total.toLocaleString()]})'
+      if (!content.includes(recentOrderTimeMarker)) throw new Error('Recovered recent-order row changed; refusing to build without bill creation timestamps.')
+      content = content.replace(recentOrderTimeMarker, recentOrderTime)
 
       const oldOwnerMetrics = 'c?e.jsxs(e.Fragment,{children:[e.jsx(p,{label:`ยอด${h} · GARAGE`,value:`¥${T.toLocaleString()}`,meta:`${N.length} บิล`,dim:b==="chill"}),e.jsx(p,{label:`ยอด${h} · SABINAGISA`,value:`¥${D.toLocaleString()}`,meta:`${L.length} บิล`,dim:b==="garage"})]}):e.jsx(p,{label:`ยอด${h} · ${B.label}`,value:`¥${x.reduce((t,a)=>t+a.total,0).toLocaleString()}`,meta:`${x.length} บิล`}),e.jsx(p,{label:`COMMISSION ${h}`,value:`¥${M.toLocaleString()}`,accent:!0}),e.jsx(p,{label:"พนักงานเข้างาน",value:`${o} คน`})'
       const newOwnerMetrics = 'e.jsx(p,{label:`ยอดขาย${h}`,value:`¥${x.reduce((t,a)=>t+a.total,0).toLocaleString()}`,meta:`${x.length} บิล`}),e.jsx(p,{label:"จำนวนบิลทั้งหมด",value:x.length.toLocaleString(),meta:"บิลในช่วงที่เลือก"}),e.jsx(p,{label:"ค่าเฉลี่ยต่อบิล",value:`¥${Math.round(x.reduce((t,a)=>t+a.total,0)/(x.length||1)).toLocaleString()}`,meta:x.length?`${x.length} บิล`:"ไม่มีบิล"}),e.jsx(p,{label:c?`ค่าคอมมิชชัน · ${h}`:`ค่าคอมของฉัน · ${h}`,value:`¥${(c?M:personalCommission).toLocaleString()}`,meta:c?void 0:`${personalCommissionBills} บิล`,accent:!0})'
@@ -788,16 +792,24 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
     if (!pendingCheckout && E && !C) return V("กรุณาเลือก Member ก่อนบันทึกบิล");
     z.current = true; w(true);
     try {
-      const billNumber = \`\${n.key.slice(0, 3).toUpperCase()}-\${Date.now().toString().slice(-6)}\`;
+      const makeBillNumber = () => { const randomPart = globalThis.crypto?.randomUUID?.().replaceAll("-", "").slice(0, 8).toUpperCase() || Math.random().toString(36).slice(2, 10).toUpperCase(); return \`\${n.key.slice(0, 3).toUpperCase()}-\${Date.now().toString(36).toUpperCase()}-\${randomPart}\`; };
       const request = pendingCheckout || {
         requestId: globalThis.crypto?.randomUUID?.() || "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, char => { const random = Math.random() * 16 | 0; return (char === "x" ? random : (random & 0x3 | 0x8)).toString(16); }),
-        billData: { bill_number: billNumber, branch_id: n.id, staff_id: p.id, member_id: (C == null ? void 0 : C.id) || null, plate: l || null, vehicle: s || null, notes: Be(c, u, n.key === "garage" ? vehicleClass : null), subtotal: W, discount_pct: discountPctForBill, commission: pe, commission_mode: n.key === "chill" ? "ON_WORK_ALL" : "INDIVIDUAL", total: O, status: "paid", order_type: v ? q : null, table_number: v && q === "dine_in" && H.trim() || null, kitchen_status: v ? "received" : null, payment_method: $, amount_received: $ === "cash" && I !== "" ? Number(I) : null, change_due: $ === "cash" && I !== "" ? Math.max(0, Number(I) - O) : 0 },
+        billData: { bill_number: makeBillNumber(), branch_id: n.id, staff_id: p.id, member_id: (C == null ? void 0 : C.id) || null, plate: l || null, vehicle: s || null, notes: Be(c, u, n.key === "garage" ? vehicleClass : null), subtotal: W, discount_pct: discountPctForBill, commission: pe, commission_mode: n.key === "chill" ? "ON_WORK_ALL" : "INDIVIDUAL", total: O, status: "paid", order_type: v ? q : null, table_number: v && q === "dine_in" && H.trim() || null, kitchen_status: v ? "received" : null, payment_method: $, amount_received: $ === "cash" && I !== "" ? Number(I) : null, change_due: $ === "cash" && I !== "" ? Math.max(0, Number(I) - O) : 0 },
         items: u.map(item => ({ service_id: item.id, name_snapshot: item.name, price_snapshot: item.price, item_note: item.item_note || null })),
         rewardId: de && U[0] ? U[0].id : null
       };
       if (!pendingCheckout) localStorage.setItem(checkoutStorageKey, JSON.stringify(request));
-      const { error } = await x.rpc("create_bill_with_items_atomic", { p_request_id: request.requestId, p_bill_data: request.billData, p_items: request.items, p_reward_id: request.rewardId });
-      if (error) throw error;
+      let result;
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        result = await x.rpc("create_bill_with_items_atomic", { p_request_id: request.requestId, p_bill_data: request.billData, p_items: request.items, p_reward_id: request.rewardId });
+        if (!result.error) break;
+        const billNumberCollision = result.error.code === "23505" && String(result.error.message || "").includes("bills_bill_number_key");
+        if (!billNumberCollision || attempt === 3) break;
+        request.billData.bill_number = makeBillNumber();
+        localStorage.setItem(checkoutStorageKey, JSON.stringify(request));
+      }
+      if (result.error) throw result.error;
       localStorage.removeItem(checkoutStorageKey);
       setVehicleClass("standard"); m([]); o(""); r(""); S(""); P(null); te(false); ne(false); J(false); ie(""); oe(""); V("บันทึกบิลสำเร็จ ✓ " + request.billData.bill_number);
     } catch (error) {

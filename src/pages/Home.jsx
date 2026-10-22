@@ -332,6 +332,9 @@ export default function Home() {
               <div>
                 <span className="font-mono" style={{ fontSize: 12, fontWeight: 600 }}>{b.bill_number}</span>
                 <span style={{ fontSize: 11, marginLeft: 8, color: 'var(--ghost-gray)' }}>{b.branches?.name}</span>
+                <div style={{ color: 'var(--ghost-gray)', fontSize: 10, marginTop: 4 }}>
+                  สร้างบิล {b.created_at ? new Date(b.created_at).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '—'} น.
+                </div>
               </div>
               <div className="font-mono" style={{ fontSize: 13, fontWeight: 600 }}>¥{b.total.toLocaleString()}</div>
             </div>
