@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { calculateMemberDiscount, formatDate, getMembershipPlan, nextMonthlyExpiry } from '../lib/membership'
 import { calculateSabinagisaCommissionPool, commissionPolicyForEmployee } from '../lib/commission-pool'
 import { supabase } from '../lib/supabase'
+import { arrangeMenuCards, MenuLayoutEditor } from './MenuLayoutEditor'
 
 function createBillNumber(branchKey) {
   const randomPart = globalThis.crypto?.randomUUID?.().replaceAll('-', '').slice(0, 8).toUpperCase()
@@ -99,7 +100,8 @@ export default function POSPage({ branchKey, title, leadRole }) {
 
       {tab === 'bill' && <NewBillTab branch={branch} title={title} staff={staff} />}
       {tab === 'history' && <BillsHistoryTab branch={branch} staff={staff} onBillDeleted={() => setBillCount(count => Math.max(0, count - 1))} />}
-      {tab === 'services' && canManage && <ServicesTab branch={branch} />}
+      {tab === 'services' && canManage && <ServicesTab branch={branch}
+        onMenuLayoutSaved={menu_layout => setBranch(current => ({ ...current, menu_layout }))} />}
     </div>
   )
 }
@@ -220,11 +222,14 @@ function NewBillTab({ branch, title, staff }) {
   }, [selectedMember])
 
   const categories = ['all', ...new Set(services.map(s => s.category))]
-  const visible = (activeCat === 'all' ? services : services.filter(s => s.category === activeCat))
+  const matchingServices = (activeCat === 'all' ? services : services.filter(s => s.category === activeCat))
     .filter(service => {
       const query = serviceSearch.trim().toLowerCase()
       return !query || service.name.toLowerCase().includes(query) || service.category.toLowerCase().includes(query)
     })
+  const visible = branch.key === 'chill' && activeCat === 'all'
+    ? arrangeMenuCards(matchingServices, branch.menu_layout)
+    : matchingServices
   const cartTotal = cart.reduce((a, s) => a + s.price, 0)
   const cartLines = Object.values(cart.reduce((lines, service) => {
     const existing = lines[service.id]
@@ -403,7 +408,7 @@ function NewBillTab({ branch, title, staff }) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
             {visible.map(s => (
-              <button type="button" key={s.id} onClick={() => addToCart(s)} className="panel" style={{ color: 'inherit', cursor: 'pointer', font: 'inherit', textAlign: 'left', width: '100%' }}>
+              <button type="button" key={s.menuCardKey ?? s.id} onClick={() => addToCart(s)} className="panel" style={{ color: 'inherit', cursor: 'pointer', font: 'inherit', textAlign: 'left', width: '100%' }}>
                 <div style={{ fontSize: 9, color: 'var(--ghost-gray)', textTransform: 'uppercase', marginBottom: 4 }}>{s.category}</div>
                 <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{s.name}</div>
                 <div className="font-mono" style={{ fontSize: 13, color: 'var(--blood)', fontWeight: 600 }}>¥{s.price.toLocaleString()}</div>
@@ -818,7 +823,7 @@ function BillHistoryRow({ bill, expanded, onToggle, canDelete, onDelete }) {
 }
 
 // ---------------- Services Catalog ----------------
-function ServicesTab({ branch }) {
+function ServicesTab({ branch, onMenuLayoutSaved }) {
   const [services, setServices] = useState([])
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState(null)
@@ -936,6 +941,7 @@ function ServicesTab({ branch }) {
         <button type="button" onClick={addService} disabled={creating || loading} className="btn btn-primary">{creating ? 'กำลังเพิ่ม...' : '+ ADD SERVICE'}</button>
       </div>
 
+      {branch.key === 'chill' && <MenuLayoutEditor branch={branch} services={services} loading={loading} onSaved={onMenuLayoutSaved} />}
       {actionError && <div role="alert" style={{ color: '#ff9a8c', fontSize: 12, marginBottom: 12 }}>{actionError}</div>}
       {loading ? <div style={{ color: 'var(--ghost-gray)', fontSize: 12 }}>กำลังโหลด...</div> : actionError?.startsWith('โหลดแคตตาล็อกบริการ') ? (
         <button type="button" className="btn" onClick={load}>ลองโหลดอีกครั้ง</button>
