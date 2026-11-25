@@ -919,10 +919,11 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       const serviceSaveEnd = content.indexOf('  async function uploadServiceImage', serviceSaveStart)
       const verifiedServiceSave = `  async function l(s, r, c) {
     const priceField=r==="price"||r==="supercar_price";
+    const useGaragePriceRpc = n.key === "garage" && priceField;
     const raw=String(c??"").trim();
     const validInput=r==="price"?/^\\d+$/.test(raw):r==="supercar_price"?(raw===""||/^[1-9]\\d*$/.test(raw)):true;
     const restoreRow=async()=>{
-      const {data:latest,error:refreshError}=await x.from("services").select("*").eq("id",s).maybeSingle();
+      const {data:latest,error:refreshError}=await x.from("services").select("*").eq("id",s).eq("branch_id",n.id).maybeSingle();
       if(!refreshError&&latest)p(rows=>rows.map(row=>row.id===s?latest:row));
     };
     if(priceField&&!validInput){await restoreRow();return;}
@@ -933,10 +934,14 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       } : {
         [r]: c
       };
-    const {data,error}=priceField
-      ? await x.rpc("update_garage_service_price",{p_service_id:s,p_vehicle_class:r==="price"?"standard":"supercar",p_price:r==="price"?Number(raw):raw===""?null:Number(raw)})
-      : await x.from("services").update(S).eq("id",s).select("id").maybeSingle();
-    if(error||!data){const reason=error?.message||"ไม่พบแถวบริการที่บัญชีนี้มีสิทธิ์แก้ไข";console.error(error||new Error(reason));await restoreRow();const notice=document.createElement("div");notice.setAttribute("role","status");notice.textContent="บันทึกราคาไม่สำเร็จ: "+reason;Object.assign(notice.style,{position:"fixed",right:"20px",bottom:"20px",zIndex:"99999",maxWidth:"min(420px,calc(100vw - 40px))",padding:"12px 16px",border:"1px solid #c43c20",borderRadius:"10px",background:"#292b2e",color:"#f2eee7",boxShadow:"0 10px 28px #0008",fontSize:"13px"});document.body.append(notice);setTimeout(()=>notice.remove(),5000);}
+    const {data,error} = useGaragePriceRpc
+      ? await x.rpc("update_garage_service_price", {
+        p_service_id: s,
+        p_vehicle_class: r === "price" ? "standard" : "supercar",
+        p_price: S[r]
+      })
+      : await x.from("services").update(S).eq("id",s).eq("branch_id",n.id).select("id").maybeSingle();
+    if(error||!data){const reason=error?.message||"ไม่พบรายการที่บัญชีนี้มีสิทธิ์แก้ไขในสาขานี้";console.error(error||new Error(reason));await restoreRow();const notice=document.createElement("div");notice.setAttribute("role","status");const label=priceField?(n.key==="chill"?"ราคาเมนู":"ราคา"):"รายการ";notice.textContent="บันทึก"+label+"ไม่สำเร็จ: "+reason;Object.assign(notice.style,{position:"fixed",right:"20px",bottom:"20px",zIndex:"99999",maxWidth:"min(420px,calc(100vw - 40px))",padding:"12px 16px",border:"1px solid #c43c20",borderRadius:"10px",background:"#292b2e",color:"#f2eee7",boxShadow:"0 10px 28px #0008",fontSize:"13px"});document.body.append(notice);setTimeout(()=>notice.remove(),5000);}
   }`
       if (serviceSaveStart < 0 || serviceSaveEnd < 0) throw new Error('Service catalog save handler changed; refusing to build without verified update feedback.')
       content = content.slice(0, serviceSaveStart) + verifiedServiceSave + '\n' + content.slice(serviceSaveEnd)
@@ -972,8 +977,20 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
         .replace('readOnly: n.key === "garage" && catalogEntry(s)?.status === "priced",', '')
         .replace('title: n.key === "garage" && catalogEntry(s)?.status === "priced" ? "ราคาจาก catalog_lite.html" : "ราคาเดิมของบริการ",', '')
         .replace('            value: n.key === "garage" && catalogEntry(s)?.status === "priced" ? priceService(s).price : s.price,', '            value: s.price,')
-        .replace('onChange: r => m(s.id, "price", r.target.value),', 'onChange: r => { const value = r.target.value; m(s.id, "price", value); window.__garagePriceSaveTimers ||= {}; clearTimeout(window.__garagePriceSaveTimers[s.id]); if (/^\\d+$/.test(value)) window.__garagePriceSaveTimers[s.id] = setTimeout(() => l(s.id, "price", value), 650); },')
-        .replace('onBlur: r => { if (!(n.key === "garage" && catalogEntry(s)?.status === "priced")) l(s.id, "price", r.target.value); }', 'onBlur: r => { clearTimeout(window.__garagePriceSaveTimers?.[s.id]); l(s.id, "price", r.target.value); }, onKeyDown: r => { if (r.key === "Enter") r.currentTarget.blur(); }')
+        .replace('onChange: r => m(s.id, "price", r.target.value),', `onFocus: r => { r.currentTarget.dataset.priceOnFocus = r.currentTarget.value; },
+              onChange: r => {
+                const value = r.target.value;
+                m(s.id, "price", value);
+                if (n.key !== "garage") return;
+                window.__garagePriceSaveTimers ||= {};
+                clearTimeout(window.__garagePriceSaveTimers[s.id]);
+                if (/^\\d+$/.test(value)) window.__garagePriceSaveTimers[s.id] = setTimeout(() => l(s.id, "price", value), 650);
+              },`)
+        .replace('onBlur: r => { if (!(n.key === "garage" && catalogEntry(s)?.status === "priced")) l(s.id, "price", r.target.value); }', `onBlur: r => {
+                clearTimeout(window.__garagePriceSaveTimers?.[s.id]);
+                if (n.key !== "garage" && r.currentTarget.value === r.currentTarget.dataset.priceOnFocus) return;
+                l(s.id, "price", r.target.value);
+              }, onKeyDown: r => { if (r.key === "Enter") r.currentTarget.blur(); }`)
       if (content.includes('readOnly: n.key === "garage" && catalogEntry(s)?.status === "priced"')
           || content.includes('value: n.key === "garage" && catalogEntry(s)?.status === "priced" ? priceService(s).price : s.price')
           || content.includes('if (!(n.key === "garage" && catalogEntry(s)?.status === "priced"))')) {
