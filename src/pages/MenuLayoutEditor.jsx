@@ -37,12 +37,44 @@ function move(list, from, to) {
   return next
 }
 
-const rowStyle = { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }
+const editorStyle = {
+  maxWidth: 640,
+  marginBottom: 16,
+  border: '1px solid var(--line)',
+  borderRadius: 12,
+  background: 'var(--static)',
+  color: 'var(--bone)',
+}
+const headerStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  padding: '12px 16px',
+  borderBottom: '1px solid var(--line)',
+}
+const pickerStyle = { width: '100%', minWidth: 0, minHeight: 38, fontSize: 13 }
+const actionsStyle = { display: 'inline-flex', alignItems: 'center', gap: 4 }
+const iconButtonStyle = {
+  display: 'inline-grid',
+  placeItems: 'center',
+  width: 32,
+  height: 32,
+  padding: 0,
+  borderRadius: 7,
+  fontSize: 15,
+  lineHeight: 1,
+}
+
+function IconButton({ label, disabled, onClick, children }) {
+  return <button type="button" className="btn" style={iconButtonStyle}
+    aria-label={label} title={label} disabled={disabled} onClick={onClick}>{children}</button>
+}
 
 function MoveButtons({ index, count, name, onMove }) {
   return <>
-    <button type="button" className="btn" disabled={index === 0} aria-label={'เลื่อนขึ้น ' + name} onClick={() => onMove(index - 1)}>↑</button>
-    <button type="button" className="btn" disabled={index === count - 1} aria-label={'เลื่อนลง ' + name} onClick={() => onMove(index + 1)}>↓</button>
+    <IconButton disabled={index === 0} label={'เลื่อนขึ้น ' + name} onClick={() => onMove(index - 1)}>↑</IconButton>
+    <IconButton disabled={index === count - 1} label={'เลื่อนลง ' + name} onClick={() => onMove(index + 1)}>↓</IconButton>
   </>
 }
 
@@ -54,9 +86,14 @@ export function MenuLayoutEditor({ branch, services, loading, onSaved }) {
   const [notice, setNotice] = React.useState('')
   const [error, setError] = React.useState('')
   const [conflict, setConflict] = React.useState(false)
+  const [selectedSetId, setSelectedSetId] = React.useState('')
   const byId = new Map(services.map(service => [service.id, service]))
   const items = services.filter(service => !isSet(service))
   const groups = menuGroups(services, layout)
+  const groupIndex = Math.max(0, groups.findIndex(group => group.setId === selectedSetId))
+  const selectedGroup = groups[groupIndex]
+  const selectedSet = byId.get(selectedGroup?.setId)
+  const availableItems = selectedGroup ? items.filter(item => !selectedGroup.itemIds.includes(item.id)) : []
 
   async function load() {
     setOpen(true)
@@ -88,6 +125,11 @@ export function MenuLayoutEditor({ branch, services, loading, onSaved }) {
     change(groups.map((group, position) => position === index ? { ...group, itemIds } : group))
   }
 
+  function moveSet(to) {
+    setSelectedSetId(selectedGroup.setId)
+    change(move(groups, groupIndex, to))
+  }
+
   async function save() {
     if (busy || layout === null || conflict) return
     setBusy(true)
@@ -116,41 +158,65 @@ export function MenuLayoutEditor({ branch, services, loading, onSaved }) {
   }
 
   if (!open) return <button type="button" className="btn" disabled={loading} style={{ marginBottom: 12 }} onClick={load}>จัดลำดับเมนู ALL</button>
-  return <section aria-label="จัดลำดับเมนู ALL" style={{ padding: 12, marginBottom: 16, border: '1px solid var(--line)', borderRadius: 8 }}>
-    <div style={{ ...rowStyle, justifyContent: 'space-between' }}>
-      <strong>จัดลำดับเมนู ALL</strong>
-      <button type="button" className="btn" disabled={busy} onClick={() => setOpen(false)}>ปิด</button>
+  return <section aria-label="จัดลำดับเมนู ALL" style={editorStyle}>
+    <div style={headerStyle}>
+      <strong style={{ fontSize: 15 }}>จัดลำดับเมนู ALL</strong>
+      <IconButton label="ปิดตัวจัดลำดับเมนู" disabled={busy} onClick={() => setOpen(false)}>×</IconButton>
     </div>
-    {error && <p role="alert">{error}</p>}
-    {notice && <p role="status">{notice}</p>}
-    {(layout === null || conflict) && !busy && <button type="button" className="btn" onClick={load}>โหลดลำดับล่าสุด</button>}
-    {busy && <p role="status">กำลังดำเนินการ…</p>}
-    {layout !== null && <fieldset disabled={busy || conflict || loading} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-      <p>ใช้ลูกศรเลื่อนเซตหรือเมนูในเซต เมนูที่ไม่ได้จัดเข้าเซตจะแสดงต่อท้าย</p>
-      {groups.length === 0 && <p>เพิ่มรายการหมวด SET ใน Services ก่อน</p>}
-      {groups.map(({ setId, itemIds }, groupIndex) => <div key={setId} style={{ borderTop: '1px solid var(--line)', padding: '12px 0' }}>
-        <div style={rowStyle}>
-          <strong>{byId.get(setId).name}</strong>
-          <MoveButtons index={groupIndex} count={groups.length} name={byId.get(setId).name}
-            onMove={to => change(move(groups, groupIndex, to))} />
-        </div>
-        <ol style={{ margin: '8px 0' }}>
-          {itemIds.map((id, itemIndex) => <li key={id} style={{ marginBottom: 6 }}>
-            <div style={rowStyle}>
-              <span>{byId.get(id).name}</span>
-              <MoveButtons index={itemIndex} count={itemIds.length} name={byId.get(id).name}
-                onMove={to => updateItems(groupIndex, move(itemIds, itemIndex, to))} />
-              <button type="button" className="btn" onClick={() => updateItems(groupIndex, itemIds.filter(item => item !== id))}>เอาออกจากเซต</button>
+    <div style={{ padding: 16 }}>
+      {error && <p role="alert" style={{ margin: '0 0 12px', fontSize: 13 }}>{error}</p>}
+      {(layout === null || conflict) && !busy && <button type="button" className="btn" onClick={load}>โหลดลำดับล่าสุด</button>}
+      {busy && layout === null && <p role="status" style={{ margin: 0 }}>กำลังโหลดลำดับเมนู…</p>}
+      {layout !== null && !selectedSet && <p style={{ margin: 0, color: 'var(--ghost-gray)', fontSize: 13 }}>เพิ่มรายการหมวด SET ใน Services ก่อน</p>}
+      {layout !== null && selectedSet && <fieldset disabled={busy || conflict || loading}
+        style={{ display: 'grid', gap: 12, border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+        <div style={{ display: 'grid', gap: 6 }}>
+          <label htmlFor="sabinagisa-menu-set" style={{ fontSize: 12, color: 'var(--ghost-gray)' }}>เลือกเซต</label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', gap: 8 }}>
+            <select id="sabinagisa-menu-set" className="input" style={pickerStyle} value={selectedGroup.setId}
+              onChange={event => setSelectedSetId(event.target.value)}>
+              {groups.map(({ setId }, position) => <option key={setId} value={setId}>
+                {position + 1}. {byId.get(setId).name}
+              </option>)}
+            </select>
+            <div style={actionsStyle}>
+              <MoveButtons index={groupIndex} count={groups.length} name={selectedSet.name} onMove={moveSet} />
             </div>
-          </li>)}
-        </ol>
-        <select className="input" style={{ maxWidth: 360 }} value="" aria-label={'เพิ่มเมนูใน ' + byId.get(setId).name}
-          onChange={event => updateItems(groupIndex, [...itemIds, event.target.value])}>
-          <option value="" disabled>เพิ่มเมนูในเซต…</option>
-          {items.filter(item => !itemIds.includes(item.id)).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
-      </div>)}
-      {groups.length > 0 && <button type="button" className="btn btn-primary" onClick={save}>บันทึกลำดับ</button>}
-    </fieldset>}
+          </div>
+        </div>
+        <div style={{ display: 'grid', gap: 6 }}>
+          <div style={{ fontSize: 12, color: 'var(--ghost-gray)' }}>เมนูในเซต</div>
+          {selectedGroup.itemIds.length === 0 && <p style={{ margin: '4px 0', fontSize: 13, color: 'var(--ghost-gray)' }}>ยังไม่มีเมนูในเซตนี้</p>}
+          {selectedGroup.itemIds.length > 0 && <ol aria-label="เมนูในเซต" style={{
+            display: 'grid', margin: 0, padding: 0, listStyle: 'none', border: '1px solid var(--line)', borderRadius: 8,
+            background: 'var(--static-raised)',
+          }}>
+            {selectedGroup.itemIds.map((id, itemIndex) => <li key={id} style={{
+              display: 'grid', gridTemplateColumns: '18px minmax(0, 1fr) auto', alignItems: 'center', gap: 6, padding: '6px 8px',
+              borderTop: itemIndex === 0 ? undefined : '1px solid var(--line)',
+            }}>
+              <span aria-hidden="true" style={{ fontSize: 12, color: 'var(--ghost-gray)' }}>{itemIndex + 1}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, overflowWrap: 'anywhere' }}>{byId.get(id).name}</span>
+              <div style={actionsStyle}>
+                <MoveButtons index={itemIndex} count={selectedGroup.itemIds.length} name={byId.get(id).name}
+                  onMove={to => updateItems(groupIndex, move(selectedGroup.itemIds, itemIndex, to))} />
+                <IconButton label={'เอา ' + byId.get(id).name + ' ออกจากเซต'}
+                  onClick={() => updateItems(groupIndex, selectedGroup.itemIds.filter(item => item !== id))}>×</IconButton>
+              </div>
+            </li>)}
+          </ol>}
+          <select className="input" style={pickerStyle} value="" aria-label={'เพิ่มเมนูใน ' + selectedSet.name}
+            disabled={availableItems.length === 0}
+            onChange={event => updateItems(groupIndex, [...selectedGroup.itemIds, event.target.value])}>
+            <option value="" disabled>{availableItems.length ? '+ เพิ่มเมนูในเซต' : 'เพิ่มเมนูครบแล้ว'}</option>
+            {availableItems.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 10, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
+          {notice && <span role="status" style={{ color: 'var(--ghost-gray)', fontSize: 12 }}>{notice}</span>}
+          <button type="button" className="btn btn-primary" onClick={save}>{busy ? 'กำลังบันทึก…' : 'บันทึกลำดับ'}</button>
+        </div>
+      </fieldset>}
+    </div>
   </section>
 }
