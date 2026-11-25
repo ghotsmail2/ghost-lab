@@ -525,12 +525,12 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       if (content.includes('from("staff").select("*")')) throw new Error('Staff-admin bundle still reads every staff column directly.')
     }
 
-    // The recovered production bundle also needs to ignore Supabase's silent
-    // token-refresh event. Otherwise every background-tab return toggles the
-    // global loading state and remounts the current route.
+    // Keep the production route mounted during token refresh and when Supabase
+    // re-emits SIGNED_IN for the existing token as the tab becomes visible.
     const oldAuthState = 'const[e,r]=k.useState(null),[n,s]=k.useState(null),[i,o]=k.useState(!0);k.useEffect(()=>{Ne.auth.getSession().then(({data:v})=>{r(v.session),v.session?a(v.session.user.id):o(!1)});const{data:f}=Ne.auth.onAuthStateChange((v,y)=>{o(!0),r(y),y?a(y.user.id):(s(null),o(!1))});return()=>f.subscription.unsubscribe()},[])'
-    const newAuthState = 'const[e,r]=k.useState(null),[n,s]=k.useState(null),[i,o]=k.useState(!0),sessionRef=k.useRef(null);k.useEffect(()=>{Ne.auth.getSession().then(({data:v})=>{sessionRef.current=v.session,r(v.session),v.session?a(v.session.user.id):o(!1)});const{data:f}=Ne.auth.onAuthStateChange((v,y)=>{if((v==="TOKEN_REFRESHED"||v==="INITIAL_SESSION")&&y&&sessionRef.current?.user?.id===y.user.id){sessionRef.current=y,r(y);return}o(!0),sessionRef.current=y,r(y),y?a(y.user.id):(s(null),o(!1))});return()=>f.subscription.unsubscribe()},[])'
-    if (file.endsWith('index-vaWnYKxf.js') && content.includes(oldAuthState)) {
+    const newAuthState = 'const[e,r]=k.useState(null),[n,s]=k.useState(null),[i,o]=k.useState(!0),sessionRef=k.useRef(null);k.useEffect(()=>{Ne.auth.getSession().then(({data:v})=>{sessionRef.current=v.session,r(v.session),v.session?a(v.session.user.id):o(!1)});const{data:f}=Ne.auth.onAuthStateChange((v,y)=>{const currentSession=sessionRef.current;const isRepeatedSignIn=v==="SIGNED_IN"&&currentSession?.access_token===y?.access_token;if((v==="TOKEN_REFRESHED"||v==="INITIAL_SESSION"||isRepeatedSignIn)&&y&&currentSession?.user?.id===y.user.id){sessionRef.current=y,r(y);return}o(!0),sessionRef.current=y,r(y),y?a(y.user.id):(s(null),o(!1))});return()=>f.subscription.unsubscribe()},[])'
+    if (file.endsWith('index-vaWnYKxf.js')) {
+      if (!content.includes(oldAuthState)) throw new Error('Recovered auth state changed; unable to apply tab-resume fix.')
       content = content.replace(oldAuthState, newAuthState)
     }
 
