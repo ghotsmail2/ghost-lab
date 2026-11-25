@@ -139,6 +139,8 @@ const commissionPoolHelper = path.join(projectRoot, 'src', 'lib', 'commission-po
 digest.update('commission-pool-helper').update(await readFile(commissionPoolHelper))
 const garageVehiclePricingHelper = path.join(projectRoot, 'src', 'lib', 'garage-vehicle-pricing.js')
 digest.update('garage-vehicle-pricing-helper').update(await readFile(garageVehiclePricingHelper))
+const menuLayoutSource = await readFile(path.join(projectRoot, 'src', 'pages', 'MenuLayoutEditor.jsx'), 'utf8')
+digest.update('menu-layout-editor').update(menuLayoutSource)
 const loginStylesheet = path.join(projectRoot, 'src', 'pages', 'Login.css')
 const loginArtwork = path.join(projectRoot, 'src', 'assets', 'login-courtyard-v1.png')
 const garageArtwork = path.join(projectRoot, 'src', 'assets', 'dashboard-garage-v1.png')
@@ -415,6 +417,12 @@ await cp(garageArtwork, path.join(versionedRoot, 'dashboard-garage-v1.png'))
 await cp(kitchenAssetRoot, path.join(versionedRoot, 'sabinagisa'), { recursive: true })
 await cp(loginArtwork, path.join(versionedRoot, 'login-courtyard-v1.png'))
 await cp(commissionPoolHelper, path.join(versionedRoot, 'commission-pool.js'))
+const { code: menuLayoutCode } = await transformJsx(
+  menuLayoutSource.replace("import React from 'react'\nimport { supabase } from '../lib/supabase'",
+    'import { r as React, s as supabase } from "./index-vaWnYKxf.js"'),
+  { loader: 'jsx', format: 'esm' },
+)
+await writeFile(path.join(versionedRoot, 'menu-layout-editor.js'), menuLayoutCode)
 for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/.test(file))) {
   let content = await readFile(file, 'utf8')
   if (file.endsWith('index-C51IvSgf.css')) {
@@ -968,6 +976,25 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       if (content.includes(stalePosServicesLoad)) content = content.replace(stalePosServicesLoad, livePosServicesLoad)
       else if (!content.includes('setInterval(refreshServices, 5000)')) throw new Error('POS service-price refresh anchor changed; refusing to leave prices stale after catalog edits.')
       if (!content.includes('setInterval(refreshServices, 5000)')) throw new Error('POS is missing live Garage service-price refresh.')
+
+      const menuLayoutPatches = [
+        ['y === "services" && o && e.jsx(Re, {\n      branch: h',
+          'y === "services" && o && e.jsx(Re, {\n      branch: h,\n      onMenuLayoutSaved: menu_layout => b(current => ({ ...current, menu_layout }))'],
+        ['function Re({\n  branch: n\n}) {', 'function Re({\n  branch: n,\n  onMenuLayoutSaved\n}) {'],
+        ['    }), v ? e.jsx("div", {\n      style: {\n        color: "var(--ghost-gray)",\n        fontSize: 12',
+          '    }), n.key === "chill" && e.jsx(MenuLayoutEditor, { branch: n, services: a, loading: v, onSaved: onMenuLayoutSaved }), v ? e.jsx("div", {\n      style: {\n        color: "var(--ghost-gray)",\n        fontSize: 12'],
+        ['    X = (b === "all" ? g : g.filter(t => t.category === b))',
+          '    matchingServices = (b === "all" ? g : g.filter(t => t.category === b))'],
+        ['    W = u.reduce((t, d) => t + (d.price ?? 0), 0),',
+          '    X = n.key === "chill" && b === "all" ? arrangeMenuCards(matchingServices, n.menu_layout) : matchingServices,\n    W = u.reduce((t, d) => t + (d.price ?? 0), 0),'],
+        ['          }, t.id)), g.length === 0', '          }, t.menuCardKey ?? t.id)), g.length === 0'],
+      ]
+      for (const [anchor, replacement] of menuLayoutPatches) {
+        if (content.split(anchor).length !== 2) throw new Error('Recovered POS menu layout anchor changed: ' + anchor)
+        content = content.replace(anchor, replacement)
+      }
+      content = 'import { arrangeMenuCards, MenuLayoutEditor } from "./menu-layout-editor.js";\n' + content
+
       const standardPriceField = 'className: "input font-mono",\n            value: s.price'
       if (content.includes(standardPriceField)) content = content.replace(standardPriceField, 'className: "input font-mono",\n            type: "number",\n            min: 0,\n            step: 1,\n            inputMode: "numeric",\n            "aria-label": `ราคา Standard ${s.name}`,\n            value: s.price')
       // Catalog-priced Garage rows were still rendered read-only and displayed
