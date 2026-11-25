@@ -35,7 +35,7 @@ test('Atomic server validator is patched to verify editable service-row prices',
 test('Garage Standard price commits automatically after typing and on Enter/blur', async () => {
   const build = await readFile(new URL('./scripts/build-recovered.mjs', import.meta.url), 'utf8')
   assert.match(build, /if \(\/\^\\\\d\+\$\/\.test\(value\)\) window\.__garagePriceSaveTimers\[s\.id\] = setTimeout\(\(\) => l\(s\.id, "price", value\), 650\)/)
-  assert.match(build, /onBlur: r => \{ clearTimeout\(window\.__garagePriceSaveTimers\?\.\[s\.id\]\); l\(s\.id, "price", r\.target\.value\); \}/)
+  assert.match(build, /onBlur: r => \{\s*clearTimeout\(window\.__garagePriceSaveTimers\?\.\[s\.id\]\);[\s\S]*?l\(s\.id, "price", r\.target\.value\);/)
   assert.match(build, /if \(r\.key === "Enter"\) r\.currentTarget\.blur\(\)/)
   assert.match(build, /if\(priceField&&!validInput\)\{await restoreRow\(\);return;\}/)
   assert.match(build, /notice\.setAttribute\("role","status"\)/)
@@ -52,6 +52,14 @@ test('Garage price save uses a branch-scoped RPC with role validation', async ()
   assert.match(migration, /actor\.role::text not in \('owner', 'god'\)/)
   assert.match(migration, /actor\.role::text = 'ceo' and actor\.primary_branch = target_service\.branch_id/)
   assert.match(migration, /grant execute on function public\.update_garage_service_price\(uuid, text, integer\) to authenticated/)
+})
+
+test('SABINAGISA price saves use the menu branch and skip unchanged fields', async () => {
+  const build = await readFile(new URL('./scripts/build-recovered.mjs', import.meta.url), 'utf8')
+  assert.match(build, /const useGaragePriceRpc = n\.key === "garage" && priceField/)
+  assert.match(build, /useGaragePriceRpc\s*\? await x\.rpc\("update_garage_service_price",[\s\S]*?\)\s*: await x\.from\("services"\)\.update\(S\)\.eq\("id",s\)\.eq\("branch_id",n\.id\)/)
+  assert.match(build, /if \(n\.key !== "garage"\) return;\s*window\.__garagePriceSaveTimers/)
+  assert.match(build, /if \(n\.key !== "garage" && r\.currentTarget\.value === r\.currentTarget\.dataset\.priceOnFocus\) return;/)
 })
 
 test('POS refreshes service prices without a page reload', async () => {
