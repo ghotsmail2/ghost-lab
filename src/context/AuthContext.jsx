@@ -54,12 +54,13 @@ export function AuthProvider({ children }) {
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
-      // Supabase refreshes the JWT when a background tab becomes active again.
-      // Keep the current route and staff data intact; reloading the profile here
-      // causes a visible page reset every time the user returns to this tab.
-      if ((event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')
+      // Returning to a tab can re-emit SIGNED_IN for the existing token.
+      // Keep the route mounted for that event and for silent token refreshes.
+      const currentSession = sessionRef.current
+      const isRepeatedSignIn = event === 'SIGNED_IN' && currentSession?.access_token === newSession?.access_token
+      if ((event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION' || isRepeatedSignIn)
         && newSession
-        && sessionRef.current?.user?.id === newSession.user.id) {
+        && currentSession?.user?.id === newSession.user.id) {
         sessionRef.current = newSession
         setSession(newSession)
         return
