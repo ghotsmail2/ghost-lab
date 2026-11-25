@@ -897,13 +897,15 @@ function ServicesTab({ branch }) {
         ? { supercar_price: value === '' ? null : Number(value) || null }
         : { [field]: value }
     try {
-      const { data, error } = await supabase.from('services').update(payload).eq('id', id).select('id').maybeSingle()
+      const { data, error } = await supabase.from('services').update(payload).eq('id', id).eq('branch_id', branch.id).select('id').maybeSingle()
       if (error) throw error
       if (!data) throw new Error('ไม่มีสิทธิ์แก้ไขบริการสาขานี้ หรือไม่พบรายการ')
     } catch (error) {
       console.error(error)
       await load()
-      setActionError(`บันทึกราคาไม่สำเร็จ: ${error?.message || 'ตรวจสอบสิทธิ์ฐานข้อมูล'} — โหลดค่าจริงจากระบบกลับมาแล้ว`)
+      const label = field === 'price' && branch.key === 'chill' ? 'ราคาเมนู'
+        : field === 'price' || field === 'supercar_price' ? 'ราคา' : 'รายการ'
+      setActionError(`บันทึก${label}ไม่สำเร็จ: ${error?.message || 'ตรวจสอบสิทธิ์ฐานข้อมูล'}`)
     }
   }
 
@@ -959,8 +961,13 @@ function ServicesTab({ branch }) {
                   aria-label={`ราคา Standard ${s.name}`}
                   className="input font-mono" type="number" min="0" step="1" inputMode="numeric" value={s.price}
                   style={{ color: 'var(--blood)', fontWeight: 600 }}
+                  onFocus={event => { event.currentTarget.dataset.priceOnFocus = event.currentTarget.value }}
                   onChange={e => updateField(s.id, 'price', e.target.value)}
-                  onBlur={e => saveField(s.id, 'price', e.target.value)}
+                  onBlur={event => {
+                    const { value, dataset } = event.currentTarget
+                    if (branch.key === 'garage' || value !== dataset.priceOnFocus) saveField(s.id, 'price', value)
+                  }}
+                  onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur() }}
                 />
                 {branch.key === 'garage' && (
                   <input
