@@ -137,10 +137,15 @@ for (const file of assetFiles) digest.update(path.relative(sourceRoot, file)).up
 for (const file of (await listFiles(kitchenAssetRoot)).sort()) digest.update(path.relative(projectRoot, file)).update(await readFile(file))
 const commissionPoolHelper = path.join(projectRoot, 'src', 'lib', 'commission-pool.js')
 digest.update('commission-pool-helper').update(await readFile(commissionPoolHelper))
+for (const file of ['src/components/ProfilePendingCommission.jsx', 'src/pages/CommissionPayouts.jsx', 'src/lib/commission-payouts.js', 'src/lib/bangkokDate.js', 'src/lib/fetchAllPages.js']) {
+  digest.update(file).update(await readFile(path.join(projectRoot, file)))
+}
 const garageVehiclePricingHelper = path.join(projectRoot, 'src', 'lib', 'garage-vehicle-pricing.js')
 digest.update('garage-vehicle-pricing-helper').update(await readFile(garageVehiclePricingHelper))
 const menuLayoutSource = await readFile(path.join(projectRoot, 'src', 'pages', 'MenuLayoutEditor.jsx'), 'utf8')
 digest.update('menu-layout-editor').update(menuLayoutSource)
+const menuLayoutHelper = path.join(projectRoot, 'src', 'lib', 'sabinagisa-menu-layout.js')
+digest.update('sabinagisa-menu-layout').update(await readFile(menuLayoutHelper))
 const menuVisibilitySource = await readFile(path.join(projectRoot, 'src', 'pages', 'MenuVisibility.jsx'), 'utf8')
 digest.update('menu-visibility').update(menuVisibilitySource)
 const loginStylesheet = path.join(projectRoot, 'src', 'pages', 'Login.css')
@@ -420,11 +425,15 @@ await cp(kitchenAssetRoot, path.join(versionedRoot, 'sabinagisa'), { recursive: 
 await cp(loginArtwork, path.join(versionedRoot, 'login-courtyard-v1.png'))
 await cp(commissionPoolHelper, path.join(versionedRoot, 'commission-pool.js'))
 const { code: menuLayoutCode } = await transformJsx(
-  menuLayoutSource.replace("import React from 'react'\nimport { supabase } from '../lib/supabase'",
-    'import { r as React, s as supabase } from "./index-vaWnYKxf.js"'),
+  menuLayoutSource
+    .replace("import React from 'react'\nimport { supabase } from '../lib/supabase'", 'import { r as React, s as supabase } from "./index-vaWnYKxf.js"')
+    .replaceAll('../lib/sabinagisa-menu-layout.js', './sabinagisa-menu-layout.js')
+    .replaceAll('../lib/fetchAllPages.js', './fetchAllPages.js'),
   { loader: 'jsx', format: 'esm' },
 )
 await writeFile(path.join(versionedRoot, 'menu-layout-editor.js'), menuLayoutCode)
+await cp(menuLayoutHelper, path.join(versionedRoot, 'sabinagisa-menu-layout.js'))
+await cp(path.join(projectRoot, 'src', 'lib', 'fetchAllPages.js'), path.join(versionedRoot, 'fetchAllPages.js'))
 const { code: menuVisibilityCode } = await transformJsx(
   menuVisibilitySource.replace("import React from 'react'\nimport { supabase } from '../lib/supabase'",
     'import { r as React, s as supabase } from "./index-vaWnYKxf.js"'),
@@ -434,6 +443,7 @@ await writeFile(path.join(versionedRoot, 'menu-visibility.js'), menuVisibilityCo
 for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/.test(file))) {
   let content = await readFile(file, 'utf8')
   if (file.endsWith('index-C51IvSgf.css')) {
+    content += '\n.sabinagisa-pos .pos-service-grid>.panel.pos-set-variants:after{content:none}\n'
     content += premiumHospitalityCss + sharedThemeCss + await readFile(path.join(projectRoot, 'src', 'pages', 'Expenses.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'Stock.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'DailySummary.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'CommissionPayouts.css'), 'utf8') + fullWidthWorkspaceCss + kitchenMascotCss + await readFile(loginStylesheet, 'utf8') + loginHeroSeamlessCss + homeDashboardThemeCss
     content = content.replace(/\.sabinagisa-pos-inbox__chef-art\{[^}]*\}/g, '.sabinagisa-pos-inbox__chef-art{display:none!important;background-image:none!important}')
   }
@@ -483,6 +493,15 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
         content = content.replace(oldProfileClock, atomicProfileClock)
       }
       content = content.replace('e.jsx("div",{onClick:o?A:E,className:"btn btn-primary",children:o?"⏱ Clock Out":"⏱ Clock In"})', 'e.jsx("button",{type:"button",onClick:o?A:E,className:"btn btn-primary",children:o?"⏱ Clock Out":"⏱ Clock In"})')
+      const oldPendingTotals = ',j=g.filter(t=>t.status==="pending"),k=j.reduce((t,s)=>t+s.amount,0)'
+      const oldPendingCard = 'e.jsxs("div",{className:"panel",children:[e.jsx("div",{style:{fontSize:11,color:"var(--ghost-gray)",textTransform:"uppercase",marginBottom:8},children:"ค้างจ่าย · PENDING"}),e.jsxs("div",{className:"font-mono",style:{fontSize:22,fontWeight:700,color:"var(--blood)"},children:["¥",k.toLocaleString()]}),e.jsxs("div",{style:{fontSize:11,color:"var(--ghost-gray)",marginTop:6},children:[j.length," งวด"]})]})'
+      if (!content.includes(oldPendingTotals) || !content.includes(oldPendingCard)) {
+        throw new Error('Recovered Profile pending commission card changed.')
+      }
+      content = 'import ProfilePendingCommission from "./ProfilePendingCommission.js";\n' + content
+        .replace(oldPendingTotals, '')
+        .replace('gridTemplateColumns:"repeat(3, 1fr)",gap:14', 'gridTemplateColumns:"repeat(auto-fit, minmax(min(100%, 235px), 1fr))",gap:14')
+        .replace(oldPendingCard, 'e.jsx(ProfilePendingCommission,{supabase:i,staffId:a.id,attendanceId:o?.id})')
     }
 
     if (file.endsWith('Home-a48wstN-.js')) {
@@ -991,7 +1010,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
           'y === "services" && o && e.jsx(Re, {\n      branch: h,\n      onMenuLayoutSaved: menu_layout => b(current => ({ ...current, menu_layout }))'],
         ['function Re({\n  branch: n\n}) {', 'function Re({\n  branch: n,\n  onMenuLayoutSaved\n}) {'],
         ['    }), v ? e.jsx("div", {\n      style: {\n        color: "var(--ghost-gray)",\n        fontSize: 12',
-          '    }), n.key === "chill" && e.jsx(MenuLayoutEditor, { branch: n, services: a, loading: v, onSaved: onMenuLayoutSaved }), v ? e.jsx("div", {\n      style: {\n        color: "var(--ghost-gray)",\n        fontSize: 12'],
+          '    }), n.key === "chill" && e.jsx(MenuLayoutEditor, { branch: n, services: a, loading: v, onSaved: (layout, materials) => { onMenuLayoutSaved(layout); if (materials.length) { j(current => ({ ...current, ...Object.fromEntries(materials.map(({serviceId, materials: rows}) => [serviceId, rows.length])) })); b(null); } } }), v ? e.jsx("div", {\n      style: {\n        color: "var(--ghost-gray)",\n        fontSize: 12'],
         ['    X = (b === "all" ? g : g.filter(t => t.category === b))',
           '    matchingServices = (b === "all" ? g : g.filter(t => t.category === b))'],
         ['    W = u.reduce((t, d) => t + (d.price ?? 0), 0),',
@@ -1002,7 +1021,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
         if (content.split(anchor).length !== 2) throw new Error('Recovered POS menu layout anchor changed: ' + anchor)
         content = content.replace(anchor, replacement)
       }
-      content = 'import { arrangeMenuCards, MenuLayoutEditor } from "./menu-layout-editor.js";\n' + content
+      content = 'import { arrangeMenuCards, MenuLayoutEditor, SetVariantCard } from "./menu-layout-editor.js";\n' + content
 
       const menuVisibilityPatches = [
         ['    matchingServices = (b === "all" ? g : g.filter(t => t.category === b))',
@@ -1035,6 +1054,18 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       }
       content = content.replaceAll('b === t ?', 'selectedCategory === t ?')
       content = 'import { matchesMenuSearch, MenuVisibilityCheckbox, showsInNewBill } from "./menu-visibility.js";\n' + content
+
+      const setVariantPatches = [
+        ['    [b, y] = i.useState("all"),', '    [b, y] = i.useState("all"),\n    [selectedVariants, setSelectedVariants] = i.useState({}),'],
+        ['X = n.key === "chill" && selectedCategory === "all" ? arrangeMenuCards(matchingServices, n.menu_layout) : matchingServices',
+          'X = n.key === "chill" && ["all", "set"].includes(selectedCategory.trim().toLowerCase()) ? arrangeMenuCards(matchingServices, n.menu_layout, selectedVariants) : matchingServices'],
+        ['children: [X.map(t => e.jsxs("div", {',
+          'children: [X.map(t => t.variantOptions ? e.jsx(SetVariantCard, { card: t, onSelect: id => setSelectedVariants(current => ({ ...current, [t.groupKey]: id })), onAdd: me, disabled: f, imageUrl: chillMenuImage(t.selected.service) }, t.menuCardKey) : e.jsxs("div", {'],
+      ]
+      for (const [anchor, replacement] of setVariantPatches) {
+        if (content.split(anchor).length !== 2) throw new Error('Recovered POS set variant anchor changed: ' + anchor)
+        content = content.replace(anchor, replacement)
+      }
 
       const standardPriceField = 'className: "input font-mono",\n            value: s.price'
       if (content.includes(standardPriceField)) content = content.replace(standardPriceField, 'className: "input font-mono",\n            type: "number",\n            min: 0,\n            step: 1,\n            inputMode: "numeric",\n            "aria-label": `ราคา Standard ${s.name}`,\n            value: s.price')
@@ -1213,6 +1244,15 @@ const themeControls = `<script>(()=>{const saved=localStorage.getItem('ghostlab-
 const loginFontLinks = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&amp;family=Inter:wght@400;500;600;700&amp;family=Noto+Sans+Thai:wght@400;500;600;700&amp;family=Noto+Serif+JP:wght@400;500;600&amp;display=swap" rel="stylesheet">`
 const themedIndex = index.replaceAll('/assets/', `/assets/${release}/`).replace('</head>', `${loginFontLinks}${themeControls}</head>`)
 await writeFile(path.join(outputRoot, 'index.html'), themedIndex)
+await writeFile(path.join(outputRoot, 'assets', release, 'expenses-react-runtime.js'), 'import{r as React}from"./index-vaWnYKxf.js";export default React;export const{createElement,forwardRef,createContext,useContext,useEffect,useMemo,useState}=React;')
+const { outputFiles: profileCommissionOutput } = await buildJsx({
+  entryPoints: [path.join(projectRoot, 'src', 'components', 'ProfilePendingCommission.jsx')],
+  bundle: true, write: false, format: 'esm', platform: 'browser', target: 'es2022',
+  plugins: [{ name: 'ghost-react-runtime', setup(build) {
+    build.onResolve({ filter: /^react$/ }, () => ({ path: './expenses-react-runtime.js', external: true }))
+  } }],
+})
+await writeFile(path.join(outputRoot, 'assets', release, 'ProfilePendingCommission.js'), profileCommissionOutput[0].text)
 await verifyAssetReferences(outputRoot)
 
 console.log(`Built recovered Ghost Lab production UI (${release}) with all referenced assets present.`)
@@ -1577,7 +1617,6 @@ const expensesSource = (await readFile(expensesSourcePath, 'utf8'))
   .replace(/^import \{ useAuth \} from ['"]\.\.\/context\/AuthContext['"];?\r?\n/m, '')
   .replace(/^import ['"]\.\/Expenses\.css['"];?\r?\n/m, '')
   .replace(/^import sabinagisaHero from ['"]\.\.\/assets\/dashboard-sabinagisa-v1\.png['"];?\r?\n/m, '')
-await writeFile(path.join(outputRoot, 'assets', release, 'expenses-react-runtime.js'), 'import{r as React}from"./index-vaWnYKxf.js";export default React;export const{createElement,forwardRef,createContext,useContext,useMemo}=React;')
 const { outputFiles: expenseOutputFiles } = await buildJsx({
   stdin: { contents: expensesSource, sourcefile: 'Expenses.jsx', resolveDir: path.dirname(expensesSourcePath), loader: 'jsx' },
   bundle: true, write: false, format: 'esm', platform: 'browser', target: 'es2022',
