@@ -1,33 +1,46 @@
 import React from 'react'
 import { supabase } from '../lib/supabase'
+import { fetchAllPages } from '../lib/fetchAllPages.js'
+import { combineMenuMaterials, indexServiceMaterials, isSet, materialRows, menuGroups, menuPositions } from '../lib/sabinagisa-menu-layout.js'
 
-const isSet = service => service.category.trim().toLowerCase() === 'set'
+export { arrangeMenuCards } from '../lib/sabinagisa-menu-layout.js'
 
-function menuGroups(services, layout) {
-  const sets = new Map(services.filter(isSet).map(service => [service.id, service]))
-  const items = new Set(services.filter(service => !isSet(service)).map(service => service.id))
-  const groups = []
-  for (const group of layout ?? []) {
-    if (!sets.delete(group.setId)) continue
-    groups.push({ setId: group.setId, itemIds: group.itemIds.filter(id => items.has(id)) })
+export function SetVariantCard({ card, onSelect, onAdd, disabled, imageUrl }) {
+  const [expanded, setExpanded] = React.useState(false)
+  const [pickedId, setPickedId] = React.useState(null)
+  const selected = card.selected.service
+
+  function toggleOptions() {
+    setPickedId(null)
+    setExpanded(!expanded)
   }
-  for (const setId of sets.keys()) groups.push({ setId, itemIds: [] })
-  return groups
-}
 
-export function arrangeMenuCards(services, layout) {
-  const byId = new Map(services.map(service => [service.id, service]))
-  const grouped = new Set()
-  const cards = []
-  for (const { setId, itemIds } of menuGroups(services, layout)) {
-    cards.push(byId.get(setId))
-    grouped.add(setId)
-    for (const id of itemIds) {
-      cards.push({ ...byId.get(id), menuCardKey: setId + ':' + id })
-      grouped.add(id)
-    }
-  }
-  return [...cards, ...services.filter(service => !grouped.has(service.id))]
+  return <article className="panel pos-set-variants" style={{ position: 'relative', overflow: 'hidden', paddingBottom: 40 }}>
+    {imageUrl && <div style={{ height: 92, margin: '-12px -12px 10px', background: '#090a0c', textAlign: 'center' }}>
+      <img key={imageUrl} src={imageUrl} alt="" loading="lazy" style={{ height: '100%', width: '100%', objectFit: 'contain' }} />
+    </div>}
+    <header style={{ display: 'grid', gap: 4 }}>
+      <small style={{ color: 'var(--ghost-gray)', fontSize: 9 }}>SET</small>
+      <strong style={{ fontSize: 13 }}>{card.title}</strong>
+      <span className="font-mono" style={{ fontSize: 13, fontWeight: 600 }}>¥{Number(selected.price).toLocaleString()}</span>
+      <small style={{ color: 'var(--ghost-gray)', fontSize: 11 }}>{card.selected.label}</small>
+    </header>
+    {expanded && <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
+      {card.variantOptions.map(({ service, label }) => <button key={service.id} type="button" className="btn" disabled={disabled}
+        aria-pressed={pickedId === service.id} style={{ fontSize: 11, borderColor: pickedId === service.id ? 'var(--blood)' : undefined }}
+        onClick={() => { setPickedId(service.id); onSelect(service.id) }}>
+        {label}
+      </button>)}
+      <button type="button" className="btn btn-primary" disabled={disabled || pickedId !== selected.id} style={{ fontSize: 11 }} onClick={() => {
+        onAdd(selected)
+        toggleOptions()
+      }}>เพิ่มเซ็ต</button>
+    </div>}
+    <button type="button" disabled={disabled} aria-expanded={expanded} aria-label={`${expanded ? 'ปิดตัวเลือก' : 'เลือกแบบ'} ${card.title}`} onClick={toggleOptions}
+      style={{ position: 'absolute', right: 11, bottom: 10, width: 27, height: 27, padding: 0, border: 0, borderRadius: '50%', background: '#d92d20', color: '#fff', cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>
+      {expanded ? '×' : '+'}
+    </button>
+  </article>
 }
 
 function move(list, from, to) {
@@ -87,13 +100,23 @@ export function MenuLayoutEditor({ branch, services, loading, onSaved }) {
   const [error, setError] = React.useState('')
   const [conflict, setConflict] = React.useState(false)
   const [selectedSetId, setSelectedSetId] = React.useState('')
+  const [stockItems, setStockItems] = React.useState([])
+  const [savedMaterials, setSavedMaterials] = React.useState(() => new Map())
+  const [drafts, setDrafts] = React.useState({})
   const byId = new Map(services.map(service => [service.id, service]))
   const items = services.filter(service => !isSet(service))
   const groups = menuGroups(services, layout)
+  const positions = menuPositions(groups)
   const groupIndex = Math.max(0, groups.findIndex(group => group.setId === selectedSetId))
   const selectedGroup = groups[groupIndex]
   const selectedSet = byId.get(selectedGroup?.setId)
+  const positionIndex = positions.findIndex(position => position.includes(selectedGroup))
+  const paired = positions[positionIndex]?.length > 1
+  const variantNames = [...new Set(groups.map(group => group.variantGroup.trim()).filter(Boolean))]
   const availableItems = selectedGroup ? items.filter(item => !selectedGroup.itemIds.includes(item.id)) : []
+  const selectedDraft = drafts[selectedSet?.id]
+  const quantities = selectedDraft?.quantities || savedMaterials.get(selectedSet?.id) || {}
+  const missingFormulas = selectedGroup?.itemIds.filter(id => !materialRows(savedMaterials.get(id) || {}).length) || []
 
   async function load() {
     setOpen(true)
@@ -102,14 +125,22 @@ export function MenuLayoutEditor({ branch, services, loading, onSaved }) {
     setError('')
     setNotice('')
     try {
-      const { data, error: problem } = await supabase.from('branches').select('menu_layout').eq('id', branch.id).single()
-      if (problem) throw problem
-      setBase(data.menu_layout)
-      setLayout(data.menu_layout)
+      const [branchResult, stock, materials] = await Promise.all([
+        supabase.from('branches').select('menu_layout').eq('id', branch.id).single(),
+        fetchAllPages(supabase.from('stock_items').select('id,name,unit').eq('branch_id', branch.id).order('name').order('id')),
+        fetchAllPages(supabase.from('service_materials').select('service_id,stock_item_id,qty_per_unit,service:services!inner(branch_id)')
+          .eq('service.branch_id', branch.id).order('id')),
+      ])
+      if (branchResult.error) throw branchResult.error
+      setStockItems(stock)
+      setSavedMaterials(indexServiceMaterials(materials))
+      setDrafts({})
+      setBase(branchResult.data.menu_layout)
+      setLayout(branchResult.data.menu_layout)
       setConflict(false)
     } catch (problem) {
       console.error(problem)
-      setError('โหลดลำดับเมนูไม่สำเร็จ')
+      setError('โหลดข้อมูลเซ็ตและวัตถุดิบไม่สำเร็จ')
     } finally {
       setBusy(false)
     }
@@ -121,13 +152,40 @@ export function MenuLayoutEditor({ branch, services, loading, onSaved }) {
     setError('')
   }
 
-  function updateItems(index, itemIds) {
-    change(groups.map((group, position) => position === index ? { ...group, itemIds } : group))
+  function updateGroup(fields) {
+    setSelectedSetId(selectedGroup.setId)
+    change(groups.map(group => group === selectedGroup ? { ...group, ...fields } : group))
+  }
+
+  function fillMaterials(itemIds) {
+    setDrafts(current => ({ ...current, [selectedSet.id]: { quantities: combineMenuMaterials(itemIds, savedMaterials), manual: false } }))
+  }
+
+  function updateItems(itemIds) {
+    const membershipChanged = itemIds.length !== selectedGroup.itemIds.length
+    updateGroup({ itemIds })
+    if (membershipChanged && !selectedDraft?.manual) fillMaterials(itemIds)
+  }
+
+  function updateQuantity(stockId, value) {
+    const parsed = value === '' ? 0 : Number(value)
+    if (!Number.isInteger(parsed) || parsed < 0 || parsed > 2147483647) return
+    setDrafts(current => ({ ...current, [selectedSet.id]: { quantities: { ...quantities, [stockId]: parsed }, manual: true } }))
+    setNotice('')
+  }
+
+  function resetMaterials() {
+    setDrafts(current => {
+      const remaining = { ...current }
+      delete remaining[selectedSet.id]
+      return remaining
+    })
+    setNotice('')
   }
 
   function moveSet(to) {
     setSelectedSetId(selectedGroup.setId)
-    change(move(groups, groupIndex, to))
+    change(move(positions, positionIndex, to).flat())
   }
 
   async function save() {
@@ -136,31 +194,44 @@ export function MenuLayoutEditor({ branch, services, loading, onSaved }) {
     setError('')
     setNotice('')
     try {
-      const { error: problem } = await supabase.rpc('save_sabinagisa_menu_layout', {
+      const nextLayout = groups.map(group => ({ ...group, variantGroup: group.variantGroup.trim(), variantLabel: group.variantLabel.trim() }))
+      const changes = Object.entries(drafts).map(([serviceId, draft]) => ({
+        serviceId,
+        materials: materialRows(draft.quantities),
+        expectedMaterials: savedMaterials.get(serviceId) || {},
+      }))
+      const { error: problem } = await supabase.rpc('save_sabinagisa_menu_settings', {
         p_branch_id: branch.id,
-        p_layout: groups,
+        p_layout: nextLayout,
         p_expected_layout: base,
+        p_material_changes: changes,
       })
       if (problem) throw problem
-      setBase(groups)
-      setLayout(groups)
-      onSaved(groups)
-      setNotice('บันทึกลำดับเมนูแล้ว')
+      setBase(nextLayout)
+      setLayout(nextLayout)
+      setSavedMaterials(previous => {
+        const next = new Map(previous)
+        for (const { serviceId, materials } of changes) next.set(serviceId, Object.fromEntries(materials.map(row => [row.stock_item_id, row.qty_per_unit])))
+        return next
+      })
+      setDrafts({})
+      onSaved(nextLayout, changes)
+      setNotice('บันทึกเซ็ตและวัตถุดิบแล้ว')
     } catch (problem) {
       console.error(problem)
       setConflict(problem.code === '40001')
       setError(problem.code === '40001'
-        ? 'มีการบันทึกลำดับจากอีกหน้าต่าง กรุณาโหลดลำดับล่าสุดก่อนแก้ต่อ'
-        : 'บันทึกลำดับเมนูไม่สำเร็จ ' + (problem.message || 'กรุณาลองอีกครั้ง'))
+        ? 'มีการแก้เซ็ตหรือวัตถุดิบจากอีกหน้าต่าง กรุณาโหลดข้อมูลล่าสุดก่อนแก้ต่อ'
+        : 'บันทึกเซ็ตไม่สำเร็จ ' + (problem.message || 'กรุณาลองอีกครั้ง'))
     } finally {
       setBusy(false)
     }
   }
 
-  if (!open) return <button type="button" className="btn" disabled={loading} style={{ marginBottom: 12 }} onClick={load}>จัดลำดับเมนู ALL</button>
-  return <section aria-label="จัดลำดับเมนู ALL" style={editorStyle}>
+  if (!open) return <button type="button" className="btn" disabled={loading} style={{ marginBottom: 12 }} onClick={load}>จัดเซ็ตและลำดับเมนู ALL</button>
+  return <section aria-label="จัดเซ็ตและลำดับเมนู ALL" style={editorStyle}>
     <div style={headerStyle}>
-      <strong style={{ fontSize: 15 }}>จัดลำดับเมนู ALL</strong>
+      <strong style={{ fontSize: 15 }}>จัดเซ็ตและลำดับเมนู ALL</strong>
       <IconButton label="ปิดตัวจัดลำดับเมนู" disabled={busy} onClick={() => setOpen(false)}>×</IconButton>
     </div>
     <div style={{ padding: 16 }}>
@@ -175,14 +246,24 @@ export function MenuLayoutEditor({ branch, services, loading, onSaved }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', gap: 8 }}>
             <select id="sabinagisa-menu-set" className="input" style={pickerStyle} value={selectedGroup.setId}
               onChange={event => setSelectedSetId(event.target.value)}>
-              {groups.map(({ setId }, position) => <option key={setId} value={setId}>
-                {position + 1}. {byId.get(setId).name}
-              </option>)}
+              {positions.flatMap((position, index) => position.map(({ setId }) => <option key={setId} value={setId}>
+                {index + 1}. {byId.get(setId).name}
+              </option>))}
             </select>
             <div style={actionsStyle}>
-              <MoveButtons index={groupIndex} count={groups.length} name={selectedSet.name} onMove={moveSet} />
+              <MoveButtons index={positionIndex} count={positions.length} name={paired ? selectedGroup.variantGroup : selectedSet.name} onMove={moveSet} />
             </div>
           </div>
+          <label style={{ fontSize: 12 }}>ชื่อกลุ่มบนการ์ด POS
+            <input className="input" style={pickerStyle} list="sabinagisa-set-variant-groups" maxLength={100}
+              value={selectedGroup.variantGroup} onChange={event => updateGroup({ variantGroup: event.target.value })} placeholder="เว้นว่างถ้าขายเป็นเซ็ตเดี่ยว" />
+          </label>
+          <datalist id="sabinagisa-set-variant-groups">{variantNames.map(name => <option key={name} value={name} />)}</datalist>
+          {selectedGroup.variantGroup.trim() && <label style={{ fontSize: 12 }}>ชื่อตัวเลือก
+            <input className="input" style={pickerStyle} maxLength={100} value={selectedGroup.variantLabel}
+              onChange={event => updateGroup({ variantLabel: event.target.value })} placeholder={selectedSet.name} />
+          </label>}
+          <small style={{ color: 'var(--ghost-gray)' }}>ใส่ชื่อกลุ่มเดียวกันให้กับเซ็ตที่ต้องการให้เลือกจากการ์ดเดียว</small>
         </div>
         <div style={{ display: 'grid', gap: 6 }}>
           <div style={{ fontSize: 12, color: 'var(--ghost-gray)' }}>เมนูในเซต</div>
@@ -199,22 +280,42 @@ export function MenuLayoutEditor({ branch, services, loading, onSaved }) {
               <span style={{ fontSize: 13, fontWeight: 600, overflowWrap: 'anywhere' }}>{byId.get(id).name}</span>
               <div style={actionsStyle}>
                 <MoveButtons index={itemIndex} count={selectedGroup.itemIds.length} name={byId.get(id).name}
-                  onMove={to => updateItems(groupIndex, move(selectedGroup.itemIds, itemIndex, to))} />
+                  onMove={to => updateItems(move(selectedGroup.itemIds, itemIndex, to))} />
                 <IconButton label={'เอา ' + byId.get(id).name + ' ออกจากเซต'}
-                  onClick={() => updateItems(groupIndex, selectedGroup.itemIds.filter(item => item !== id))}>×</IconButton>
+                  onClick={() => updateItems(selectedGroup.itemIds.filter(item => item !== id))}>×</IconButton>
               </div>
             </li>)}
           </ol>}
           <select className="input" style={pickerStyle} value="" aria-label={'เพิ่มเมนูใน ' + selectedSet.name}
             disabled={availableItems.length === 0}
-            onChange={event => updateItems(groupIndex, [...selectedGroup.itemIds, event.target.value])}>
+            onChange={event => updateItems([...selectedGroup.itemIds, event.target.value])}>
             <option value="" disabled>{availableItems.length ? '+ เพิ่มเมนูในเซต' : 'เพิ่มเมนูครบแล้ว'}</option>
             {availableItems.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
         </div>
+        <div style={{ display: 'grid', gap: 8, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
+          <strong style={{ fontSize: 13 }}>วัตถุดิบต่อ 1 เซ็ต</strong>
+          <small style={{ color: 'var(--ghost-gray)' }}>เมื่อเพิ่มหรือเอาเมนูออก ระบบจะรวมสูตรของเมนูในเซ็ตให้ กรอกจำนวนเองได้ก่อนบันทึก</small>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <button type="button" className="btn" disabled={!selectedGroup.itemIds.length} onClick={() => fillMaterials(selectedGroup.itemIds)}>รวมสูตรจากเมนูในเซ็ต</button>
+            {selectedDraft && <button type="button" className="btn" onClick={resetMaterials}>คืนสูตรที่บันทึกไว้</button>}
+          </div>
+          {selectedDraft && <small role="status">{selectedDraft.manual ? 'กำลังใช้จำนวนที่กรอกเอง' : 'รวมสูตรจากเมนูแล้ว ตรวจจำนวนก่อนบันทึก'}</small>}
+          {missingFormulas.length > 0 && <small style={{ color: 'var(--ghost-gray)' }}>ยังไม่มีสูตรสำหรับ {missingFormulas.map(id => byId.get(id).name).join(', ')}</small>}
+          {selectedDraft && !materialRows(quantities).length && <small role="status">เมื่อบันทึก เซ็ตนี้จะไม่มีวัตถุดิบให้ตัดสต๊อก</small>}
+          {stockItems.filter(item => Object.hasOwn(quantities, item.id)).map(item => <label key={item.id}
+            style={{ display: 'grid', gridTemplateColumns: '1fr 90px', alignItems: 'center', gap: 8, fontSize: 13 }}>
+            <span>{item.name}{item.unit && ` (${item.unit})`}</span>
+            <input className="input" type="number" min="0" step="1" max="2147483647" value={quantities[item.id]} onChange={event => updateQuantity(item.id, event.target.value)} />
+          </label>)}
+          <select className="input" style={pickerStyle} value="" aria-label="เพิ่มวัตถุดิบเอง" onChange={event => updateQuantity(event.target.value, 1)}>
+            <option value="" disabled>+ เพิ่มวัตถุดิบเอง</option>
+            {stockItems.filter(item => !Object.hasOwn(quantities, item.id)).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+        </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 10, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
           {notice && <span role="status" style={{ color: 'var(--ghost-gray)', fontSize: 12 }}>{notice}</span>}
-          <button type="button" className="btn btn-primary" onClick={save}>{busy ? 'กำลังบันทึก…' : 'บันทึกลำดับ'}</button>
+          <button type="button" className="btn btn-primary" onClick={save}>{busy ? 'กำลังบันทึก…' : 'บันทึกเซ็ต'}</button>
         </div>
       </fieldset>}
     </div>
