@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { bangkokDateKey } from '../lib/bangkokDate'
+import { bangkokDateBounds, bangkokDateKey } from '../lib/bangkokDate'
 import { fetchAllPages } from '../lib/fetchAllPages'
+import { loadCommissionEntries, summarizePendingCommission } from '../lib/commission-payouts'
 import { ArrowDownWideNarrow, ArrowUpDown, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronRight, CircleDollarSign, Clock3, Copy, Eye, FileText, History, ListFilter, Search, Store, Users, Wallet, X } from 'lucide-react'
 import './CommissionPayouts.css'
 
 const money = value => `¥${Number(value || 0).toLocaleString()}`
 const dateKey = bangkokDateKey
-const rangeBounds = (from, to) => ({ start: new Date(`${from}T00:00:00+07:00`).toISOString(), end: new Date(`${to}T23:59:59.999+07:00`).toISOString() })
 
 export default function CommissionPayouts() {
   const { staff } = useAuth()
@@ -41,36 +41,25 @@ export default function CommissionPayouts() {
   const load = useCallback(async () => {
     if (!staff?.id) return
     const requestNumber = ++latestLoad.current
-    const bounds = rangeBounds(dateFrom, dateTo)
     setLoading(true)
     setError('')
-    const distributionQuery = supabase.from('commission_distributions')
-      .select('id,bill_id,user_id,user_name_snapshot,amount,commission_mode,commission_policy,commission_period,commission_attendance_id,created_at,paid_at,reversed_at,recipient:user_id(id,name_en,avatar_url),bill:bill_id(id,bill_number,total,branch_id,commission,commission_policy,commission_period,commission_attendance_id,created_at,status,branches:branch_id(id,key,name))')
-      .is('reversed_at', null).gte('created_at', bounds.start).lte('created_at', bounds.end)
-      .order('created_at', { ascending: false }).order('id', { ascending: true })
-    const payoutQuery = supabase.from('commission_payouts')
-      .select('*,staff:staff_id(id,name_en,avatar_url),branches:branch_id(id,key,name),payer:paid_by(name_en)')
-      .gte('paid_at', bounds.start).lte('paid_at', bounds.end)
-      .order('paid_at', { ascending: false }).order('id', { ascending: true })
-    const hourlyQuery = supabase.from('garage_technician_hourly_commissions')
-      .select('id,staff_id,branch_id,amount,period_start,period_end,paid_at,payout_id,staff:staff_id(id,name_en,avatar_url),branches:branch_id(id,key,name)')
-      .gte('period_end', bounds.start).lte('period_end', bounds.end)
-      .order('period_end', { ascending: false })
-    const branchQuery = supabase.from('branches').select('id,key,name').order('name')
     try {
-      const [distributionResult, payoutResult, branchResult, directoryResult, hourlyResult] = await Promise.all([
-        fetchAllPages(isOwner ? distributionQuery : distributionQuery.eq('user_id', staff.id)),
+      const bounds = bangkokDateBounds(dateFrom, dateTo)
+      const payoutQuery = supabase.from('commission_payouts')
+        .select('*,staff:staff_id(id,name_en,avatar_url),branches:branch_id(id,key,name),payer:paid_by(name_en)')
+        .gte('paid_at', bounds.start).lt('paid_at', bounds.end)
+        .order('paid_at', { ascending: false }).order('id', { ascending: true })
+      const [entries, payoutResult, branchResult, directoryResult] = await Promise.all([
+        loadCommissionEntries(supabase, dateFrom, dateTo, isOwner ? undefined : staff.id),
         fetchAllPages(isOwner ? payoutQuery : payoutQuery.eq('staff_id', staff.id)),
-        branchQuery,
+        supabase.from('branches').select('id,key,name').order('name'),
         isOwner ? supabase.from('staff_admin_directory').select('id,phone,avatar_url') : Promise.resolve({ data: [], error: null }),
-        fetchAllPages(isOwner ? hourlyQuery : hourlyQuery.eq('staff_id', staff.id)),
       ])
       if (requestNumber !== latestLoad.current) return
       if (branchResult.error) throw branchResult.error
       if (directoryResult.error) throw directoryResult.error
-      if (hourlyResult?.error) throw hourlyResult.error
-      setDistributions(distributionResult.filter(row => row.bill?.status !== 'rejected' && row.bill?.status !== 'cancelled'))
-      setHourlyCommissions(hourlyResult || [])
+      setDistributions(entries.distributions)
+      setHourlyCommissions(entries.hourlyCommissions)
       setPayouts(payoutResult)
       setBranches(branchResult.data || [])
       setStaffDirectory(directoryResult.data || [])
@@ -257,7 +246,6 @@ function DetailsModal({ group, onClose }) {
 }
 
 function StaffCommissionView({ distributions, hourlyCommissions, payouts, loading, acknowledging, onAcknowledge, dateFrom, dateTo, setDateFrom, setDateTo }) {
-  const pending = distributions.filter(row => !row.paid_at)
-  const pendingHourly = hourlyCommissions.filter(row => !row.paid_at)
-  return <><section className="commission-console__metrics"><Metric Icon={CircleDollarSign} tone="orange" label="ค่าคอมรอรับ" value={money(pending.reduce((sum,row) => sum + Number(row.amount || 0),0)+pendingHourly.reduce((sum,row) => sum+Number(row.amount||0),0))} detail={`${pending.length} บิล · ${pendingHourly.length} ชั่วโมง`} /><Metric Icon={CheckCircle2} tone="green" label="ได้รับแล้วในช่วงนี้" value={money(payouts.reduce((sum,row) => sum + Number(row.total_amount || 0),0))} detail={`${payouts.length} รายการจ่าย`} /></section><div className="commission-console__staff-filter"><CalendarDays size={16} /><input type="date" value={dateFrom} onChange={event => setDateFrom(event.target.value)} /><span>—</span><input type="date" value={dateTo} onChange={event => setDateTo(event.target.value)} /></div><section className="commission-console__staff-list"><header><h2>ค่าคอมของฉัน</h2><span>{pending.length} บิล · {pendingHourly.length} ชั่วโมงรอจ่าย</span></header>{loading ? <p className="commission-console__side-empty">กำลังโหลด…</p> : <>{distributions.map(row => <div className="commission-console__staff-row" key={row.id}><span><strong>{row.bill?.bill_number || 'บิล'}</strong><small>{row.bill?.branches?.name || '—'} · {row.commission_policy === 'garage_technician_clock_in' ? 'Ghost Lab Garage · ค่าคอมต่อบิล' : row.commission_policy === 'sabinagisa_commission_pool' ? 'SABINAGISA · Pool เดิม' : new Date(row.created_at).toLocaleDateString('th-TH')}</small></span><b>{money(row.amount)}</b><StatusBadge status={row.paid_at ? 'paid' : 'pending'} /></div>)}{hourlyCommissions.map(row => <div className="commission-console__staff-row" key={row.id}><span><strong>ค่าคอมช่าง · ครบ 1 ชั่วโมง</strong><small>{new Date(row.period_start).toLocaleString('th-TH')} – {new Date(row.period_end).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',hour12:false})} · {row.amount===15000?'Peak':'ปกติ'}</small></span><b>{money(row.amount)}</b><StatusBadge status={row.paid_at ? 'paid' : 'pending'} /></div>)}</> }<div className="commission-console__staff-history">{payouts.map(payout => <div key={payout.id}><span><strong>{money(payout.total_amount)}</strong><small>{payout.branches?.name || '—'} · {new Date(payout.paid_at).toLocaleDateString('th-TH')}</small></span>{!payout.acknowledged_at ? <button type="button" className="commission-console__pay-button" disabled={acknowledging === payout.id} onClick={() => onAcknowledge(payout.id)}><Check size={15} /> {acknowledging === payout.id ? 'กำลังบันทึก…' : 'ได้รับแล้ว'}</button> : <StatusBadge status="paid" />}</div>)}</div></section></>
+  const pending = summarizePendingCommission(distributions, hourlyCommissions)
+  return <><section className="commission-console__metrics"><Metric Icon={CircleDollarSign} tone="orange" label="ค่าคอมรอรับ" value={money(pending.amount)} detail={`${pending.bills} บิล · ${pending.hours} ชั่วโมง`} /><Metric Icon={CheckCircle2} tone="green" label="ได้รับแล้วในช่วงนี้" value={money(payouts.reduce((sum,row) => sum + Number(row.total_amount || 0),0))} detail={`${payouts.length} รายการจ่าย`} /></section><div className="commission-console__staff-filter"><CalendarDays size={16} /><input type="date" value={dateFrom} onChange={event => setDateFrom(event.target.value)} /><span>—</span><input type="date" value={dateTo} onChange={event => setDateTo(event.target.value)} /></div><section className="commission-console__staff-list"><header><h2>ค่าคอมของฉัน</h2><span>{pending.length} บิล · {pendingHourly.length} ชั่วโมงรอจ่าย</span></header>{loading ? <p className="commission-console__side-empty">กำลังโหลด…</p> : <>{distributions.map(row => <div className="commission-console__staff-row" key={row.id}><span><strong>{row.bill?.bill_number || 'บิล'}</strong><small>{row.bill?.branches?.name || '—'} · {row.commission_policy === 'garage_technician_clock_in' ? 'Ghost Lab Garage · ค่าคอมต่อบิล' : row.commission_policy === 'sabinagisa_commission_pool' ? 'SABINAGISA · Pool เดิม' : new Date(row.created_at).toLocaleDateString('th-TH')}</small></span><b>{money(row.amount)}</b><StatusBadge status={row.paid_at ? 'paid' : 'pending'} /></div>)}{hourlyCommissions.map(row => <div className="commission-console__staff-row" key={row.id}><span><strong>ค่าคอมช่าง · ครบ 1 ชั่วโมง</strong><small>{new Date(row.period_start).toLocaleString('th-TH')} – {new Date(row.period_end).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',hour12:false})} · {row.amount===15000?'Peak':'ปกติ'}</small></span><b>{money(row.amount)}</b><StatusBadge status={row.paid_at ? 'paid' : 'pending'} /></div>)}</> }<div className="commission-console__staff-history">{payouts.map(payout => <div key={payout.id}><span><strong>{money(payout.total_amount)}</strong><small>{payout.branches?.name || '—'} · {new Date(payout.paid_at).toLocaleDateString('th-TH')}</small></span>{!payout.acknowledged_at ? <button type="button" className="commission-console__pay-button" disabled={acknowledging === payout.id} onClick={() => onAcknowledge(payout.id)}><Check size={15} /> {acknowledging === payout.id ? 'กำลังบันทึก…' : 'ได้รับแล้ว'}</button> : <StatusBadge status="paid" />}</div>)}</div></section></>
 }
