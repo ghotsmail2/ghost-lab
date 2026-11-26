@@ -19,24 +19,30 @@ const layout = [
   { setId: anotherOption.id, itemIds: [], variantGroup: 'SUN SET', variantLabel: 'B' },
 ]
 
-test('Configured groups support independent options and keep original service records in the bill', () => {
-  const defaultCards = arrangeMenuCards(services, layout)
-  const selectedCards = arrangeMenuCards(services, layout, { 'sabi yoru set': withAlcohol.id, 'sun set': anotherOption.id })
-  assert.equal(defaultCards[0].selected.service, without)
-  assert.equal(selectedCards[0].selected.service, withAlcohol)
-  assert.equal(defaultCards[0].menuCardKey, selectedCards[0].menuCardKey)
-  assert.deepEqual(defaultCards.slice(1, 4).map(card => card.id), [unagi.id, highball.id, aoba.id])
-  assert.deepEqual(selectedCards.slice(1, 4).map(card => card.id), [unagi.id, highball.id, ume.id])
-  assert.equal(selectedCards[4].selected.service, anotherOption)
+test('The set has two checkout options and shows every standalone menu from both options', () => {
+  const [yoru, ...remaining] = arrangeMenuCards(services, layout)
+  assert.equal(yoru.title, 'SABI YORU SET')
+  assert.deepEqual(yoru.variantOptions, [
+    { service: without, label: 'ไม่มีแอลกอฮอล์' },
+    { service: withAlcohol, label: 'มีแอลกอฮอล์' },
+  ])
+  assert.deepEqual(remaining.slice(0, 4).map(card => card.id), [unagi.id, highball.id, aoba.id, ume.id])
+  assert.equal(remaining.length, 5)
+  assert.deepEqual(remaining[4].variantOptions.map(({ service }) => service), [another, anotherOption])
   assert.deepEqual(arrangeMenuCards([aoba, ume], layout).map(card => card.id), [aoba.id, ume.id])
+})
+
+test('Menus from a hidden set option remain available when the menus are visible on their own', () => {
+  const cards = arrangeMenuCards([without, unagi, highball, aoba, ume], layout)
+  assert.deepEqual(cards.map(card => card.id), [without.id, unagi.id, highball.id, aoba.id, ume.id])
 })
 
 test('Configured variants move together and old ungrouped settings still work', () => {
   const positions = menuPositions(menuGroups(services, layout))
   assert.deepEqual(positions.map(position => position.map(group => group.setId)), [[without.id, withAlcohol.id], [another.id, anotherOption.id]])
   const cards = arrangeMenuCards(services, [positions[1], positions[0]].flat())
-  assert.equal(cards[0].selected.service, another)
-  assert.equal(cards[1].selected.service, without)
+  assert.equal(cards[0].title, 'SUN SET')
+  assert.equal(cards[1].title, 'SABI YORU SET')
   assert.equal(arrangeMenuCards([without, unagi], [{ setId: without.id, itemIds: [unagi.id] }])[0], without)
   assert.equal(arrangeMenuCards([without], layout)[0], without)
 })
