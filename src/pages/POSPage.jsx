@@ -140,7 +140,6 @@ function NewBillTab({ branch, title, staff }) {
   })
   const [services, setServices] = useState([])
   const [activeCat, setActiveCat] = useState('all')
-  const [selectedVariants, setSelectedVariants] = useState({})
   const [serviceSearch, setServiceSearch] = useState('')
   const [cart, setCart] = useState(() => Array.isArray(initialDraft?.cart) ? initialDraft.cart : [])
   const [plate, setPlate] = useState(() => initialDraft?.plate || '')
@@ -233,7 +232,7 @@ function NewBillTab({ branch, title, staff }) {
   const matchingServices = (selectedCategory === 'all' ? services : services.filter(s => s.category === selectedCategory))
     .filter(service => matchesMenuSearch(service, serviceSearch))
   const visible = branch.key === 'chill' && ['all', 'set'].includes(selectedCategory.trim().toLowerCase())
-    ? arrangeMenuCards(matchingServices, branch.menu_layout, selectedVariants)
+    ? arrangeMenuCards(matchingServices, branch.menu_layout)
     : matchingServices
   const cartTotal = cart.reduce((a, s) => a + s.price, 0)
   const cartLines = Object.values(cart.reduce((lines, service) => {
@@ -413,8 +412,8 @@ function NewBillTab({ branch, title, staff }) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
             {visible.map(s => s.variantOptions ? (
-              <SetVariantCard key={s.menuCardKey} card={s} onSelect={id => setSelectedVariants(current => ({ ...current, [s.groupKey]: id }))} onAdd={addToCart}
-                disabled={submitting} imageUrl={s.selected.service.image_url} />
+              <SetVariantCard key={s.menuCardKey} card={s} onAdd={addToCart}
+                disabled={submitting} imageUrl={s.variantOptions[0].service.image_url} />
             ) : (
               <button type="button" key={s.menuCardKey ?? s.id} onClick={() => addToCart(s)} className="panel" style={{ color: 'inherit', cursor: 'pointer', font: 'inherit', textAlign: 'left', width: '100%' }}>
                 <div style={{ fontSize: 9, color: 'var(--ghost-gray)', textTransform: 'uppercase', marginBottom: 4 }}>{s.category}</div>
