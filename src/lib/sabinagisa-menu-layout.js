@@ -37,28 +37,25 @@ export function menuPositions(groups) {
 
 export function arrangeMenuCards(services, layout) {
   const byId = new Map(services.map(service => [service.id, service]))
-  const cards = []
-  const grouped = new Set()
+  const sets = []
+  const standaloneIds = new Set()
   for (const position of menuPositions(menuGroups(services, layout))) {
-    for (const { setId } of position) grouped.add(setId)
     const first = position[0]
-    let cardKey = first.setId
     if (position.length > 1) {
-      cardKey = `set-group:${groupKey(first)}`
       const variantOptions = position.map(group => ({
         service: byId.get(group.setId),
         label: group.variantLabel.trim() || byId.get(group.setId).name,
       }))
-      cards.push({ title: first.variantGroup.trim(), menuCardKey: cardKey, variantOptions })
+      sets.push({ title: first.variantGroup.trim(), menuCardKey: `set-group:${groupKey(first)}`, variantOptions })
     } else {
-      cards.push(byId.get(first.setId))
+      sets.push(byId.get(first.setId))
     }
-    for (const id of new Set(position.flatMap(group => group.itemIds))) {
-      grouped.add(id)
-      cards.push({ ...byId.get(id), menuCardKey: `${cardKey}:${id}` })
-    }
+    for (const group of position) for (const id of group.itemIds) standaloneIds.add(id)
   }
-  return [...cards, ...services.filter(service => !grouped.has(service.id))]
+  for (const service of services) if (!isSet(service)) standaloneIds.add(service.id)
+  const standalone = [...standaloneIds].map(id => byId.get(id))
+  if (sets.length && standalone.length) standalone[0] = { ...standalone[0], startsStandaloneRow: true }
+  return [...sets, ...standalone]
 }
 
 export function indexServiceMaterials(rows) {
