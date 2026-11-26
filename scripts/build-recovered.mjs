@@ -1056,11 +1056,10 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       content = 'import { matchesMenuSearch, MenuVisibilityCheckbox, showsInNewBill } from "./menu-visibility.js";\n' + content
 
       const setVariantPatches = [
-        ['    [b, y] = i.useState("all"),', '    [b, y] = i.useState("all"),\n    [selectedVariants, setSelectedVariants] = i.useState({}),'],
         ['X = n.key === "chill" && selectedCategory === "all" ? arrangeMenuCards(matchingServices, n.menu_layout) : matchingServices',
-          'X = n.key === "chill" && ["all", "set"].includes(selectedCategory.trim().toLowerCase()) ? arrangeMenuCards(matchingServices, n.menu_layout, selectedVariants) : matchingServices'],
+          'X = n.key === "chill" && ["all", "set"].includes(selectedCategory.trim().toLowerCase()) ? arrangeMenuCards(matchingServices, n.menu_layout) : matchingServices'],
         ['children: [X.map(t => e.jsxs("div", {',
-          'children: [X.map(t => t.variantOptions ? e.jsx(SetVariantCard, { card: t, onSelect: id => setSelectedVariants(current => ({ ...current, [t.groupKey]: id })), onAdd: me, disabled: f, imageUrl: chillMenuImage(t.selected.service) }, t.menuCardKey) : e.jsxs("div", {'],
+          'children: [X.map(t => t.variantOptions ? e.jsx(SetVariantCard, { card: t, onAdd: me, disabled: f, imageUrl: chillMenuImage(t.variantOptions[0].service) }, t.menuCardKey) : e.jsxs("div", {'],
       ]
       for (const [anchor, replacement] of setVariantPatches) {
         if (content.split(anchor).length !== 2) throw new Error('Recovered POS set variant anchor changed: ' + anchor)
