@@ -141,6 +141,8 @@ const garageVehiclePricingHelper = path.join(projectRoot, 'src', 'lib', 'garage-
 digest.update('garage-vehicle-pricing-helper').update(await readFile(garageVehiclePricingHelper))
 const menuLayoutSource = await readFile(path.join(projectRoot, 'src', 'pages', 'MenuLayoutEditor.jsx'), 'utf8')
 digest.update('menu-layout-editor').update(menuLayoutSource)
+const menuVisibilitySource = await readFile(path.join(projectRoot, 'src', 'pages', 'MenuVisibility.jsx'), 'utf8')
+digest.update('menu-visibility').update(menuVisibilitySource)
 const loginStylesheet = path.join(projectRoot, 'src', 'pages', 'Login.css')
 const loginArtwork = path.join(projectRoot, 'src', 'assets', 'login-courtyard-v1.png')
 const garageArtwork = path.join(projectRoot, 'src', 'assets', 'dashboard-garage-v1.png')
@@ -423,6 +425,12 @@ const { code: menuLayoutCode } = await transformJsx(
   { loader: 'jsx', format: 'esm' },
 )
 await writeFile(path.join(versionedRoot, 'menu-layout-editor.js'), menuLayoutCode)
+const { code: menuVisibilityCode } = await transformJsx(
+  menuVisibilitySource.replace("import React from 'react'\nimport { supabase } from '../lib/supabase'",
+    'import { r as React, s as supabase } from "./index-vaWnYKxf.js"'),
+  { loader: 'jsx', format: 'esm' },
+)
+await writeFile(path.join(versionedRoot, 'menu-visibility.js'), menuVisibilityCode)
 for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/.test(file))) {
   let content = await readFile(file, 'utf8')
   if (file.endsWith('index-C51IvSgf.css')) {
@@ -965,17 +973,18 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       ].join('\n')
       const livePosServicesLoad = `  i.useEffect(() => {
     let active = true;
-    const refreshServices = () => x.from("services").select("*").eq("branch_id", n.id).eq("active", true).then(({data,error}) => {
+    const refreshServices = async () => {
+      const query = x.from("services").select("*").eq("branch_id", n.id).eq("active", true);
+      const {data,error} = await (n.key === "chill" ? query.eq("show_in_new_bill", true) : query);
       if (error) { console.error(error); return; }
       if (active) h((data || []).filter(service => visibleService(service, n.key)));
-    });
+    };
     refreshServices();
     const timer = setInterval(refreshServices, 5000);
     return () => { active = false; clearInterval(timer); };
   }, [n]),`
       if (content.includes(stalePosServicesLoad)) content = content.replace(stalePosServicesLoad, livePosServicesLoad)
-      else if (!content.includes('setInterval(refreshServices, 5000)')) throw new Error('POS service-price refresh anchor changed; refusing to leave prices stale after catalog edits.')
-      if (!content.includes('setInterval(refreshServices, 5000)')) throw new Error('POS is missing live Garage service-price refresh.')
+      else if (!content.includes(livePosServicesLoad)) throw new Error('POS service refresh anchor changed; verify the live catalog filter.')
 
       const menuLayoutPatches = [
         ['y === "services" && o && e.jsx(Re, {\n      branch: h',
@@ -994,6 +1003,38 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
         content = content.replace(anchor, replacement)
       }
       content = 'import { arrangeMenuCards, MenuLayoutEditor } from "./menu-layout-editor.js";\n' + content
+
+      const menuVisibilityPatches = [
+        ['    matchingServices = (b === "all" ? g : g.filter(t => t.category === b))',
+          '    selectedCategory = xe.includes(b) ? b : "all",\n    matchingServices = (selectedCategory === "all" ? g : g.filter(t => t.category === selectedCategory))'],
+        ['n.key === "chill" && b === "all" ? arrangeMenuCards', 'n.key === "chill" && selectedCategory === "all" ? arrangeMenuCards'],
+        ['          children: xe.map(t => e.jsx("div", {\n            onClick: () => y(t),',
+          '          children: xe.map(t => e.jsx("button", {\n            type: "button",\n            "aria-pressed": selectedCategory === t,\n            onClick: () => y(t),'],
+        [String.raw`children: '\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1A\u0E23\u0E34\u0E01\u0E32\u0E23\u0E43\u0E19\u0E2A\u0E32\u0E02\u0E32\u0E19\u0E35\u0E49`,
+          String.raw`children: n.key === "chill" ? "ยังไม่มีเมนูที่เปิดขาย" : '\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E1A\u0E23\u0E34\u0E01\u0E32\u0E23\u0E43\u0E19\u0E2A\u0E32\u0E02\u0E32\u0E19\u0E35\u0E49`],
+        ['    [y, j] = i.useState({});\n  i.useEffect(() => {\n    k();',
+          '    [y, j] = i.useState({}),\n    [menuSearch, setMenuSearch] = i.useState(""),\n    [focusedMenuId, setFocusedMenuId] = i.useState(null);\n  i.useEffect(() => {\n    k();'],
+        ['      price: 0,\n      active: true\n    }).select().single();',
+          '      price: 0,\n      active: true,\n      ...(n.key === "chill" ? { show_in_new_bill: false } : {})\n    }).select().single();'],
+        ['    p(c => [...c, s]);', '    p(c => [...c, s]);\n    setMenuSearch("");'],
+        ['  const serviceGridColumns =', '  const matchingMenus = n.key === "chill"\n    ? a.filter(service => service.id === focusedMenuId || matchesMenuSearch(service, menuSearch))\n    : a;\n  const serviceGridColumns ='],
+        ['children: [a.length, " services available", n.key === "garage"',
+          'children: n.key === "chill" ? `แสดงใน New Bill ${a.filter(showsInNewBill).length} จาก ${a.length} เมนู` : [a.length, " services available", n.key === "garage"'],
+        ['    }) : e.jsxs("div", {\n      children: [e.jsxs("div", {\n        style: {\n          display: "grid",\n          gridTemplateColumns: serviceGridColumns,',
+          '    }) : e.jsxs("div", {\n      children: [n.key === "chill" && e.jsx("input", { className: "input", type: "search", "aria-label": "ค้นหาเมนูใน Services", placeholder: "ค้นหาชื่อเมนูหรือหมวดหมู่", value: menuSearch, onChange: event => setMenuSearch(event.target.value), style: { marginBottom: 12, maxWidth: "100%", width: 320 } }), e.jsxs("div", {\n        style: {\n          display: "grid",\n          gridTemplateColumns: serviceGridColumns,'],
+        ['      }), a.map(s => e.jsxs("div", {\n        style:',
+          '      }), matchingMenus.map(s => e.jsxs("div", {\n        onFocus: n.key === "chill" ? () => setFocusedMenuId(s.id) : undefined,\n        onBlur: n.key === "chill" ? event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocusedMenuId(null); } : undefined,\n        style:'],
+        ['          }), n.key === "chill" && e.jsxs("label", {\n            className: "btn btn-secondary",',
+          '          }), n.key === "chill" && e.jsx(MenuVisibilityCheckbox, { branchId: n.id, service: s, onSaved: show => m(s.id, "show_in_new_bill", show) }), n.key === "chill" && e.jsxs("label", {\n            className: "btn btn-secondary",'],
+        ['      }, s.id)), a.length === 0 && e.jsx("div", {',
+          '      }, s.id)), a.length > 0 && matchingMenus.length === 0 && e.jsx("p", { role: "status", children: "ไม่พบเมนูที่ค้นหา" }), a.length === 0 && e.jsx("div", {'],
+      ]
+      for (const [anchor, replacement] of menuVisibilityPatches) {
+        if (content.split(anchor).length !== 2) throw new Error('Recovered POS menu visibility anchor changed: ' + anchor)
+        content = content.replace(anchor, replacement)
+      }
+      content = content.replaceAll('b === t ?', 'selectedCategory === t ?')
+      content = 'import { matchesMenuSearch, MenuVisibilityCheckbox, showsInNewBill } from "./menu-visibility.js";\n' + content
 
       const standardPriceField = 'className: "input font-mono",\n            value: s.price'
       if (content.includes(standardPriceField)) content = content.replace(standardPriceField, 'className: "input font-mono",\n            type: "number",\n            min: 0,\n            step: 1,\n            inputMode: "numeric",\n            "aria-label": `ราคา Standard ${s.name}`,\n            value: s.price')
