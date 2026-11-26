@@ -4,8 +4,9 @@ import { useAuth } from '../context/AuthContext'
 import { calculateMemberDiscount, formatDate, getMembershipPlan, nextMonthlyExpiry } from '../lib/membership'
 import { calculateSabinagisaCommissionPool, commissionPolicyForEmployee } from '../lib/commission-pool'
 import { supabase } from '../lib/supabase'
-import { arrangeMenuCards, MenuLayoutEditor, SetVariantCard } from './MenuLayoutEditor'
+import { arrangeMenuCards, MenuLayoutEditor, SetVariantCard, StandaloneMenuCard } from './MenuLayoutEditor'
 import { matchesMenuSearch, MenuVisibilityCheckbox, showsInNewBill } from './MenuVisibility'
+import './SabinagisaMenu.css'
 
 function createBillNumber(branchKey) {
   const randomPart = globalThis.crypto?.randomUUID?.().replaceAll('-', '').slice(0, 8).toUpperCase()
@@ -410,10 +411,13 @@ function NewBillTab({ branch, title, staff }) {
               </button>
             ))}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+          <div className={branch.key === 'chill' ? 'pos-service-grid pos-menu-grid' : undefined}
+            style={branch.key === 'chill' ? undefined : { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
             {visible.map(s => s.variantOptions ? (
               <SetVariantCard key={s.menuCardKey} card={s} onAdd={addToCart}
                 disabled={submitting} imageUrl={s.variantOptions[0].service.image_url} />
+            ) : branch.key === 'chill' ? (
+              <StandaloneMenuCard key={s.id} service={s} onAdd={addToCart} disabled={submitting} imageUrl={s.image_url} />
             ) : (
               <button type="button" key={s.menuCardKey ?? s.id} onClick={() => addToCart(s)} className="panel" style={{ color: 'inherit', cursor: 'pointer', font: 'inherit', textAlign: 'left', width: '100%' }}>
                 <div style={{ fontSize: 9, color: 'var(--ghost-gray)', textTransform: 'uppercase', marginBottom: 4 }}>{s.category}</div>
