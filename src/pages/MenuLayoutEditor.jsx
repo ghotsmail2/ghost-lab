@@ -5,44 +5,57 @@ import { combineMenuMaterials, indexServiceMaterials, isSet, materialRows, menuG
 
 export { arrangeMenuCards } from '../lib/sabinagisa-menu-layout.js'
 
+const menuMoney = value => `¥${Number(value).toLocaleString()}`
+
+function MenuCardContent({ name, category, price, imageUrl }) {
+  return <>
+    <span className="pos-menu-card__image">
+      {imageUrl && <img key={imageUrl} src={imageUrl} alt="" loading="lazy" onError={event => { event.currentTarget.style.visibility = 'hidden' }} />}
+    </span>
+    <span className="pos-menu-card__body">
+      <span className="pos-menu-card__category">{category}</span>
+      <strong className="pos-menu-card__name" title={name}>{name}</strong>
+      <span className="font-mono pos-menu-card__price">{price}</span>
+    </span>
+  </>
+}
+
+export function StandaloneMenuCard({ service, onAdd, disabled, imageUrl }) {
+  const className = `panel pos-menu-card${service.startsStandaloneRow ? ' pos-menu-card--start-row' : ''}`
+  return <button type="button" className={className} disabled={disabled} onClick={() => onAdd(service)} aria-label={`เพิ่ม ${service.name}`}>
+    <MenuCardContent name={service.name} category={service.category} price={menuMoney(service.price)} imageUrl={imageUrl} />
+    <span className="pos-menu-card__add" aria-hidden="true">+</span>
+  </button>
+}
+
 export function SetVariantCard({ card, onAdd, disabled, imageUrl }) {
-  const [expanded, setExpanded] = React.useState(false)
+  const dialog = React.useRef(null)
+  const headingId = React.useId()
   const [pickedId, setPickedId] = React.useState(null)
   const selected = card.variantOptions.find(({ service }) => service.id === pickedId)?.service
   const prices = card.variantOptions.map(({ service }) => Number(service.price))
   const minPrice = Math.min(...prices)
   const maxPrice = Math.max(...prices)
-  const money = value => `¥${Number(value).toLocaleString()}`
+  const price = minPrice === maxPrice ? menuMoney(minPrice) : `${menuMoney(minPrice)}–${menuMoney(maxPrice)}`
 
-  function toggleOptions() {
-    setPickedId(null)
-    setExpanded(!expanded)
-  }
-
-  return <article className="panel pos-set-variants" style={{ position: 'relative', overflow: 'hidden', paddingBottom: 40 }}>
-    {imageUrl && <div style={{ height: 92, margin: '-12px -12px 10px', background: '#090a0c', textAlign: 'center' }}>
-      <img key={imageUrl} src={imageUrl} alt="" loading="lazy" style={{ height: '100%', width: '100%', objectFit: 'contain' }} />
-    </div>}
-    <header style={{ display: 'grid', gap: 4 }}>
-      <small style={{ color: 'var(--ghost-gray)', fontSize: 9 }}>SET</small>
-      <strong style={{ fontSize: 13 }}>{card.title}</strong>
-      <span className="font-mono" style={{ fontSize: 13, fontWeight: 600 }}>{minPrice === maxPrice ? money(minPrice) : `${money(minPrice)}–${money(maxPrice)}`}</span>
-    </header>
-    {expanded && <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
-      {card.variantOptions.map(({ service, label }) => <button key={service.id} type="button" className="btn" disabled={disabled}
-        aria-pressed={pickedId === service.id} style={{ fontSize: 11, borderColor: pickedId === service.id ? 'var(--blood)' : undefined }}
-        onClick={() => setPickedId(service.id)}>
-        {label}{minPrice !== maxPrice && ` · ${money(service.price)}`}
-      </button>)}
-      <button type="button" className="btn btn-primary" disabled={disabled || !selected} style={{ fontSize: 11 }} onClick={() => {
-        onAdd(selected)
-        toggleOptions()
-      }}>เพิ่มเซ็ต</button>
-    </div>}
-    <button type="button" disabled={disabled} aria-expanded={expanded} aria-label={`${expanded ? 'ปิดตัวเลือก' : 'เลือกแบบ'} ${card.title}`} onClick={toggleOptions}
-      style={{ position: 'absolute', right: 11, bottom: 10, width: 27, height: 27, padding: 0, border: 0, borderRadius: '50%', background: '#d92d20', color: '#fff', cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>
-      {expanded ? '×' : '+'}
-    </button>
+  return <article className="panel pos-menu-card">
+    <MenuCardContent name={card.title} category="SET" price={price} imageUrl={imageUrl} />
+    <button type="button" className="pos-menu-card__add" disabled={disabled} aria-haspopup="dialog" aria-label={`เลือกแบบ ${card.title}`}
+      onClick={() => dialog.current.showModal()}>+</button>
+    <dialog ref={dialog} className="pos-menu-chooser" aria-labelledby={headingId} onClose={() => setPickedId(null)}>
+      <strong id={headingId}>{card.title}</strong>
+      <div className="pos-menu-chooser__controls">
+        {card.variantOptions.map(({ service, label }) => <button key={service.id} type="button" className="btn" disabled={disabled}
+          aria-pressed={pickedId === service.id} onClick={() => setPickedId(service.id)}>
+          {label}{minPrice !== maxPrice && ` · ${menuMoney(service.price)}`}
+        </button>)}
+        <button type="button" className="btn btn-primary" disabled={disabled || !selected} onClick={() => {
+          onAdd(selected)
+          dialog.current.close()
+        }}>เพิ่มเซ็ต</button>
+        <button type="button" className="btn" onClick={() => dialog.current.close()}>ปิด</button>
+      </div>
+    </dialog>
   </article>
 }
 
