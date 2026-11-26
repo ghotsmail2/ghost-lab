@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { ROLE_LABELS } from '../lib/roles'
+import ProfilePendingCommission from '../components/ProfilePendingCommission'
 
 export default function Profile() {
   const { staff } = useAuth()
@@ -49,8 +50,6 @@ export default function Profile() {
   }
 
   const totalEarned = allBills.reduce((a, b) => a + (b.commission || 0), 0)
-  const pendingPeriods = payPeriods.filter(p => p.status === 'pending')
-  const pendingAmount = pendingPeriods.reduce((a, p) => a + p.amount, 0)
 
   if (!staff) return null
 
@@ -77,12 +76,8 @@ export default function Profile() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 16 }}>
-        <div className="panel">
-          <div style={{ fontSize: 11, color: 'var(--ghost-gray)', textTransform: 'uppercase', marginBottom: 8 }}>ค้างจ่าย · PENDING</div>
-          <div className="font-mono" style={{ fontSize: 22, fontWeight: 700, color: 'var(--blood)' }}>¥{pendingAmount.toLocaleString()}</div>
-          <div style={{ fontSize: 11, color: 'var(--ghost-gray)', marginTop: 6 }}>{pendingPeriods.length} งวด</div>
-        </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 235px), 1fr))', gap: 14, marginBottom: 16 }}>
+        <ProfilePendingCommission supabase={supabase} staffId={staff.id} attendanceId={openEntry?.id} />
         <div className="panel">
           <div style={{ fontSize: 11, color: 'var(--ghost-gray)', textTransform: 'uppercase', marginBottom: 8 }}>TOTAL EARNED</div>
           <div className="font-mono" style={{ fontSize: 22, fontWeight: 700 }}>¥{totalEarned.toLocaleString()}</div>
