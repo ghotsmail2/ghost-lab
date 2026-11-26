@@ -35,30 +35,27 @@ export function menuPositions(groups) {
   return positions
 }
 
-export function arrangeMenuCards(services, layout, selectedVariants = {}) {
+export function arrangeMenuCards(services, layout) {
   const byId = new Map(services.map(service => [service.id, service]))
   const cards = []
   const grouped = new Set()
   for (const position of menuPositions(menuGroups(services, layout))) {
-    for (const { setId, itemIds } of position) {
-      grouped.add(setId)
-      for (const id of itemIds) grouped.add(id)
-    }
+    for (const { setId } of position) grouped.add(setId)
     const first = position[0]
-    let displayedGroup = first
+    let cardKey = first.setId
     if (position.length > 1) {
-      const key = groupKey(first)
-      displayedGroup = position.find(group => group.setId === selectedVariants[key]) || first
-      const options = position.map(group => ({
+      cardKey = `set-group:${groupKey(first)}`
+      const variantOptions = position.map(group => ({
         service: byId.get(group.setId),
         label: group.variantLabel.trim() || byId.get(group.setId).name,
       }))
-      cards.push({ groupKey: key, title: first.variantGroup.trim(), menuCardKey: `set-group:${key}`, variantOptions: options, selected: options[position.indexOf(displayedGroup)] })
+      cards.push({ title: first.variantGroup.trim(), menuCardKey: cardKey, variantOptions })
     } else {
       cards.push(byId.get(first.setId))
     }
-    for (const id of displayedGroup.itemIds) {
-      cards.push({ ...byId.get(id), menuCardKey: `${displayedGroup.setId}:${id}` })
+    for (const id of new Set(position.flatMap(group => group.itemIds))) {
+      grouped.add(id)
+      cards.push({ ...byId.get(id), menuCardKey: `${cardKey}:${id}` })
     }
   }
   return [...cards, ...services.filter(service => !grouped.has(service.id))]
