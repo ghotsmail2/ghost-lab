@@ -5,10 +5,14 @@ import { combineMenuMaterials, indexServiceMaterials, isSet, materialRows, menuG
 
 export { arrangeMenuCards } from '../lib/sabinagisa-menu-layout.js'
 
-export function SetVariantCard({ card, onSelect, onAdd, disabled, imageUrl }) {
+export function SetVariantCard({ card, onAdd, disabled, imageUrl }) {
   const [expanded, setExpanded] = React.useState(false)
   const [pickedId, setPickedId] = React.useState(null)
-  const selected = card.selected.service
+  const selected = card.variantOptions.find(({ service }) => service.id === pickedId)?.service
+  const prices = card.variantOptions.map(({ service }) => Number(service.price))
+  const minPrice = Math.min(...prices)
+  const maxPrice = Math.max(...prices)
+  const money = value => `¥${Number(value).toLocaleString()}`
 
   function toggleOptions() {
     setPickedId(null)
@@ -22,16 +26,15 @@ export function SetVariantCard({ card, onSelect, onAdd, disabled, imageUrl }) {
     <header style={{ display: 'grid', gap: 4 }}>
       <small style={{ color: 'var(--ghost-gray)', fontSize: 9 }}>SET</small>
       <strong style={{ fontSize: 13 }}>{card.title}</strong>
-      <span className="font-mono" style={{ fontSize: 13, fontWeight: 600 }}>¥{Number(selected.price).toLocaleString()}</span>
-      <small style={{ color: 'var(--ghost-gray)', fontSize: 11 }}>{card.selected.label}</small>
+      <span className="font-mono" style={{ fontSize: 13, fontWeight: 600 }}>{minPrice === maxPrice ? money(minPrice) : `${money(minPrice)}–${money(maxPrice)}`}</span>
     </header>
     {expanded && <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
       {card.variantOptions.map(({ service, label }) => <button key={service.id} type="button" className="btn" disabled={disabled}
         aria-pressed={pickedId === service.id} style={{ fontSize: 11, borderColor: pickedId === service.id ? 'var(--blood)' : undefined }}
-        onClick={() => { setPickedId(service.id); onSelect(service.id) }}>
-        {label}
+        onClick={() => setPickedId(service.id)}>
+        {label}{minPrice !== maxPrice && ` · ${money(service.price)}`}
       </button>)}
-      <button type="button" className="btn btn-primary" disabled={disabled || pickedId !== selected.id} style={{ fontSize: 11 }} onClick={() => {
+      <button type="button" className="btn btn-primary" disabled={disabled || !selected} style={{ fontSize: 11 }} onClick={() => {
         onAdd(selected)
         toggleOptions()
       }}>เพิ่มเซ็ต</button>
