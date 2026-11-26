@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { loadCommissionEntries, summarizePendingCommission } from '../src/lib/commission-payouts.js'
 
 const pos = await readFile(new URL('../src/pages/POSPage.jsx', import.meta.url), 'utf8')
 const expenses = await readFile(new URL('../src/pages/Expenses.jsx', import.meta.url), 'utf8')
@@ -10,6 +11,7 @@ const dailySummaryCss = await readFile(new URL('../src/pages/DailySummary.css', 
 const stock = await readFile(new URL('../src/pages/Stock.jsx', import.meta.url), 'utf8')
 const stockCss = await readFile(new URL('../src/pages/Stock.css', import.meta.url), 'utf8')
 const commission = await readFile(new URL('../src/pages/CommissionPayouts.jsx', import.meta.url), 'utf8')
+const commissionQueries = await readFile(new URL('../src/lib/commission-payouts.js', import.meta.url), 'utf8')
 const commissionCss = await readFile(new URL('../src/pages/CommissionPayouts.css', import.meta.url), 'utf8')
 const login = await readFile(new URL('../src/pages/Login.jsx', import.meta.url), 'utf8')
 const loginCss = await readFile(new URL('../src/pages/Login.css', import.meta.url), 'utf8')
@@ -74,10 +76,11 @@ test('Daily Closing Console source is used by production and keeps close-day per
 })
 
 test('Commission payout page uses distribution snapshots and existing authorized payout/acknowledgement RPCs', () => {
-  assert.match(commission, /from\('commission_distributions'\)/)
+  assert.match(commissionQueries, /from\('commission_distributions'\)/)
+  assert.match(commission, /loadCommissionEntries\(supabase, dateFrom, dateTo,/)
   assert.match(commission, /rpc\('pay_staff_commission'/)
   assert.match(commission, /rpc\('acknowledge_my_commission'/)
-  assert.match(commission, /p_bill_ids: selected\.unpaidEntries\.map\(row => row\.bill_id\)/)
+  assert.match(commission, /p_bill_ids: group\.unpaidEntries\.map\(row => row\.bill_id\)/)
   assert.match(commission, /Top Pending/)
   assert.match(commission, /commission-console__history-row/)
   assert.match(commission, /commission-console__select/)
@@ -86,6 +89,34 @@ test('Commission payout page uses distribution snapshots and existing authorized
   assert.match(commissionCss, /@media/)
   assert.match(builder, /CommissionPayouts-C8fCkOtW\.js/)
   assert.match(builder, /CommissionPayouts\.css/)
+})
+
+test('Profile pending commission matches payouts for the same employee, dates and branch', async () => {
+  const bill = (amount, status = 'approved', paid_at = null) => ({ amount, paid_at, bill: { status, branches: { key: 'chill' } } })
+  const records = {
+    commission_distributions: [bill('29187'), bill(4000, 'cancelled'), bill(2000, 'rejected'), bill(500, 'approved', '2026-11-12')],
+    garage_technician_hourly_commissions: [{ amount: 10000, paid_at: null, branches: { key: 'garage' } }],
+  }
+  const filters = []
+  const supabase = {
+    from(table) {
+      return {
+        select() { return this },
+        is() { return this },
+        order() { return this },
+        eq(column, value) { filters.push([table, column, value]); return this },
+        gte(column, value) { filters.push([table, column, value]); return this },
+        lt(column, value) { filters.push([table, column, value]); return this },
+        async range() { return { data: records[table], error: null } },
+      }
+    },
+  }
+  const { distributions, hourlyCommissions } = await loadCommissionEntries(supabase, '2026-11-01', '2026-11-26', 'greyson')
+  assert.ok(filters.some(([table, column, value]) => table === 'commission_distributions' && column === 'user_id' && value === 'greyson'))
+  assert.ok(filters.some(([table, column, value]) => table === 'garage_technician_hourly_commissions' && column === 'staff_id' && value === 'greyson'))
+  assert.ok(filters.some(([, column, value]) => column === 'created_at' && value === '2026-11-26T17:00:00.000Z'))
+  assert.deepEqual(summarizePendingCommission(distributions, hourlyCommissions, 'chill'), { bills: 1, hours: 0, amount: 29187 })
+  assert.deepEqual(summarizePendingCommission(distributions, hourlyCommissions), { bills: 1, hours: 1, amount: 39187 })
 })
 
 test('Stock dashboard uses Lucide-only icons with unified 48px KPI containers', () => {
