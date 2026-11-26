@@ -5,6 +5,7 @@ import { calculateMemberDiscount, formatDate, getMembershipPlan, nextMonthlyExpi
 import { calculateSabinagisaCommissionPool, commissionPolicyForEmployee } from '../lib/commission-pool'
 import { supabase } from '../lib/supabase'
 import { arrangeMenuCards, MenuLayoutEditor } from './MenuLayoutEditor'
+import { matchesMenuSearch, MenuVisibilityCheckbox, showsInNewBill } from './MenuVisibility'
 
 function createBillNumber(branchKey) {
   const randomPart = globalThis.crypto?.randomUUID?.().replaceAll('-', '').slice(0, 8).toUpperCase()
@@ -191,12 +192,17 @@ function NewBillTab({ branch, title, staff }) {
   }, [cart, plate, vehicle, notes, selfService, memberEnabled, manualDiscountPct, pendingCheckout, draftStorageKey])
 
   useEffect(() => {
-    supabase.from('services').select('*').eq('branch_id', branch.id).eq('active', true)
-      .then(({ data, error }) => {
-        if (error) console.error(error)
-        setServices(data || [])
-      })
-  }, [branch])
+    let active = true
+    const refreshServices = async () => {
+      const query = supabase.from('services').select('*').eq('branch_id', branch.id).eq('active', true)
+      const { data, error } = await (branch.key === 'chill' ? query.eq('show_in_new_bill', true) : query)
+      if (error) { console.error(error); return }
+      if (active) setServices(data || [])
+    }
+    refreshServices()
+    const timer = branch.key === 'chill' ? setInterval(refreshServices, 5000) : null
+    return () => { active = false; clearInterval(timer) }
+  }, [branch.id, branch.key])
 
   useEffect(() => {
     if (!customerQuery.trim()) { setCustomerResults([]); return }
@@ -222,12 +228,10 @@ function NewBillTab({ branch, title, staff }) {
   }, [selectedMember])
 
   const categories = ['all', ...new Set(services.map(s => s.category))]
-  const matchingServices = (activeCat === 'all' ? services : services.filter(s => s.category === activeCat))
-    .filter(service => {
-      const query = serviceSearch.trim().toLowerCase()
-      return !query || service.name.toLowerCase().includes(query) || service.category.toLowerCase().includes(query)
-    })
-  const visible = branch.key === 'chill' && activeCat === 'all'
+  const selectedCategory = categories.includes(activeCat) ? activeCat : 'all'
+  const matchingServices = (selectedCategory === 'all' ? services : services.filter(s => s.category === selectedCategory))
+    .filter(service => matchesMenuSearch(service, serviceSearch))
+  const visible = branch.key === 'chill' && selectedCategory === 'all'
     ? arrangeMenuCards(matchingServices, branch.menu_layout)
     : matchingServices
   const cartTotal = cart.reduce((a, s) => a + s.price, 0)
@@ -395,12 +399,12 @@ function NewBillTab({ branch, title, staff }) {
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
             {categories.map(cat => (
-              <button type="button" key={cat} onClick={() => setActiveCat(cat)} aria-pressed={activeCat === cat} className="btn" style={{
+              <button type="button" key={cat} onClick={() => setActiveCat(cat)} aria-pressed={selectedCategory === cat} className="btn" style={{
                 fontSize: 11, textTransform: 'uppercase',
                 fontFamily: 'inherit',
-                borderColor: activeCat === cat ? 'var(--blood)' : 'var(--line)',
-                color: activeCat === cat ? 'var(--bone)' : 'var(--ghost-gray)',
-                background: activeCat === cat ? 'rgba(196,30,42,0.14)' : 'rgba(255,255,255,0.02)',
+                borderColor: selectedCategory === cat ? 'var(--blood)' : 'var(--line)',
+                color: selectedCategory === cat ? 'var(--bone)' : 'var(--ghost-gray)',
+                background: selectedCategory === cat ? 'rgba(196,30,42,0.14)' : 'rgba(255,255,255,0.02)',
               }}>
                 {cat === 'all' ? 'ALL' : cat}
               </button>
@@ -416,7 +420,7 @@ function NewBillTab({ branch, title, staff }) {
             ))}
             {services.length === 0 && (
               <div style={{ gridColumn: '1/-1', color: 'var(--ghost-gray)', fontSize: 12 }}>
-                ยังไม่มีบริการในสาขานี้ — เพิ่มได้ที่แท็บ "Services"
+                {branch.key === 'chill' ? 'ยังไม่มีเมนูที่เปิดขาย' : 'ยังไม่มีบริการในสาขานี้ — เพิ่มได้ที่แท็บ "Services"'}
               </div>
             )}
             {services.length > 0 && visible.length === 0 && (
@@ -825,12 +829,18 @@ function BillHistoryRow({ bill, expanded, onToggle, canDelete, onDelete }) {
 // ---------------- Services Catalog ----------------
 function ServicesTab({ branch, onMenuLayoutSaved }) {
   const [services, setServices] = useState([])
+  const [menuSearch, setMenuSearch] = useState('')
+  const [focusedMenuId, setFocusedMenuId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState(null)
   const [materialCounts, setMaterialCounts] = useState({}) // { serviceId: count }
   const [actionError, setActionError] = useState('')
   const [creating, setCreating] = useState(false)
   const [removingId, setRemovingId] = useState(null)
+  const restaurant = branch.key === 'chill'
+  const matchingServices = restaurant
+    ? services.filter(service => service.id === focusedMenuId || matchesMenuSearch(service, menuSearch))
+    : services
 
   useEffect(() => { load() }, [branch.id])
 
@@ -879,9 +889,11 @@ function ServicesTab({ branch, onMenuLayoutSaved }) {
     try {
       const { data, error } = await supabase.from('services').insert({
         branch_id: branch.id, category: 'ทั่วไป', name: 'บริการใหม่', price: 0, active: true,
+        ...(restaurant ? { show_in_new_bill: false } : {}),
       }).select().single()
       if (error) throw error
       setServices(s => [...s, data])
+      setMenuSearch('')
     } catch (error) {
       console.error(error)
       setActionError('เพิ่มบริการไม่สำเร็จ กรุณาตรวจสิทธิ์และลองอีกครั้ง')
@@ -936,28 +948,37 @@ function ServicesTab({ branch, onMenuLayoutSaved }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
           <div className="font-display" style={{ fontSize: 16, fontWeight: 600, color: 'var(--blood)' }}>SERVICES CATALOG</div>
-          <div style={{ fontSize: 12, color: 'var(--ghost-gray)' }}>{services.length} services available</div>
+          <div style={{ fontSize: 12, color: 'var(--ghost-gray)' }}>{restaurant
+            ? `แสดงใน New Bill ${services.filter(showsInNewBill).length} จาก ${services.length} เมนู`
+            : `${services.length} services available`}</div>
         </div>
         <button type="button" onClick={addService} disabled={creating || loading} className="btn btn-primary">{creating ? 'กำลังเพิ่ม...' : '+ ADD SERVICE'}</button>
       </div>
 
-      {branch.key === 'chill' && <MenuLayoutEditor branch={branch} services={services} loading={loading} onSaved={onMenuLayoutSaved} />}
+      {restaurant && <MenuLayoutEditor branch={branch} services={services} loading={loading} onSaved={onMenuLayoutSaved} />}
       {actionError && <div role="alert" style={{ color: '#ff9a8c', fontSize: 12, marginBottom: 12 }}>{actionError}</div>}
       {loading ? <div style={{ color: 'var(--ghost-gray)', fontSize: 12 }}>กำลังโหลด...</div> : actionError?.startsWith('โหลดแคตตาล็อกบริการ') ? (
         <button type="button" className="btn" onClick={load}>ลองโหลดอีกครั้ง</button>
       ) : (
         <div>
+          {restaurant && <input className="input" type="search" aria-label="ค้นหาเมนูใน Services"
+            placeholder="ค้นหาชื่อเมนูหรือหมวดหมู่" value={menuSearch} onChange={event => setMenuSearch(event.target.value)}
+            style={{ marginBottom: 12, maxWidth: '100%', width: 320 }} />}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.3fr 1fr 1fr 1fr auto', gap: 10, padding: '0 0 10px', fontSize: 10, color: 'var(--ghost-gray)', textTransform: 'uppercase', letterSpacing: 1 }}>
             <div>Name</div><div>Category</div><div>Standard / Super Car (¥)</div><div>Materials</div><div>MT Loyalty</div><div></div>
           </div>
-          {services.map(s => (
-            <div key={s.id} style={{ borderBottom: '1px solid var(--line)' }}>
+          {matchingServices.map(s => (
+            <div key={s.id} style={{ borderBottom: '1px solid var(--line)' }}
+              onFocus={restaurant ? () => setFocusedMenuId(s.id) : undefined}
+              onBlur={restaurant ? event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocusedMenuId(null) } : undefined}>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.3fr 1fr 1fr 1fr auto', gap: 10, padding: '6px 0', alignItems: 'center' }}>
-                <input
-                  className="input" value={s.name}
-                  onChange={e => updateField(s.id, 'name', e.target.value)}
-                  onBlur={e => saveField(s.id, 'name', e.target.value)}
-                />
+                <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
+                  <input className="input" value={s.name}
+                    onChange={e => updateField(s.id, 'name', e.target.value)}
+                    onBlur={e => saveField(s.id, 'name', e.target.value)} />
+                  {restaurant && <MenuVisibilityCheckbox branchId={branch.id} service={s}
+                    onSaved={show => updateField(s.id, 'show_in_new_bill', show)} />}
+                </div>
                 <input
                   className="input" value={s.category}
                   onChange={e => updateField(s.id, 'category', e.target.value)}
@@ -1015,6 +1036,7 @@ function ServicesTab({ branch, onMenuLayoutSaved }) {
               ยังไม่มีบริการ — กด "+ ADD SERVICE" เพื่อเริ่มเพิ่ม
             </div>
           )}
+          {services.length > 0 && matchingServices.length === 0 && <p role="status">ไม่พบเมนูที่ค้นหา</p>}
         </div>
       )}
     </div>
