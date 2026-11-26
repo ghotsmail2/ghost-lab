@@ -20,16 +20,24 @@ const layout = [
 ]
 
 test('The set has two checkout options and shows every standalone menu from both options', () => {
-  const [yoru, ...remaining] = arrangeMenuCards(services, layout)
+  const [yoru, sun, ...remaining] = arrangeMenuCards(services, layout)
   assert.equal(yoru.title, 'SABI YORU SET')
   assert.deepEqual(yoru.variantOptions, [
     { service: without, label: 'ไม่มีแอลกอฮอล์' },
     { service: withAlcohol, label: 'มีแอลกอฮอล์' },
   ])
-  assert.deepEqual(remaining.slice(0, 4).map(card => card.id), [unagi.id, highball.id, aoba.id, ume.id])
-  assert.equal(remaining.length, 5)
-  assert.deepEqual(remaining[4].variantOptions.map(({ service }) => service), [another, anotherOption])
+  assert.deepEqual(remaining.map(card => card.id), [unagi.id, highball.id, aoba.id, ume.id])
+  assert.deepEqual(sun.variantOptions.map(({ service }) => service), [another, anotherOption])
   assert.deepEqual(arrangeMenuCards([aoba, ume], layout).map(card => card.id), [aoba.id, ume.id])
+})
+
+test('ALL orders three set cards before standalone menus and starts the first standalone on a fresh row', () => {
+  const extraSet = menu('sol', 'SOL SET')
+  const cards = arrangeMenuCards([...services, extraSet], [...layout, { setId: extraSet.id, itemIds: [unagi.id] }])
+  assert.deepEqual(cards.slice(0, 3).map(card => card.title || card.name), ['SABI YORU SET', 'SUN SET', 'SOL SET'])
+  assert.deepEqual(cards.slice(3).map(card => card.id), [unagi.id, highball.id, aoba.id, ume.id])
+  assert.deepEqual(cards.filter(card => card.startsStandaloneRow).map(card => card.id), [unagi.id])
+  assert.equal(arrangeMenuCards([unagi, ume], layout).some(card => card.startsStandaloneRow), false)
 })
 
 test('Menus from a hidden set option remain available when the menus are visible on their own', () => {
