@@ -9,10 +9,11 @@
 }
 
 .pos-service-grid.pos-menu-grid > .panel.pos-menu-card {
+  --pos-menu-image-height: 92px;
   box-sizing: border-box;
   position: relative;
   display: grid;
-  grid-template-rows: 92px minmax(0, 1fr);
+  grid-template-rows: var(--pos-menu-image-height) minmax(0, 1fr);
   width: 100%;
   height: 216px;
   min-width: 0;
@@ -101,32 +102,72 @@ button.pos-menu-card {
   line-height: 1;
 }
 
-button.pos-menu-card__add {
+.pos-menu-card__trigger {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: var(--pos-menu-image-height) minmax(0, 1fr);
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
-.pos-menu-chooser {
-  box-sizing: border-box;
-  width: min(400px, calc(100% - 32px));
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--static);
-  color: var(--bone);
+.pos-menu-card__trigger[hidden] {
+  display: none;
 }
 
-.pos-menu-chooser::backdrop {
-  background: rgb(0 0 0 / 62%);
+.pos-menu-card__trigger:focus-visible {
+  outline-offset: -3px !important;
 }
 
-.pos-menu-chooser__controls {
+.pos-menu-card > .pos-menu-chooser {
+  position: absolute;
+  inset: 0;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 8px;
-  margin-top: 12px;
+  padding: 10px;
 }
 
-.pos-menu-chooser__controls [aria-pressed='true'] {
-  border-color: var(--blood);
+.pos-menu-chooser__title {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pos-menu-chooser__options {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  overflow-y: auto;
+  padding: 3px;
+}
+
+.pos-menu-chooser__options .btn,
+.pos-menu-chooser__actions .btn {
+  min-height: 40px;
+  padding: 5px 6px;
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.pos-menu-chooser__options [aria-pressed='true'] {
+  border-color: var(--blood) !important;
+  box-shadow: inset 0 0 0 1px var(--blood);
+}
+
+.pos-menu-chooser__actions {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 6px;
 }
 
 @media (max-width: 1000px) {
