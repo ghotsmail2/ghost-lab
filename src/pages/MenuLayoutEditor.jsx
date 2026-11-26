@@ -29,8 +29,11 @@ export function StandaloneMenuCard({ service, onAdd, disabled, imageUrl }) {
 }
 
 export function SetVariantCard({ card, onAdd, disabled, imageUrl }) {
-  const dialog = React.useRef(null)
-  const headingId = React.useId()
+  const trigger = React.useRef(null)
+  const chooser = React.useRef(null)
+  const restoreFocus = React.useRef(false)
+  const chooserId = React.useId()
+  const [expanded, setExpanded] = React.useState(false)
   const [pickedId, setPickedId] = React.useState(null)
   const selected = card.variantOptions.find(({ service }) => service.id === pickedId)?.service
   const prices = card.variantOptions.map(({ service }) => Number(service.price))
@@ -38,24 +41,48 @@ export function SetVariantCard({ card, onAdd, disabled, imageUrl }) {
   const maxPrice = Math.max(...prices)
   const price = minPrice === maxPrice ? menuMoney(minPrice) : `${menuMoney(minPrice)}–${menuMoney(maxPrice)}`
 
+  React.useLayoutEffect(() => {
+    if (expanded) chooser.current?.focus({ preventScroll: true })
+    else if (restoreFocus.current) {
+      restoreFocus.current = false
+      trigger.current?.focus({ preventScroll: true })
+    }
+  }, [expanded])
+
+  function closeChooser() {
+    restoreFocus.current = true
+    setPickedId(null)
+    setExpanded(false)
+  }
+
   return <article className="panel pos-menu-card">
-    <MenuCardContent name={card.title} category="SET" price={price} imageUrl={imageUrl} />
-    <button type="button" className="pos-menu-card__add" disabled={disabled} aria-haspopup="dialog" aria-label={`เลือกแบบ ${card.title}`}
-      onClick={() => dialog.current.showModal()}>+</button>
-    <dialog ref={dialog} className="pos-menu-chooser" aria-labelledby={headingId} onClose={() => setPickedId(null)}>
-      <strong id={headingId}>{card.title}</strong>
-      <div className="pos-menu-chooser__controls">
+    <button ref={trigger} type="button" className="pos-menu-card__trigger" disabled={disabled} hidden={expanded}
+      aria-label={`เลือกแบบ ${card.title}`} onClick={() => setExpanded(true)}>
+      <MenuCardContent name={card.title} category="SET" price={price} imageUrl={imageUrl} />
+      <span className="pos-menu-card__add" aria-hidden="true">+</span>
+    </button>
+    {expanded && <div ref={chooser} className="pos-menu-chooser" role="group" aria-labelledby={chooserId} tabIndex={-1}
+      onKeyDown={event => {
+        if (event.key === 'Escape') {
+          event.stopPropagation()
+          closeChooser()
+        }
+      }}>
+      <strong id={chooserId} className="pos-menu-chooser__title" title={card.title}>{card.title}</strong>
+      <div className="pos-menu-chooser__options">
         {card.variantOptions.map(({ service, label }) => <button key={service.id} type="button" className="btn" disabled={disabled}
           aria-pressed={pickedId === service.id} onClick={() => setPickedId(service.id)}>
           {label}{minPrice !== maxPrice && ` · ${menuMoney(service.price)}`}
         </button>)}
+      </div>
+      <div className="pos-menu-chooser__actions">
+        <button type="button" className="btn" onClick={closeChooser}>ปิด</button>
         <button type="button" className="btn btn-primary" disabled={disabled || !selected} onClick={() => {
           onAdd(selected)
-          dialog.current.close()
+          closeChooser()
         }}>เพิ่มเซ็ต</button>
-        <button type="button" className="btn" onClick={() => dialog.current.close()}>ปิด</button>
       </div>
-    </dialog>
+    </div>}
   </article>
 }
 
