@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { calculateMemberDiscount, formatDate, getMembershipPlan, nextMonthlyExpiry } from '../lib/membership'
 import { calculateSabinagisaCommissionPool, commissionPolicyForEmployee } from '../lib/commission-pool'
 import { supabase } from '../lib/supabase'
-import { arrangeMenuCards, MenuLayoutEditor } from './MenuLayoutEditor'
+import { arrangeMenuCards, MenuLayoutEditor, SetVariantCard } from './MenuLayoutEditor'
 import { matchesMenuSearch, MenuVisibilityCheckbox, showsInNewBill } from './MenuVisibility'
 
 function createBillNumber(branchKey) {
@@ -140,6 +140,7 @@ function NewBillTab({ branch, title, staff }) {
   })
   const [services, setServices] = useState([])
   const [activeCat, setActiveCat] = useState('all')
+  const [selectedVariants, setSelectedVariants] = useState({})
   const [serviceSearch, setServiceSearch] = useState('')
   const [cart, setCart] = useState(() => Array.isArray(initialDraft?.cart) ? initialDraft.cart : [])
   const [plate, setPlate] = useState(() => initialDraft?.plate || '')
@@ -231,8 +232,8 @@ function NewBillTab({ branch, title, staff }) {
   const selectedCategory = categories.includes(activeCat) ? activeCat : 'all'
   const matchingServices = (selectedCategory === 'all' ? services : services.filter(s => s.category === selectedCategory))
     .filter(service => matchesMenuSearch(service, serviceSearch))
-  const visible = branch.key === 'chill' && selectedCategory === 'all'
-    ? arrangeMenuCards(matchingServices, branch.menu_layout)
+  const visible = branch.key === 'chill' && ['all', 'set'].includes(selectedCategory.trim().toLowerCase())
+    ? arrangeMenuCards(matchingServices, branch.menu_layout, selectedVariants)
     : matchingServices
   const cartTotal = cart.reduce((a, s) => a + s.price, 0)
   const cartLines = Object.values(cart.reduce((lines, service) => {
@@ -411,7 +412,10 @@ function NewBillTab({ branch, title, staff }) {
             ))}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
-            {visible.map(s => (
+            {visible.map(s => s.variantOptions ? (
+              <SetVariantCard key={s.menuCardKey} card={s} onSelect={id => setSelectedVariants(current => ({ ...current, [s.groupKey]: id }))} onAdd={addToCart}
+                disabled={submitting} imageUrl={s.selected.service.image_url} />
+            ) : (
               <button type="button" key={s.menuCardKey ?? s.id} onClick={() => addToCart(s)} className="panel" style={{ color: 'inherit', cursor: 'pointer', font: 'inherit', textAlign: 'left', width: '100%' }}>
                 <div style={{ fontSize: 9, color: 'var(--ghost-gray)', textTransform: 'uppercase', marginBottom: 4 }}>{s.category}</div>
                 <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{s.name}</div>
@@ -955,7 +959,13 @@ function ServicesTab({ branch, onMenuLayoutSaved }) {
         <button type="button" onClick={addService} disabled={creating || loading} className="btn btn-primary">{creating ? 'กำลังเพิ่ม...' : '+ ADD SERVICE'}</button>
       </div>
 
-      {restaurant && <MenuLayoutEditor branch={branch} services={services} loading={loading} onSaved={onMenuLayoutSaved} />}
+      {restaurant && <MenuLayoutEditor branch={branch} services={services} loading={loading} onSaved={(layout, materials) => {
+        onMenuLayoutSaved(layout)
+        if (materials.length) {
+          setMaterialCounts(current => ({ ...current, ...Object.fromEntries(materials.map(({ serviceId, materials: rows }) => [serviceId, rows.length])) }))
+          setExpandedId(null)
+        }
+      }} />}
       {actionError && <div role="alert" style={{ color: '#ff9a8c', fontSize: 12, marginBottom: 12 }}>{actionError}</div>}
       {loading ? <div style={{ color: 'var(--ghost-gray)', fontSize: 12 }}>กำลังโหลด...</div> : actionError?.startsWith('โหลดแคตตาล็อกบริการ') ? (
         <button type="button" className="btn" onClick={load}>ลองโหลดอีกครั้ง</button>
