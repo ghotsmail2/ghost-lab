@@ -146,6 +146,8 @@ const menuLayoutSource = await readFile(path.join(projectRoot, 'src', 'pages', '
 digest.update('menu-layout-editor').update(menuLayoutSource)
 const menuLayoutHelper = path.join(projectRoot, 'src', 'lib', 'sabinagisa-menu-layout.js')
 digest.update('sabinagisa-menu-layout').update(await readFile(menuLayoutHelper))
+const sabinagisaMenuStyles = await readFile(path.join(projectRoot, 'src', 'pages', 'SabinagisaMenu.css'), 'utf8')
+digest.update('sabinagisa-menu-styles').update(sabinagisaMenuStyles)
 const menuVisibilitySource = await readFile(path.join(projectRoot, 'src', 'pages', 'MenuVisibility.jsx'), 'utf8')
 digest.update('menu-visibility').update(menuVisibilitySource)
 const loginStylesheet = path.join(projectRoot, 'src', 'pages', 'Login.css')
@@ -443,9 +445,9 @@ await writeFile(path.join(versionedRoot, 'menu-visibility.js'), menuVisibilityCo
 for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/.test(file))) {
   let content = await readFile(file, 'utf8')
   if (file.endsWith('index-C51IvSgf.css')) {
-    content += '\n.sabinagisa-pos .pos-service-grid>.panel.pos-set-variants:after{content:none}\n'
     content += premiumHospitalityCss + sharedThemeCss + await readFile(path.join(projectRoot, 'src', 'pages', 'Expenses.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'Stock.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'DailySummary.css'), 'utf8') + await readFile(path.join(projectRoot, 'src', 'pages', 'CommissionPayouts.css'), 'utf8') + fullWidthWorkspaceCss + kitchenMascotCss + await readFile(loginStylesheet, 'utf8') + loginHeroSeamlessCss + homeDashboardThemeCss
     content = content.replace(/\.sabinagisa-pos-inbox__chef-art\{[^}]*\}/g, '.sabinagisa-pos-inbox__chef-art{display:none!important;background-image:none!important}')
+    content += '\n' + sabinagisaMenuStyles
   }
   if (file.endsWith('.js')) {
     content = content
@@ -1021,7 +1023,7 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
         if (content.split(anchor).length !== 2) throw new Error('Recovered POS menu layout anchor changed: ' + anchor)
         content = content.replace(anchor, replacement)
       }
-      content = 'import { arrangeMenuCards, MenuLayoutEditor, SetVariantCard } from "./menu-layout-editor.js";\n' + content
+      content = 'import { arrangeMenuCards, MenuLayoutEditor, SetVariantCard, StandaloneMenuCard } from "./menu-layout-editor.js";\n' + content
 
       const menuVisibilityPatches = [
         ['    matchingServices = (b === "all" ? g : g.filter(t => t.category === b))',
@@ -1056,10 +1058,11 @@ for (const file of (await listFiles(versionedRoot)).filter(file => /\.(js|css)$/
       content = 'import { matchesMenuSearch, MenuVisibilityCheckbox, showsInNewBill } from "./menu-visibility.js";\n' + content
 
       const setVariantPatches = [
+        ['className: "pos-service-grid",', 'className: n.key === "chill" ? "pos-service-grid pos-menu-grid" : "pos-service-grid",'],
         ['X = n.key === "chill" && selectedCategory === "all" ? arrangeMenuCards(matchingServices, n.menu_layout) : matchingServices',
           'X = n.key === "chill" && ["all", "set"].includes(selectedCategory.trim().toLowerCase()) ? arrangeMenuCards(matchingServices, n.menu_layout) : matchingServices'],
         ['children: [X.map(t => e.jsxs("div", {',
-          'children: [X.map(t => t.variantOptions ? e.jsx(SetVariantCard, { card: t, onAdd: me, disabled: f, imageUrl: chillMenuImage(t.variantOptions[0].service) }, t.menuCardKey) : e.jsxs("div", {'],
+          'children: [X.map(t => t.variantOptions ? e.jsx(SetVariantCard, { card: t, onAdd: me, disabled: f, imageUrl: chillMenuImage(t.variantOptions[0].service) }, t.menuCardKey) : n.key === "chill" ? e.jsx(StandaloneMenuCard, { service: t, onAdd: me, disabled: f || !!t.pricingError, imageUrl: chillMenuImage(t) }, t.id) : e.jsxs("div", {'],
       ]
       for (const [anchor, replacement] of setVariantPatches) {
         if (content.split(anchor).length !== 2) throw new Error('Recovered POS set variant anchor changed: ' + anchor)
