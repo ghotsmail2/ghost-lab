@@ -8,6 +8,7 @@ const hourlyMigration = await readFile(new URL('../supabase/migrations/202610141
 const garageCheckoutHotfix = await readFile(new URL('../supabase/migrations/20261014150000_garage_pos_commission_mismatch_hotfix.sql', import.meta.url), 'utf8')
 const attendance = await readFile(new URL('../src/pages/Attendance.jsx', import.meta.url), 'utf8')
 const commissionHistory = await readFile(new URL('../src/pages/CommissionPayouts.jsx', import.meta.url), 'utf8')
+const commissionQueries = await readFile(new URL('../src/lib/commission-payouts.js', import.meta.url), 'utf8')
 const productionBuilder = await readFile(new URL('./build-recovered.mjs', import.meta.url), 'utf8')
 
 test('Garage commission clock-in boundaries use Bangkok time and end Peak exactly at 23:00', () => {
@@ -54,7 +55,7 @@ test('Garage keeps ¥3,000 per bill and records each full hour separately with i
   assert.match(hourlyMigration, /pay_garage_hourly_commission/)
   assert.match(hourlyMigration, /commission_pool_base/)
   assert.match(attendance, /ค่าคอมรายชั่วโมง: ¥10,000\/ชม\. · Peak ¥15,000\/ชม\./)
-  assert.match(commissionHistory, /garage_technician_hourly_commissions/)
+  assert.match(commissionQueries, /garage_technician_hourly_commissions/)
   assert.match(commissionHistory, /pay_garage_hourly_commission/)
   const hourlyMerge = commissionHistory.indexOf('for (const entry of hourlyCommissions)')
   const finalGroupingReturn = commissionHistory.indexOf('return [...map.values()].map(group => ({', hourlyMerge)
